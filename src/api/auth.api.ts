@@ -8,7 +8,7 @@ import {
   RefreshTokenRequest,
 } from '../types/auth.types';
 
-// ─── Register ────────────────────────────────────────────────────────────
+// ─── Register  register ────────────────────────────────────────────────────────────
 export const registerUser = async (data: RegisterRequest): Promise<AuthResponse> => {
   const response = await axiosInstance.post<AuthResponse>('/auth/register', data);
   return response.data;
