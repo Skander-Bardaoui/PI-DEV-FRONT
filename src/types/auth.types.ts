@@ -30,9 +30,40 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+  // User Info
   email: string;
   name: string;
   password: string;
+  phone_number?: string;
+  
+  // Tenant Info
+  tenant: {
+    name: string;
+    domain?: string;
+    contactEmail?: string;
+    description?: string;
+  };
+  
+  // Business Info
+  business: {
+    name: string;
+    logo?: string;
+    tax_id?: string;
+    currency: string;
+    address: {
+      street: string;
+      city: string;
+      postalCode: string;
+      country: string;
+    };
+  };
+  
+  // Tax Rate Info
+  taxRate: {
+    name: string;
+    rate: number;
+    is_default: boolean;
+  };
 }
 
 export interface RefreshTokenRequest {

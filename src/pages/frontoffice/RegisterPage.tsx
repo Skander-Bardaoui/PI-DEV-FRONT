@@ -1,7 +1,7 @@
 // src/pages/frontoffice/RegisterPage.tsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Mail, Lock, Eye, EyeOff, User, Phone, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
+import { Building2, Mail, Lock, Eye, EyeOff, User, Phone, ArrowRight, CheckCircle, AlertCircle, Globe, DollarSign, MapPin, FileText, Briefcase } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function RegisterPage() {
@@ -12,24 +12,55 @@ export default function RegisterPage() {
   const [error, setError] = useState<string>('');
   
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    // User Info
+    name: '',
     email: '',
-    phone: '',
+    phone_number: '',
     password: '',
     confirmPassword: '',
-    companyName: '',
-    companySize: '',
-    industry: '',
+    
+    // Tenant Info
+    tenantName: '',
+    domain: '',
+    contactEmail: '',
+    description: '',
+    
+    // Business Info
+    businessName: '',
+    logo: '',
+    tax_id: '',
+    currency: 'TND',
+    address: {
+      street: '',
+      city: '',
+      postalCode: '',
+      country: 'Tunisia'
+    },
+    
+    // Tax Rate Info
+    taxRateName: 'TVA Standard',
+    taxRate: 19,
+    
     acceptTerms: false
   });
+
+  const validateTaxId = (taxId: string): boolean => {
+    if (!taxId) return true; // Optional field
+    const taxIdRegex = /^[0-9]{7}\/[A-Z]\/[A-Z]\/[A-Z]\/[0-9]{3}$/;
+    return taxIdRegex.test(taxId);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (step === 1) {
-      // Validate step 1 fields
+      // Validate step 1 fields (User Info)
+      if (!formData.name || formData.name.length < 2) {
+        setError('Le nom doit contenir au moins 2 caractères');
+        return;
+      }
+      
       if (formData.password !== formData.confirmPassword) {
         setError('Les mots de passe ne correspondent pas');
         return;
@@ -40,10 +71,32 @@ export default function RegisterPage() {
         return;
       }
 
-      // Move to step 2
       setStep(2);
+    } else if (step === 2) {
+      // Validate step 2 fields (Tenant Info)
+      if (!formData.tenantName || formData.tenantName.length < 2) {
+        setError('Le nom du tenant doit contenir au moins 2 caractères');
+        return;
+      }
+
+      setStep(3);
     } else {
-      // Step 2: Submit registration
+      // Step 3: Validate and Submit registration
+      if (!formData.businessName || formData.businessName.length < 2) {
+        setError('Le nom de l\'entreprise doit contenir au moins 2 caractères');
+        return;
+      }
+
+      if (formData.tax_id && !validateTaxId(formData.tax_id)) {
+        setError('Le matricule fiscal doit suivre le format: NNNNNNN/X/A/E/NNN');
+        return;
+      }
+
+      if (formData.taxRate < 0 || formData.taxRate > 100) {
+        setError('Le taux de TVA doit être entre 0 et 100');
+        return;
+      }
+
       if (!formData.acceptTerms) {
         setError('Vous devez accepter les conditions d\'utilisation');
         return;
@@ -51,15 +104,47 @@ export default function RegisterPage() {
 
       setIsLoading(true);
 
-      try {
-        // Combine first and last name
-        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      const registrationData = {
+        // User Info
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone_number: formData.phone_number || undefined,
         
-        await register({
-          name: fullName,
-          email: formData.email,
-          password: formData.password,
-        });
+        // Tenant Info
+        tenant: {
+          name: formData.tenantName,
+          domain: formData.domain || undefined,
+          contactEmail: formData.contactEmail || formData.email,
+          description: formData.description || undefined,
+        },
+        
+        // Business Info
+        business: {
+          name: formData.businessName,
+          logo: formData.logo || undefined,
+          tax_id: formData.tax_id || undefined,
+          currency: formData.currency,
+          address: {
+            street: formData.address.street,
+            city: formData.address.city,
+            postalCode: formData.address.postalCode,
+            country: formData.address.country,
+          },
+        },
+        
+        // Tax Rate Info
+        taxRate: {
+          name: formData.taxRateName,
+          rate: formData.taxRate,
+          is_default: true,
+        },
+      };
+
+      console.log('Sending registration data:', registrationData);
+
+      try {
+        await register(registrationData);
         
         // Navigation handled by AuthContext
       } catch (err: any) {
@@ -81,14 +166,14 @@ export default function RegisterPage() {
           </Link>
 
           {/* Progress Steps */}
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-2 mb-8">
             <div className={`flex items-center gap-2 ${step >= 1 ? 'text-indigo-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                 step >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
               }`}>
                 {step > 1 ? <CheckCircle className="h-5 w-5" /> : '1'}
               </div>
-              <span className="text-sm font-medium">Compte</span>
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Compte</span>
             </div>
             <div className="flex-1 h-0.5 bg-gray-200">
               <div className={`h-full bg-indigo-600 transition-all ${step > 1 ? 'w-full' : 'w-0'}`} />
@@ -97,19 +182,32 @@ export default function RegisterPage() {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                 step >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
               }`}>
-                2
+                {step > 2 ? <CheckCircle className="h-5 w-5" /> : '2'}
               </div>
-              <span className="text-sm font-medium">Entreprise</span>
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Tenant</span>
+            </div>
+            <div className="flex-1 h-0.5 bg-gray-200">
+              <div className={`h-full bg-indigo-600 transition-all ${step > 2 ? 'w-full' : 'w-0'}`} />
+            </div>
+            <div className={`flex items-center gap-2 ${step >= 3 ? 'text-indigo-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                step >= 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+              }`}>
+                3
+              </div>
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Entreprise</span>
             </div>
           </div>
 
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {step === 1 ? 'Créez votre compte' : 'Informations entreprise'}
+            {step === 1 ? 'Créez votre compte' : step === 2 ? 'Configuration Tenant' : 'Informations entreprise'}
           </h1>
           <p className="text-gray-600 mb-8">
             {step === 1
               ? 'Commencez votre essai gratuit de 14 jours.'
-              : 'Dites-nous en plus sur votre entreprise.'
+              : step === 2
+              ? 'Configurez votre espace de travail.'
+              : 'Finalisez les détails de votre entreprise.'
             }
           </p>
 
@@ -124,31 +222,20 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {step === 1 ? (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Prénom</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.firstName}
-                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Jean"
-                        required
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Nom</label>
+                {/* Step 1: User Account Info */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom complet</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
                       type="text"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Dupont"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Jean Dupont"
                       required
+                      minLength={2}
+                      maxLength={100}
                       disabled={isLoading}
                     />
                   </div>
@@ -176,8 +263,8 @@ export default function RegisterPage() {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
                       type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      value={formData.phone_number}
+                      onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="+216 XX XXX XXX"
                       disabled={isLoading}
@@ -196,6 +283,8 @@ export default function RegisterPage() {
                       className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Minimum 8 caractères"
                       required
+                      minLength={8}
+                      maxLength={100}
                       disabled={isLoading}
                     />
                     <button
@@ -225,61 +314,166 @@ export default function RegisterPage() {
                   </div>
                 </div>
               </>
-            ) : (
+            ) : step === 2 ? (
               <>
+                {/* Step 2: Tenant Info */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom de l'entreprise</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom du Tenant</label>
                   <div className="relative">
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
                       type="text"
-                      value={formData.companyName}
-                      onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                      value={formData.tenantName}
+                      onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Mon Organisation"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Le nom de votre espace de travail</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Domaine (optionnel)</label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.domain}
+                      onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="monentreprise"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Sous-domaine personnalisé pour votre tenant</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email de contact (optionnel)</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="email"
+                      value={formData.contactEmail}
+                      onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="contact@exemple.com"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Par défaut, votre email sera utilisé</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description (optionnel)</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Décrivez votre organisation..."
+                    rows={3}
+                    disabled={isLoading}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Step 3: Business Info */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom de l'entreprise</label>
+                  <div className="relative">
+                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.businessName}
+                      onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Ma Société SARL"
                       required
+                      minLength={2}
+                      maxLength={200}
                       disabled={isLoading}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Taille de l'entreprise</label>
-                  <select
-                    value={formData.companySize}
-                    onChange={(e) => setFormData({ ...formData, companySize: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                    disabled={isLoading}
-                  >
-                    <option value="">Sélectionner</option>
-                    <option value="1">1 personne (Freelance)</option>
-                    <option value="2-10">2-10 employés</option>
-                    <option value="11-50">11-50 employés</option>
-                    <option value="51-200">51-200 employés</option>
-                    <option value="200+">200+ employés</option>
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Matricule Fiscal (optionnel)</label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.tax_id}
+                      onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="1234567/A/M/E/000"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Format: NNNNNNN/X/A/E/NNN</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Devise</label>
+                    <select
+                      value={formData.currency}
+                      onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={isLoading}
+                    >
+                      <option value="TND">TND - Dinar Tunisien</option>
+                      <option value="EUR">EUR - Euro</option>
+                      <option value="USD">USD - Dollar</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Taux TVA (%)</label>
+                    <input
+                      type="number"
+                      value={formData.taxRate}
+                      onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="19"
+                      min={0}
+                      max={100}
+                      step={0.01}
+                      disabled={isLoading}
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Secteur d'activité</label>
-                  <select
-                    value={formData.industry}
-                    onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    required
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
+                  <input
+                    type="text"
+                    value={formData.address.street}
+                    onChange={(e) => setFormData({ ...formData, address: { ...formData.address, street: e.target.value } })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mb-3"
+                    placeholder="Rue et numéro"
                     disabled={isLoading}
-                  >
-                    <option value="">Sélectionner</option>
-                    <option value="tech">Technologie / IT</option>
-                    <option value="consulting">Consulting</option>
-                    <option value="commerce">Commerce</option>
-                    <option value="services">Services</option>
-                    <option value="industrie">Industrie</option>
-                    <option value="sante">Santé</option>
-                    <option value="education">Éducation</option>
-                    <option value="autre">Autre</option>
-                  </select>
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      value={formData.address.city}
+                      onChange={(e) => setFormData({ ...formData, address: { ...formData.address, city: e.target.value } })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Ville"
+                      disabled={isLoading}
+                    />
+                    <input
+                      type="text"
+                      value={formData.address.postalCode}
+                      onChange={(e) => setFormData({ ...formData, address: { ...formData.address, postalCode: e.target.value } })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Code postal"
+                      disabled={isLoading}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-start gap-3">
@@ -314,16 +508,16 @@ export default function RegisterPage() {
                 </>
               ) : (
                 <>
-                  {step === 1 ? 'Continuer' : 'Créer mon compte'}
+                  {step < 3 ? 'Continuer' : 'Créer mon compte'}
                   <ArrowRight className="h-5 w-5" />
                 </>
               )}
             </button>
 
-            {step === 2 && (
+            {step > 1 && (
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(step - 1)}
                 disabled={isLoading}
                 className="w-full text-gray-600 py-3 font-medium hover:text-gray-900 transition-colors disabled:opacity-50"
               >
