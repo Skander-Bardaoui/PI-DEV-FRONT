@@ -14,7 +14,11 @@ import {
   Bell,
   Search,
   Building2,
-  ChevronDown
+  ChevronDown,
+  Package,
+  Tag,
+  TrendingUp,
+  Box
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -23,6 +27,17 @@ const navigation = [
   { name: 'Factures', href: '/app/invoices', icon: FileText },
   { name: 'Dépenses', href: '/app/expenses', icon: Receipt },
   { name: 'Clients', href: '/app/clients', icon: Users },
+  { 
+    name: 'Stock', 
+    href: '/app/stock', 
+    icon: Package,
+    subItems: [
+      { name: 'Vue d\'ensemble', href: '/app/stock', icon: LayoutDashboard },
+      { name: 'Produits', href: '/app/stock/products', icon: Box },
+      { name: 'Catégories', href: '/app/stock/categories', icon: Tag },
+      { name: 'Mouvements', href: '/app/stock/movements', icon: TrendingUp },
+    ]
+  },
   { name: 'Équipe', href: '/app/team', icon: UserCircle },
   { name: 'Rapports', href: '/app/reports', icon: BarChart3 },
   { name: 'Paramètres', href: '/app/settings', icon: Settings },
@@ -30,8 +45,12 @@ const navigation = [
 
 export default function BackOfficeLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [stockMenuOpen, setStockMenuOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  // Check if current path is in stock section
+  const isStockActive = location.pathname.startsWith('/app/stock');
 
   // Get user initials for avatar
   const getUserInitials = () => {
@@ -67,6 +86,52 @@ export default function BackOfficeLayout() {
           <nav className="p-4 space-y-1">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
+              const hasSubItems = item.subItems && item.subItems.length > 0;
+              const isStockSection = item.name === 'Stock';
+              
+              if (hasSubItems) {
+                return (
+                  <div key={item.name}>
+                    <button
+                      onClick={() => setStockMenuOpen(!stockMenuOpen)}
+                      className={`flex items-center justify-between w-full gap-3 px-4 py-3 rounded-lg transition-colors ${
+                        isStockActive
+                          ? 'bg-indigo-50 text-indigo-600'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className="h-5 w-5" />
+                        {item.name}
+                      </div>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${stockMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {stockMenuOpen && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {item.subItems.map((subItem) => {
+                          const isSubActive = location.pathname === subItem.href;
+                          return (
+                            <Link
+                              key={subItem.name}
+                              to={subItem.href}
+                              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                                isSubActive
+                                  ? 'bg-indigo-50 text-indigo-600'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                              onClick={() => setSidebarOpen(false)}
+                            >
+                              <subItem.icon className="h-4 w-4" />
+                              {subItem.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              
               return (
                 <Link
                   key={item.name}
@@ -126,6 +191,50 @@ export default function BackOfficeLayout() {
           <nav className="flex-1 px-4 space-y-1">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
+              const hasSubItems = item.subItems && item.subItems.length > 0;
+              
+              if (hasSubItems) {
+                return (
+                  <div key={item.name}>
+                    <button
+                      onClick={() => setStockMenuOpen(!stockMenuOpen)}
+                      className={`flex items-center justify-between w-full gap-3 px-4 py-3 rounded-lg transition-colors ${
+                        isStockActive
+                          ? 'bg-indigo-50 text-indigo-600 font-medium'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className={`h-5 w-5 ${isStockActive ? 'text-indigo-600' : 'text-gray-400'}`} />
+                        {item.name}
+                      </div>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${stockMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {stockMenuOpen && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {item.subItems.map((subItem) => {
+                          const isSubActive = location.pathname === subItem.href;
+                          return (
+                            <Link
+                              key={subItem.name}
+                              to={subItem.href}
+                              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                                isSubActive
+                                  ? 'bg-indigo-50 text-indigo-600 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                            >
+                              <subItem.icon className={`h-4 w-4 ${isSubActive ? 'text-indigo-600' : 'text-gray-400'}`} />
+                              {subItem.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              
               return (
                 <Link
                   key={item.name}
