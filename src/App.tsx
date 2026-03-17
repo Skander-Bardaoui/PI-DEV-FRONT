@@ -2,6 +2,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AccessibilityButton from './components/AccessibilityButton';
+import AccessibilityPanel from './components/AccessibilityPanel';
 import { Role } from './types/auth.types';
 
 // Front Office Pages
@@ -33,6 +35,15 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        {/* Accessibility Components - Available on all pages */}
+        <AccessibilityButton />
+        <AccessibilityPanel />
+        
+        {/* Skip to main content link for keyboard navigation */}
+        <a href="#main-content" className="skip-to-content">
+          Aller au contenu principal
+        </a>
+        
         <Routes>
           {/* ─── Public Routes ───────────────────────────────────────── */}
           <Route path="/" element={<LandingPage />} />
