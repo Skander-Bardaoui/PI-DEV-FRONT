@@ -15,6 +15,9 @@ import {
   Search,
   Building2,
   ChevronDown,
+
+  MessageSquare
+
   Package,
   Tag,
   TrendingUp,
@@ -24,6 +27,7 @@ import {
   FileCheck,
   Truck,
   ClipboardList
+
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -70,6 +74,7 @@ const navigation = [
     ]
   },
   { name: 'Équipe', href: '/app/team', icon: UserCircle },
+  { name: 'Collaboration', href: '/app/collaboration', icon: MessageSquare },
   { name: 'Rapports', href: '/app/reports', icon: BarChart3 },
   { name: 'Paramètres', href: '/app/settings', icon: Settings },
 ];

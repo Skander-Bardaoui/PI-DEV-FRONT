@@ -20,6 +20,7 @@ import Invoices from './pages/backoffice/Invoices';
 import Expenses from './pages/backoffice/Expenses';
 import Reports from './pages/backoffice/Reports';
 import Team from './pages/backoffice/Team';
+import Collaboration from './pages/backoffice/Collaboration';
 import Settings from './pages/backoffice/Settings';
 
 // Stock Management Pages
@@ -93,6 +94,7 @@ function App() {
             
             <Route path="reports" element={<Reports />} />
             <Route path="team" element={<Team />} />
+            <Route path="collaboration" element={<Collaboration />} />
             <Route path="settings" element={<Settings />} />
           </Route>
 
