@@ -2,6 +2,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AccessibilityButton from './components/AccessibilityButton';
+import AccessibilityPanel from './components/AccessibilityPanel';
 import { Role } from './types/auth.types';
 
 // Front Office Pages
@@ -21,6 +23,12 @@ import Team from './pages/backoffice/Team';
 import Collaboration from './pages/backoffice/Collaboration';
 import Settings from './pages/backoffice/Settings';
 
+// Stock Management Pages
+import StockDashboard from './pages/backoffice/StockDashboard';
+import Products from './pages/backoffice/Products';
+import Categories from './pages/backoffice/Categories';
+import StockMovements from './pages/backoffice/StockMovements';
+
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
 
@@ -28,6 +36,15 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        {/* Accessibility Components - Available on all pages */}
+        <AccessibilityButton />
+        <AccessibilityPanel />
+        
+        {/* Skip to main content link for keyboard navigation */}
+        <a href="#main-content" className="skip-to-content">
+          Aller au contenu principal
+        </a>
+        
         <Routes>
           {/* ─── Public Routes ───────────────────────────────────────── */}
           <Route path="/" element={<LandingPage />} />
@@ -68,6 +85,13 @@ function App() {
             <Route path="clients" element={<Clients />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="expenses" element={<Expenses />} />
+            
+            {/* Stock Management Routes */}
+            <Route path="stock" element={<StockDashboard />} />
+            <Route path="stock/products" element={<Products />} />
+            <Route path="stock/categories" element={<Categories />} />
+            <Route path="stock/movements" element={<StockMovements />} />
+            
             <Route path="reports" element={<Reports />} />
             <Route path="team" element={<Team />} />
             <Route path="collaboration" element={<Collaboration />} />
