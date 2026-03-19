@@ -14,7 +14,8 @@ import {
   Bell,
   Search,
   Building2,
-  ChevronDown
+  ChevronDown,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Dépenses', href: '/app/expenses', icon: Receipt },
   { name: 'Clients', href: '/app/clients', icon: Users },
   { name: 'Équipe', href: '/app/team', icon: UserCircle },
+  { name: 'Collaboration', href: '/app/collaboration', icon: MessageSquare },
   { name: 'Rapports', href: '/app/reports', icon: BarChart3 },
   { name: 'Paramètres', href: '/app/settings', icon: Settings },
 ];

@@ -18,6 +18,7 @@ import Invoices from './pages/backoffice/Invoices';
 import Expenses from './pages/backoffice/Expenses';
 import Reports from './pages/backoffice/Reports';
 import Team from './pages/backoffice/Team';
+import Collaboration from './pages/backoffice/Collaboration';
 import Settings from './pages/backoffice/Settings';
 
 // Layout
@@ -69,6 +70,7 @@ function App() {
             <Route path="expenses" element={<Expenses />} />
             <Route path="reports" element={<Reports />} />
             <Route path="team" element={<Team />} />
+            <Route path="collaboration" element={<Collaboration />} />
             <Route path="settings" element={<Settings />} />
           </Route>
 
