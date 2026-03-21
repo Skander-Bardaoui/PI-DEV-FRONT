@@ -1,17 +1,30 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { AccessibilityProvider } from './context/AccessibilityContext.tsx'
 import './index.css'
 import './styles/accessibility.css'
 import App from './App.tsx'
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry:               1,
+      staleTime:           30_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary>
-      <AccessibilityProvider>
-        <App />
-      </AccessibilityProvider>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary>
+        <AccessibilityProvider>
+          <App />
+        </AccessibilityProvider>
+      </ErrorBoundary>
+    </QueryClientProvider>
   </StrictMode>,
 )

@@ -7,30 +7,38 @@ import AccessibilityPanel from './components/AccessibilityPanel';
 import { Role } from './types/auth.types';
 
 // Front Office Pages
-import LandingPage from './pages/frontoffice/LandingPage';
-import LoginPage from './pages/frontoffice/LoginPage';
-import RegisterPage from './pages/frontoffice/RegisterPage';
-import PricingPage from './pages/frontoffice/PricingPage';
-import ClientPortal from './pages/frontoffice/ClientPortal';
+import LandingPage   from './pages/frontoffice/LandingPage';
+import LoginPage     from './pages/frontoffice/LoginPage';
+import RegisterPage  from './pages/frontoffice/RegisterPage';
+import PricingPage   from './pages/frontoffice/PricingPage';
+import ClientPortal  from './pages/frontoffice/ClientPortal';
 
 // Back Office Pages
-import Dashboard from './pages/backoffice/Dashboard';
-import Clients from './pages/backoffice/Clients';
-import Invoices from './pages/backoffice/Invoices';
-import Expenses from './pages/backoffice/Expenses';
-import Reports from './pages/backoffice/Reports';
-import Team from './pages/backoffice/Team';
+import Dashboard     from './pages/backoffice/Dashboard';
+import Clients       from './pages/backoffice/Clients';
+import Invoices      from './pages/backoffice/Invoices';
+import Expenses      from './pages/backoffice/Expenses';
+import Reports       from './pages/backoffice/Reports';
+import Team          from './pages/backoffice/Team';
 import Collaboration from './pages/backoffice/Collaboration';
-import Settings from './pages/backoffice/Settings';
+import Settings      from './pages/backoffice/Settings';
 
 // Stock Management Pages
 import StockDashboard from './pages/backoffice/StockDashboard';
-import Products from './pages/backoffice/Products';
-import Categories from './pages/backoffice/Categories';
+import Products       from './pages/backoffice/Products';
+import Categories     from './pages/backoffice/Categories';
 import StockMovements from './pages/backoffice/StockMovements';
+
+// ── Module 3 — Gestion Fournisseurs & Achats ──────────────────────────────
+import SuppliersPage          from './pages/backoffice/purchases/SuppliersPage';
+import SupplierPOsPage        from './pages/backoffice/purchases/SupplierPOsPage';
+import PurchaseInvoicesPage   from './pages/backoffice/purchases/PurchaseInvoicesPage';
+import SupplierPaymentsPage   from './pages/backoffice/purchases/SupplierPaymentsPage';
 
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
+import PurchasesDashboardPage from './pages/backoffice/purchases/Purchasesdashboardpage';
+import GoodsReceiptsPage from './pages/backoffice/purchases/Goodsreceiptspage';
 
 function App() {
   return (
@@ -39,18 +47,18 @@ function App() {
         {/* Accessibility Components - Available on all pages */}
         <AccessibilityButton />
         <AccessibilityPanel />
-        
+
         {/* Skip to main content link for keyboard navigation */}
         <a href="#main-content" className="skip-to-content">
           Aller au contenu principal
         </a>
-        
+
         <Routes>
           {/* ─── Public Routes ───────────────────────────────────────── */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/"        element={<LandingPage />}  />
+          <Route path="/login"   element={<LoginPage />}    />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/pricing" element={<PricingPage />}  />
 
           {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
           <Route
@@ -81,21 +89,29 @@ function App() {
           >
             {/* Nested routes inside BackOfficeLayout */}
             <Route index element={<Navigate to="/app/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="clients" element={<Clients />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="expenses" element={<Expenses />} />
-            
+            <Route path="dashboard"   element={<Dashboard />}   />
+            <Route path="clients"     element={<Clients />}     />
+            <Route path="invoices"    element={<Invoices />}    />
+            <Route path="expenses"    element={<Expenses />}    />
+
             {/* Stock Management Routes */}
-            <Route path="stock" element={<StockDashboard />} />
-            <Route path="stock/products" element={<Products />} />
-            <Route path="stock/categories" element={<Categories />} />
-            <Route path="stock/movements" element={<StockMovements />} />
-            
-            <Route path="reports" element={<Reports />} />
-            <Route path="team" element={<Team />} />
+            <Route path="stock"             element={<StockDashboard />} />
+            <Route path="stock/products"    element={<Products />}       />
+            <Route path="stock/categories"  element={<Categories />}     />
+            <Route path="stock/movements"   element={<StockMovements />} />
+
+            <Route path="reports"       element={<Reports />}       />
+            <Route path="team"          element={<Team />}          />
             <Route path="collaboration" element={<Collaboration />} />
-            <Route path="settings" element={<Settings />} />
+            <Route path="settings"      element={<Settings />}      />
+
+            {/* ── Module 3 — Achats ─────────────────────────────────── */}
+            <Route path="documents/purchases"           element={<PurchasesDashboardPage />} />
+            <Route path="documents/purchases/suppliers" element={<SuppliersPage />}          />
+            <Route path="documents/purchases/orders"    element={<SupplierPOsPage />}        />
+            <Route path="documents/purchases/receipts"  element={<GoodsReceiptsPage />}      />
+            <Route path="documents/purchases/invoices"  element={<PurchaseInvoicesPage />}   />
+            <Route path="documents/purchases/payments"  element={<SupplierPaymentsPage />}   />
           </Route>
 
           {/* ─── Catch-all redirect ──────────────────────────────────── */}
