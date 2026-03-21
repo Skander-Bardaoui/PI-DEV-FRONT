@@ -1,8 +1,11 @@
 // src/components/purchases/GoodsReceiptModal.tsx
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
-import { useCreateGoodsReceipt } from '../../hooks/useGoodsReceipts';
-import { CreateGoodsReceiptDto, CreateGoodsReceiptItemDto, SupplierPO } from '@/types';
+import { goodsReceiptSchema, GoodsReceiptFormValues } from '@/schemas/purchases.schemas';
+import { useCreateGoodsReceipt } from '@/hooks/useGoodsReceipts';
+import { CreateGoodsReceiptItemDto, SupplierPO } from '@/types';
 
 interface Props {
   businessId: string;
@@ -12,54 +15,50 @@ interface Props {
 
 export default function GoodsReceiptModal({ businessId, po, onClose }: Props) {
   const create = useCreateGoodsReceipt(businessId, po.id);
+  const items  = po.items ?? [];
 
-  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split('T')[0]);
-  const [notes, setNotes]             = useState('');
-  const [error, setError]             = useState('');
-
-  // Initialiser les quantités à 0 pour chaque ligne du BC
-  const [quantities, setQuantities] = useState<Record<string, number>>(
-    Object.fromEntries(
-    (po.items ?? [])
-        .filter(item => Number(item.quantity_received) < Number(item.quantity_ordered))
-        .map(item => [item.id, 0])
-    ),
+  const pendingItems = useMemo(() =>
+    items.filter(i => Number(i.quantity_received) < Number(i.quantity_ordered)),
+    [items],
   );
 
-  const setQty = (id: string, value: number) =>
-    setQuantities(q => ({ ...q, [id]: value }));
+  const {
+    register, handleSubmit, watch,
+    formState: { errors, isSubmitting },
+  } = useForm<GoodsReceiptFormValues>({
+    resolver: zodResolver(goodsReceiptSchema),
+    defaultValues: {
+      receipt_date: new Date().toISOString().split('T')[0],
+      notes:        '',
+      items: pendingItems.map(item => ({
+        supplier_po_item_id: item.id,
+        quantity_received:   0,
+      })),
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const onSubmit = async (values: GoodsReceiptFormValues) => {
+    // FIX: filteredItems est casté explicitement en CreateGoodsReceiptItemDto[]
+    // car Zod infère supplier_po_item_id et quantity_received comme optionnels
+    // alors que CreateGoodsReceiptItemDto les exige comme requis.
+    // Le filtre garantit que quantity_received > 0, et le schéma Zod garantit
+    // que supplier_po_item_id est toujours présent (uuid non vide).
+    const filteredItems = values.items
+      .filter(i => Number(i.quantity_received) > 0)
+      .map(i => ({
+        supplier_po_item_id: i.supplier_po_item_id as string,
+        quantity_received:   Number(i.quantity_received),
+      })) satisfies CreateGoodsReceiptItemDto[];
 
-    const items: CreateGoodsReceiptItemDto[] = Object.entries(quantities)
-      .filter(([, qty]) => qty > 0)
-      .map(([id, qty]) => ({ supplier_po_item_id: id, quantity_received: qty }));
+    if (filteredItems.length === 0) return;
 
-    if (items.length === 0) {
-      setError('Saisissez au moins une quantité reçue > 0');
-      return;
-    }
-
-    const dto: CreateGoodsReceiptDto = {
-      receipt_date: receiptDate,
-      notes:        notes || undefined,
-      items,
-    };
-
-    try {
-      await create.mutateAsync(dto);
-      onClose();
-    } catch (err: any) {
-      const msg = err?.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : (msg ?? 'Erreur lors de la création'));
-    }
+    await create.mutateAsync({
+      receipt_date: values.receipt_date || undefined,
+      notes:        values.notes        || undefined,
+      items:        filteredItems,
+    });
+    onClose();
   };
-
-    const pendingItems = (po.items ?? []).filter(
-    item => Number(item.quantity_received) < Number(item.quantity_ordered),
-  );
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
@@ -73,23 +72,32 @@ export default function GoodsReceiptModal({ businessId, po, onClose }: Props) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {error && (
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="p-6 space-y-5">
+
+          {errors.items?.root && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
-              {error}
+              {errors.items.root.message}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date de réception</label>
-              <input type="date" required value={receiptDate}
-                onChange={e => setReceiptDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date de réception <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                {...register('receipt_date')}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm ${
+                  errors.receipt_date ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+              {errors.receipt_date && (
+                <p className="text-red-500 text-xs mt-1">{errors.receipt_date.message}</p>
+              )}
             </div>
           </div>
 
-          {/* Lignes à réceptionner */}
           <div>
             <h3 className="font-medium text-gray-900 mb-3">Quantités reçues</h3>
             <p className="text-xs text-gray-500 mb-3">
@@ -97,7 +105,7 @@ export default function GoodsReceiptModal({ businessId, po, onClose }: Props) {
             </p>
 
             {pendingItems.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
+              <p className="text-sm text-gray-500 text-center py-4 italic">
                 Toutes les lignes ont été entièrement réceptionnées.
               </p>
             ) : (
@@ -109,25 +117,37 @@ export default function GoodsReceiptModal({ businessId, po, onClose }: Props) {
                       <th className="text-center px-4 py-3 text-gray-500">Commandé</th>
                       <th className="text-center px-4 py-3 text-gray-500">Déjà reçu</th>
                       <th className="text-center px-4 py-3 text-gray-500">Reliquat</th>
-                      <th className="text-center px-4 py-3 text-gray-500">Reçu ce jour *</th>
+                      <th className="text-center px-4 py-3 text-gray-500">
+                        Reçu ce jour <span className="text-red-500">*</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {pendingItems.map(item => {
+                    {pendingItems.map((item, i) => {
                       const reliquat = Number(item.quantity_ordered) - Number(item.quantity_received);
+                      const qtyError = errors.items?.[i]?.quantity_received;
                       return (
                         <tr key={item.id}>
-                          <td className="px-4 py-3 text-gray-900">{item.description}</td>
+                          <td className="px-4 py-3 text-gray-900 font-medium">{item.description}</td>
                           <td className="px-4 py-3 text-center text-gray-600">{item.quantity_ordered}</td>
                           <td className="px-4 py-3 text-center text-gray-600">{item.quantity_received}</td>
-                          <td className="px-4 py-3 text-center font-medium text-orange-600">{reliquat}</td>
+                          <td className="px-4 py-3 text-center font-medium text-orange-600">
+                            {reliquat.toFixed(3)}
+                          </td>
                           <td className="px-4 py-3">
                             <input
-                              type="number" min={0} max={reliquat} step={0.001}
-                              value={quantities[item.id] ?? 0}
-                              onChange={e => setQty(item.id, parseFloat(e.target.value) || 0)}
-                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-center focus:ring-1 focus:ring-indigo-500"
+                              type="number"
+                              step="0.001"
+                              min="0"
+                              max={reliquat}
+                              {...register(`items.${i}.quantity_received`)}
+                              className={`w-full px-3 py-1.5 border rounded-lg text-center focus:ring-1 focus:ring-indigo-500 text-sm ${
+                                qtyError ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                              }`}
                             />
+                            {qtyError && (
+                              <p className="text-red-500 text-xs mt-0.5">{qtyError.message}</p>
+                            )}
                           </td>
                         </tr>
                       );
@@ -140,19 +160,33 @@ export default function GoodsReceiptModal({ businessId, po, onClose }: Props) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-            <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              placeholder="Observations sur la réception..." />
+            <textarea
+              rows={2}
+              {...register('notes')}
+              className={`w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 ${
+                errors.notes ? 'border-red-400 bg-red-50' : 'border-gray-300'
+              }`}
+              placeholder="Observations sur la réception..."
+            />
+            {errors.notes && (
+              <p className="text-red-500 text-xs mt-1">{errors.notes.message}</p>
+            )}
           </div>
 
           <div className="flex gap-3">
-            <button type="button" onClick={onClose}
-              className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+            >
               Annuler
             </button>
-            <button type="submit" disabled={create.isPending || pendingItems.length === 0}
-              className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50">
-              {create.isPending ? 'Enregistrement...' : 'Valider la réception'}
+            <button
+              type="submit"
+              disabled={isSubmitting || pendingItems.length === 0}
+              className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? 'Enregistrement...' : 'Valider la réception'}
             </button>
           </div>
         </form>

@@ -99,6 +99,8 @@ export interface PurchaseInvoicesQueryParams {
   date_to?:     string;
   page?:        number;
   limit?:       number;
+  sort_field?: string;
+  sort_dir?:   'asc' | 'desc';
 }
 
 // ── Réponse paginée ───────────────────────────────────────────────────────
