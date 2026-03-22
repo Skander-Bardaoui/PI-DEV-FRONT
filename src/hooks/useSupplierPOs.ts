@@ -5,8 +5,10 @@ import {
   CreateSupplierPODto,
   UpdateSupplierPODto,
   SupplierPOsQueryParams,
+  SupplierPO,
 } from '@/types';
 import { cancelSupplierPO, confirmSupplierPO, createSupplierPO, getSupplierPO, getSupplierPOs, sendSupplierPO, updateSupplierPO } from '@/api/supplier-pos';
+import axiosInstance from '@/api/axiosInstance';
 
 export const SUPPLIER_POS_KEY = 'supplier-pos';
 
@@ -17,13 +19,17 @@ export const useSupplierPOs = (businessId: string, params?: SupplierPOsQueryPara
     enabled:  !!businessId,
   });
 
-export const useSupplierPO = (businessId: string, id: string) =>
-  useQuery({
-    queryKey: [SUPPLIER_POS_KEY, businessId, id],
-    queryFn:  () => getSupplierPO(businessId, id),
-    enabled:  !!businessId && !!id,
+export const useSupplierPO = (businessId: string, poId: string) => {
+  return useQuery({
+    queryKey: [...SUPPLIER_POS_KEY, businessId, poId],
+    queryFn:  () =>
+      axiosInstance
+        .get(`/businesses/${businessId}/supplier-pos/${poId}`)
+        .then(r => r.data as SupplierPO),
+    enabled: !!businessId && !!poId,
+    staleTime: 30_000,
   });
-
+};
 export const useCreateSupplierPO = (businessId: string) => {
   const qc = useQueryClient();
   return useMutation({
