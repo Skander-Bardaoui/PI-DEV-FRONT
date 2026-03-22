@@ -5,61 +5,24 @@ import {
   BarChart3, Settings, Menu, X, LogOut, Bell, Search,
   Building2, ChevronDown, MessageSquare, Package, Tag,
   TrendingUp, Box, ShoppingCart, ShoppingBag, FileCheck,
-  Truck, ClipboardList, Award, Scale,
+  Truck, ClipboardList, Award,
 } from 'lucide-react';
+import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
 import { usePurchaseAlerts }     from '@/hooks/usePurchaseAlerts';
 import AlertsPanel               from '@/components/purchases/AlertsPanel';
-
-const navigation = [
-  { name: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-  {
-    name: 'Ventes', href: '/app/sales', icon: ShoppingCart,
-    subItems: [
-      { name: 'Tableau de bord',   href: '/app/sales/dashboard',      icon: LayoutDashboard },
-      { name: 'Devis',             href: '/app/sales/quotes',         icon: FileCheck       },
-      { name: 'Commandes',         href: '/app/sales/orders',         icon: ClipboardList   },
-      { name: 'Bons de livraison', href: '/app/sales/delivery-notes', icon: Truck           },
-      { name: 'Factures',          href: '/app/sales/invoices',       icon: FileText        },
-    ],
-  },
-  {
-    name: 'Achats', href: '/app/purchases', icon: ShoppingBag,
-    subItems: [
-      { name: 'Tableau de bord',        href: '/app/purchases/dashboard',        icon: LayoutDashboard },
-      { name: 'Fournisseurs',           href: '/app/purchases/suppliers',        icon: Building2       },
-      { name: 'Commandes fournisseurs', href: '/app/purchases/orders',           icon: ClipboardList   },
-      { name: 'Réceptions',             href: '/app/purchases/goods-receipts',   icon: Truck           },
-      { name: 'Factures fournisseurs',  href: '/app/purchases/invoices',         icon: FileText        },
-      { name: 'Paiements fournisseurs', href: '/app/purchases/payments',         icon: Receipt         },
-      { name: 'Scoring fournisseurs',   href: '/app/purchases/supplier-ranking', icon: Award           },
-    ],
-  },
-  { name: 'Dépenses', href: '/app/expenses', icon: Receipt },
-  { name: 'Clients',  href: '/app/clients',  icon: Users   },
-  {
-    name: 'Stock', href: '/app/stock', icon: Package,
-    subItems: [
-      { name: "Vue d'ensemble", href: '/app/stock',            icon: LayoutDashboard },
-      { name: 'Produits',       href: '/app/stock/products',   icon: Box             },
-      { name: 'Catégories',     href: '/app/stock/categories', icon: Tag             },
-      { name: 'Mouvements',     href: '/app/stock/movements',  icon: TrendingUp      },
-    ],
-  },
-  { name: 'Équipe',        href: '/app/team',          icon: UserCircle    },
-  { name: 'Collaboration', href: '/app/collaboration', icon: MessageSquare },
-  { name: 'Rapports',      href: '/app/reports',       icon: BarChart3     },
-  { name: 'Paramètres',    href: '/app/settings',      icon: Settings      },
-];
+import LanguageSwitcher          from '@/components/LanguageSwitcher';
 
 export default function BackOfficeLayout() {
+  const { t, i18n } = useTranslation();
+
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
   const [stockMenuOpen,     setStockMenuOpen]      = useState(false);
   const [salesMenuOpen,     setSalesMenuOpen]      = useState(false);
   const [purchasesMenuOpen, setPurchasesMenuOpen]  = useState(false);
   const [alertsPanelOpen,   setAlertsPanelOpen]    = useState(false);
 
-  const location  = useLocation();
+  const location   = useLocation();
   const { user, logout } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
 
@@ -79,6 +42,48 @@ export default function BackOfficeLayout() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Navigation traduite — recalculée quand la langue change
+  const navigation = [
+    { name: t('nav.dashboard'), href: '/app/dashboard', icon: LayoutDashboard },
+    {
+      name: t('nav.sales'), href: '/app/sales', icon: ShoppingCart,
+      subItems: [
+        { name: t('nav.dashboard'),  href: '/app/sales/dashboard',      icon: LayoutDashboard },
+        { name: t('nav.quotes'),     href: '/app/sales/quotes',         icon: FileCheck       },
+        { name: t('nav.orders'),     href: '/app/sales/orders',         icon: ClipboardList   },
+        { name: t('nav.deliveries'), href: '/app/sales/delivery-notes', icon: Truck           },
+        { name: t('nav.invoices'),   href: '/app/sales/invoices',       icon: FileText        },
+      ],
+    },
+    {
+      name: t('nav.purchases'), href: '/app/purchases', icon: ShoppingBag,
+      subItems: [
+        { name: t('nav.dashboard'),        href: '/app/purchases/dashboard',        icon: LayoutDashboard },
+        { name: t('nav.suppliers'),        href: '/app/purchases/suppliers',        icon: Building2       },
+        { name: t('nav.supplierOrders'),   href: '/app/purchases/orders',           icon: ClipboardList   },
+        { name: t('nav.goodsReceipts'),    href: '/app/purchases/goods-receipts',   icon: Truck           },
+        { name: t('nav.supplierInvoices'), href: '/app/purchases/invoices',         icon: FileText        },
+        { name: t('nav.supplierPayments'), href: '/app/purchases/payments',         icon: Receipt         },
+        { name: t('nav.supplierRanking'),  href: '/app/purchases/supplier-ranking', icon: Award           },
+      ],
+    },
+    { name: t('nav.expenses'),      href: '/app/expenses',      icon: Receipt      },
+    { name: t('nav.clients'),       href: '/app/clients',       icon: Users        },
+    {
+      name: t('nav.stock'), href: '/app/stock', icon: Package,
+      subItems: [
+        { name: t('nav.overview'),    href: '/app/stock',            icon: LayoutDashboard },
+        { name: t('nav.products'),    href: '/app/stock/products',   icon: Box             },
+        { name: t('nav.categories'),  href: '/app/stock/categories', icon: Tag             },
+        { name: t('nav.movements'),   href: '/app/stock/movements',  icon: TrendingUp      },
+      ],
+    },
+    { name: t('nav.team'),          href: '/app/team',          icon: UserCircle    },
+    { name: t('nav.collaboration'), href: '/app/collaboration', icon: MessageSquare },
+    { name: t('nav.reports'),       href: '/app/reports',       icon: BarChart3     },
+    { name: t('nav.settings'),      href: '/app/settings',      icon: Settings      },
+  ];
+
   const isStockActive     = location.pathname.startsWith('/app/stock');
   const isSalesActive     = location.pathname.startsWith('/app/sales');
   const isPurchasesActive = location.pathname.startsWith('/app/purchases');
@@ -91,7 +96,7 @@ export default function BackOfficeLayout() {
   };
 
   const handleLogout = () => {
-    if (window.confirm('Voulez-vous vraiment vous déconnecter ?')) logout();
+    if (window.confirm(t('nav.logout') + ' ?')) logout();
   };
 
   // ── Sous-menu générique ───────────────────────────────────────────────────
@@ -120,7 +125,7 @@ export default function BackOfficeLayout() {
           {item.subItems!.map(sub => {
             const isSubActive = location.pathname === sub.href;
             return (
-              <Link key={sub.name} to={sub.href!}
+              <Link key={sub.href} to={sub.href!}
                 className={`sidebar-submenu-item flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
                   isSubActive ? 'active bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-600 hover:bg-gray-100'
                 }`}
@@ -142,21 +147,21 @@ export default function BackOfficeLayout() {
         const isActive    = location.pathname === item.href;
         const hasSubItems = item.subItems && item.subItems.length > 0;
 
-        if (hasSubItems && item.name === 'Ventes') {
-          return <SubMenu key={item.name} item={item} isActive={isSalesActive}
+        if (hasSubItems && item.href === '/app/sales') {
+          return <SubMenu key={item.href} item={item} isActive={isSalesActive}
             isOpen={salesMenuOpen} onToggle={() => setSalesMenuOpen(o => !o)} mobile={mobile} />;
         }
-        if (hasSubItems && item.name === 'Achats') {
-          return <SubMenu key={item.name} item={item} isActive={isPurchasesActive}
+        if (hasSubItems && item.href === '/app/purchases') {
+          return <SubMenu key={item.href} item={item} isActive={isPurchasesActive}
             isOpen={purchasesMenuOpen} onToggle={() => setPurchasesMenuOpen(o => !o)} mobile={mobile} />;
         }
-        if (hasSubItems && item.name === 'Stock') {
-          return <SubMenu key={item.name} item={item} isActive={isStockActive}
+        if (hasSubItems && item.href === '/app/stock') {
+          return <SubMenu key={item.href} item={item} isActive={isStockActive}
             isOpen={stockMenuOpen} onToggle={() => setStockMenuOpen(o => !o)} mobile={mobile} />;
         }
 
         return (
-          <Link key={item.name} to={item.href!}
+          <Link key={item.href} to={item.href!}
             className={`sidebar-nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               isActive ? 'active bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-700 hover:bg-gray-100'
             }`}
@@ -193,7 +198,7 @@ export default function BackOfficeLayout() {
             <button onClick={handleLogout}
               className="sidebar-logout-btn flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors w-full">
               <LogOut className="h-5 w-5 text-gray-400" />
-              Déconnexion
+              {t('nav.logout')}
             </button>
           </div>
         </div>
@@ -225,7 +230,7 @@ export default function BackOfficeLayout() {
             <button onClick={handleLogout}
               className="sidebar-logout-btn flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors w-full">
               <LogOut className="h-5 w-5 text-gray-400" />
-              Déconnexion
+              {t('nav.logout')}
             </button>
           </div>
         </div>
@@ -242,12 +247,15 @@ export default function BackOfficeLayout() {
             <div className="flex-1 flex items-center gap-4">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input type="search" placeholder="Rechercher..."
+                <input type="search" placeholder={t('common.search') + '...'}
                   className="search-input w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
             </div>
 
-            {/* ── Cloche notifications avec panel alertes ─────────────────── */}
+            {/* ── Language switcher ──────────────────────────────────────── */}
+            <LanguageSwitcher variant="navbar" />
+
+            {/* ── Cloche notifications ───────────────────────────────────── */}
             <div ref={alertsRef} style={{ position: 'relative' }}>
               <button
                 onClick={() => setAlertsPanelOpen(o => !o)}
@@ -265,7 +273,6 @@ export default function BackOfficeLayout() {
                 )}
               </button>
 
-              {/* Panel alertes déroulant */}
               {alertsPanelOpen && businessId && (
                 <div style={{
                   position: 'absolute', right: 0, top: 'calc(100% + 8px)',
@@ -275,16 +282,11 @@ export default function BackOfficeLayout() {
                 }}>
                   <AlertsPanel
                     businessId={businessId}
-                    onNavigate={(entityType, entityId) => {
+                    onNavigate={(entityType) => {
                       setAlertsPanelOpen(false);
-                      // Navigation selon le type d'entité
-                      if (entityType === 'PurchaseInvoice') {
-                        window.location.href = '/app/purchases/invoices';
-                      } else if (entityType === 'SupplierPO') {
-                        window.location.href = '/app/purchases/orders';
-                      } else if (entityType === 'Supplier') {
-                        window.location.href = '/app/purchases/suppliers';
-                      }
+                      if (entityType === 'PurchaseInvoice') window.location.href = '/app/purchases/invoices';
+                      else if (entityType === 'SupplierPO') window.location.href = '/app/purchases/orders';
+                      else if (entityType === 'Supplier')   window.location.href = '/app/purchases/suppliers';
                     }}
                   />
                 </div>

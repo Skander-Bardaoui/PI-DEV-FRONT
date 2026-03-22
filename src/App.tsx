@@ -7,6 +7,7 @@ import AccessibilityPanel from './components/AccessibilityPanel';
 import FingerScrollControl from './components/FingerScrollControl';
 import { useAccessibility } from './context/AccessibilityContext';
 import { Role } from './types/auth.types';
+import { useTranslation } from 'react-i18next';
 
 // Front Office Pages
 import LandingPage   from './pages/frontoffice/LandingPage';
@@ -54,6 +55,7 @@ import SupplierRankingPage from './pages/backoffice/purchases/SupplierRankingPag
 // Inner component to access accessibility context
 function AppContent() {
   const { isFingerScrollActive, toggleFingerScroll } = useAccessibility();
+  const { t } = useTranslation();
 
   return (
     <>
@@ -69,7 +71,7 @@ function AppContent() {
 
       {/* Skip to main content link for keyboard navigation */}
       <a href="#main-content" className="skip-to-content">
-        Aller au contenu principal
+        {t('accessibility.skipToContent', { defaultValue: 'Aller au contenu principal' })}
       </a>
 
       <Routes>

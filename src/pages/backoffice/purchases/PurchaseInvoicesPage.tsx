@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   Plus, Eye, Check, AlertTriangle, CheckCircle,
-  CreditCard, ChevronUp, ChevronDown, Filter, Pencil, Scale,
+  CreditCard, ChevronUp, ChevronDown, Filter, Pencil, Scale, Zap,
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import {
@@ -17,17 +17,17 @@ import { usePDFExport }      from '@/hooks/usePDFExport';
 import PurchaseInvoiceModal  from '@/components/purchases/PurchaseInvoiceModal';
 import CorrectInvoiceModal   from '@/components/purchases/CorrectInvoiceModal';
 import PDFButton             from '@/components/purchases/PDFButton';
-
 import ThreeWayMatchModal    from '@/components/purchases/ThreeWayMatchModal';
 import ThreeWayMatchBadge    from '@/components/purchases/ThreeWayMatchBadge';
+import OcrInvoiceModal       from '@/components/purchases/OcrInvoiceModal';
+import InvoiceDetailModal    from '@/components/purchases/Invoicedetailmodal ';
+import { PaymentModal }      from '@/components/purchases/Paymentmodal';
+import DisputeModal          from '@/components/purchases/Disputemodal ';
 import {
   formatAmount, formatDate,
   INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS,
   InvoiceStatus, PurchaseInvoice,
 } from '@/types';
-import InvoiceDetailModal from '@/components/purchases/Invoicedetailmodal ';
-import { PaymentModal } from '@/components/purchases/Paymentmodal';
-import DisputeModal from '@/components/purchases/Disputemodal ';
 
 type SortField = 'invoice_number_supplier' | 'invoice_date' | 'due_date' | 'net_amount' | 'supplier';
 type SortDir   = 'asc' | 'desc';
@@ -59,6 +59,7 @@ export default function PurchaseInvoicesPage() {
 
   // Modals
   const [createOpen,     setCreateOpen]     = useState(false);
+  const [ocrOpen,        setOcrOpen]        = useState(false);
   const [detailInvoice,  setDetailInvoice]  = useState<PurchaseInvoice | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<PurchaseInvoice | null>(null);
   const [disputeInvoice, setDisputeInvoice] = useState<PurchaseInvoice | null>(null);
@@ -123,7 +124,7 @@ export default function PurchaseInvoicesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Factures Fournisseurs</h1>
           <p className="text-gray-500 text-sm">{data?.total ?? 0} facture(s) fournisseur</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setShowFilters(f => !f)}
             className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors ${
@@ -135,6 +136,18 @@ export default function PurchaseInvoicesPage() {
             <Filter className="h-4 w-4" />
             Filtres {hasActiveFilters && '(actifs)'}
           </button>
+
+          {/* Bouton Import OCR */}
+          <button
+            onClick={() => setOcrOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            title="Importer une facture depuis un scan automatiquement"
+          >
+            <Zap className="h-4 w-4" />
+            Import OCR
+          </button>
+
+          {/* Bouton saisie manuelle */}
           <button
             onClick={() => setCreateOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -290,28 +303,17 @@ export default function PurchaseInvoicesPage() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-center gap-1">
-
-                          {/* Voir détail */}
                           <button onClick={() => setDetailInvoice(inv)} title="Voir détail"
                             className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                             <Eye className="h-4 w-4" />
                           </button>
-
-                          {/* PDF */}
                           <PDFButton variant="icon" label="PDF" loading={pdfLoading} onClick={() => exportFacture(inv)} />
-
-                          {/* Rapprochement 3 voies — visible sur PENDING et APPROVED */}
                           {[InvoiceStatus.PENDING, InvoiceStatus.APPROVED].includes(inv.status) && (
-                            <button
-                              onClick={() => setMatchInvoice(inv)}
-                              title="Rapprochement 3 voies"
-                              className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                            >
+                            <button onClick={() => setMatchInvoice(inv)} title="Rapprochement 3 voies"
+                              className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
                               <Scale className="h-4 w-4" />
                             </button>
                           )}
-
-                          {/* Approuver — PENDING uniquement */}
                           {inv.status === InvoiceStatus.PENDING && (
                             <button onClick={() => approve.mutate(inv.id)} disabled={approve.isPending}
                               title="Approuver manuellement"
@@ -319,24 +321,18 @@ export default function PurchaseInvoicesPage() {
                               <Check className="h-4 w-4" />
                             </button>
                           )}
-
-                          {/* Paiement */}
                           {[InvoiceStatus.APPROVED, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE].includes(inv.status) && (
                             <button onClick={() => setPaymentInvoice(inv)} title="Enregistrer un paiement"
                               className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                               <CreditCard className="h-4 w-4" />
                             </button>
                           )}
-
-                          {/* Litige */}
                           {![InvoiceStatus.PAID, InvoiceStatus.DISPUTED].includes(inv.status) && (
                             <button onClick={() => setDisputeInvoice(inv)} title="Mettre en litige"
                               className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
                               <AlertTriangle className="h-4 w-4" />
                             </button>
                           )}
-
-                          {/* Résolution litige */}
                           {inv.status === InvoiceStatus.DISPUTED && (
                             <>
                               <button onClick={() => setCorrectInvoice(inv)} title="Corriger / Résoudre"
@@ -384,6 +380,13 @@ export default function PurchaseInvoicesPage() {
       {createOpen && (
         <PurchaseInvoiceModal businessId={businessId} onClose={() => setCreateOpen(false)} />
       )}
+      {ocrOpen && (
+        <OcrInvoiceModal
+          businessId={businessId}
+          onClose={() => setOcrOpen(false)}
+          onCreated={() => setOcrOpen(false)}
+        />
+      )}
       {detailInvoice && (
         <InvoiceDetailModal invoice={detailInvoice} businessId={businessId} onClose={() => setDetailInvoice(null)} />
       )}
@@ -405,8 +408,6 @@ export default function PurchaseInvoicesPage() {
         <CorrectInvoiceModal businessId={businessId} invoice={correctInvoice}
           onClose={() => setCorrectInvoice(null)} />
       )}
-
-      {/* Modal rapprochement 3 voies */}
       {matchInvoice && (
         <ThreeWayMatchModal
           businessId={businessId}

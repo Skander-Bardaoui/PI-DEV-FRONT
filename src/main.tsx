@@ -7,7 +7,7 @@ import './index.css'
 import './styles/accessibility.css'
 import App from './App.tsx'
 import { ToastProvider } from './components/ui/Toast.tsx'
-
+import './i18n/index';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

@@ -3,9 +3,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
@@ -24,7 +27,7 @@ export default function LoginPage() {
       await login(formData.email, formData.password);
       // Navigation handled by AuthContext based on user role
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue lors de la connexion');
+      setError(err.message || t('errors.generic'));
     } finally {
       setIsLoading(false);
     }
@@ -35,13 +38,16 @@ export default function LoginPage() {
       {/* Left Panel - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <Link to="/" className="flex items-center gap-2 mb-8">
-            <Building2 className="h-8 w-8 text-indigo-600" />
-            <span className="text-xl font-bold text-gray-900">NovEntra</span>
-          </Link>
+          <div className="flex items-center justify-between mb-8">
+            <Link to="/" className="flex items-center gap-2">
+              <Building2 className="h-8 w-8 text-indigo-600" />
+              <span className="text-xl font-bold text-gray-900">NovEntra</span>
+            </Link>
+            <LanguageSwitcher variant="page" />
+          </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Bon retour !</h1>
-          <p className="text-gray-600 mb-8">Connectez-vous pour accéder à votre tableau de bord.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('auth.login')}</h1>
+          <p className="text-gray-600 mb-8">{t('dashboard.welcome')}</p>
 
           {/* Error Message */}
           {error && (
@@ -54,7 +60,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Adresse email
+                {t('auth.email')}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -73,7 +79,7 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Mot de passe
+                {t('auth.password')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -107,10 +113,10 @@ export default function LoginPage() {
                   className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                   disabled={isLoading}
                 />
-                <span className="text-sm text-gray-600">Se souvenir de moi</span>
+                <span className="text-sm text-gray-600">{t('auth.rememberMe')}</span>
               </label>
               <a href="#" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-                Mot de passe oublié ?
+                {t('auth.forgotPassword')}
               </a>
             </div>
 
@@ -122,11 +128,11 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Connexion en cours...
+                  {t('auth.loading')}
                 </>
               ) : (
                 <>
-                  Se connecter
+                  {t('auth.loginButton')}
                   <ArrowRight className="h-5 w-5" />
                 </>
               )}
@@ -140,7 +146,7 @@ export default function LoginPage() {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 px-4 text-gray-500">
-                  Ou continuer avec
+                  {t('common.or', { defaultValue: 'Ou continuer avec' })}
                 </span>
               </div>
             </div>
@@ -165,9 +171,9 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-8 text-center text-sm text-gray-600">
-            Pas encore de compte ?{' '}
+            {t('auth.noAccount')}{' '}
             <Link to="/register" className="text-indigo-600 hover:text-indigo-700 font-semibold">
-              Créer un compte
+              {t('auth.registerButton')}
             </Link>
           </p>
         </div>
@@ -177,17 +183,17 @@ export default function LoginPage() {
       <div className="hidden lg:flex flex-1 bg-indigo-600 items-center justify-center p-12">
         <div className="max-w-lg text-white">
           <h2 className="text-3xl font-bold mb-6">
-            Gérez vos finances d'entreprise en toute simplicité
+            {t('landing.hero.title', { defaultValue: 'Gérez vos finances d\'entreprise en toute simplicité' })}
           </h2>
           <p className="text-indigo-200 text-lg mb-8">
-            Rejoignez plus de 2,500 entreprises tunisiennes qui utilisent NovEntra pour leur gestion quotidienne.
+            {t('landing.hero.subtitle', { defaultValue: 'Rejoignez plus de 2,500 entreprises tunisiennes qui utilisent NovEntra pour leur gestion quotidienne.' })}
           </p>
           <div className="space-y-4">
             {[
-              'Facturation professionnelle en quelques clics',
-              'Suivi des dépenses automatisé',
-              'Rapports et analytics en temps réel',
-              'Support client disponible 24/7'
+              t('landing.features.invoicing', { defaultValue: 'Facturation professionnelle en quelques clics' }),
+              t('landing.features.expenses', { defaultValue: 'Suivi des dépenses automatisé' }),
+              t('landing.features.reports', { defaultValue: 'Rapports et analytics en temps réel' }),
+              t('landing.features.support', { defaultValue: 'Support client disponible 24/7' })
             ].map((feature) => (
               <div key={feature} className="flex items-center gap-3">
                 <div className="h-6 w-6 bg-indigo-500 rounded-full flex items-center justify-center">
