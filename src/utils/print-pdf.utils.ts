@@ -71,11 +71,21 @@ export const printDocument = (
     .doc-header {
       background: var(--navy);
       color: #fff;
-      padding: 14pt 18pt;
-      margin: -12mm -14mm 0 -14mm;
+      padding: 16pt 18pt;
+      margin: 0 0 16pt 0;
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
+      min-height: 60pt;
+      border-radius: 6pt;
+    }
+    .doc-header img {
+      width: 40pt;
+      height: 40pt;
+      border-radius: 8pt;
+      flex-shrink: 0;
+      display: block;
+      object-fit: contain;
     }
     .doc-header .company-name {
       font-size: 16pt;
@@ -113,7 +123,8 @@ export const printDocument = (
     .header-accent {
       height: 3pt;
       background: var(--primary);
-      margin: 0 -14mm 16pt;
+      margin: 0 0 16pt 0;
+      border-radius: 2pt;
     }
 
     /* ── Badge statut ────────────────────────────────────────────────── */

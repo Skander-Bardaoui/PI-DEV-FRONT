@@ -379,16 +379,23 @@ p, li, td, th {
   max-width: 70ch;
 }
 
-/* Ensure minimum touch target size (44x44px) */
-button,
-a,
-input[type="checkbox"],
-input[type="radio"] {
+/* Ensure minimum touch target size (44x44px) for standalone interactive elements */
+button:not([class*="p-"]):not([class*="h-"]):not([class*="w-"]),
+a:not([class*="p-"]):not([class*="h-"]):not([class*="w-"]) {
   min-width: 44px;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Form checkboxes and radio buttons - normal size */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  height: auto;
+  min-width: unset;
+  min-height: unset;
 }
 
 /* Scrollbar Styling */

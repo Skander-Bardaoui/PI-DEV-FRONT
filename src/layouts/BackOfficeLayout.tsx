@@ -31,32 +31,28 @@ import { useAuth } from '../hooks/useAuth';
 const navigation = [
   { name: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
   {
-    name: 'Documents',
-    href: '/app/documents',
-    icon: FileText,
+    name: 'Ventes',
+    href: '/app/sales',
+    icon: ShoppingCart,
     subItems: [
-      {
-        name: 'Ventes',
-        icon: ShoppingCart,
-        subItems: [
-          { name: 'Devis',             href: '/app/documents/sales/quotes',        icon: FileCheck   },
-          { name: 'Commandes',         href: '/app/documents/sales/orders',        icon: ClipboardList },
-          { name: 'Bons de livraison', href: '/app/documents/sales/delivery-notes', icon: Truck      },
-          { name: 'Sorties de stock',  href: '/app/documents/sales/stock-exits',   icon: TrendingUp  },
-        ],
-      },
-      {
-        name: 'Achats',
-        icon: ShoppingBag,
-        subItems: [
-          // ── Mise à jour Module 3 ──────────────────────────────────
-          { name: 'Fournisseurs',          href: '/app/documents/purchases/suppliers', icon: Building2     },
-          { name: 'Commandes fournisseurs', href: '/app/documents/purchases/orders',   icon: ClipboardList },
-          { name: 'Factures fournisseurs', href: '/app/documents/purchases/invoices',  icon: FileText      },
-          // ─────────────────────────────────────────────────────────
-          { name: 'Paiements fournisseurs', href: '/app/documents/purchases/payments', icon: Receipt       },
-        ],
-      },
+      { name: 'Tableau de bord',   href: '/app/sales/dashboard',       icon: LayoutDashboard },
+      { name: 'Devis',             href: '/app/sales/quotes',          icon: FileCheck   },
+      { name: 'Commandes',         href: '/app/sales/orders',          icon: ClipboardList },
+      { name: 'Bons de livraison', href: '/app/sales/delivery-notes',  icon: Truck      },
+      { name: 'Factures',          href: '/app/sales/invoices',        icon: FileText    },
+    ],
+  },
+  {
+    name: 'Achats',
+    href: '/app/purchases',
+    icon: ShoppingBag,
+    subItems: [
+      { name: 'Tableau de bord',        href: '/app/purchases/dashboard',          icon: LayoutDashboard },
+      { name: 'Fournisseurs',           href: '/app/purchases/suppliers',          icon: Building2     },
+      { name: 'Commandes fournisseurs', href: '/app/purchases/orders',             icon: ClipboardList },
+      { name: 'Réceptions',             href: '/app/purchases/goods-receipts',     icon: Truck         },
+      { name: 'Factures fournisseurs',  href: '/app/purchases/invoices',           icon: FileText      },
+      { name: 'Paiements fournisseurs', href: '/app/purchases/payments',           icon: Receipt       },
     ],
   },
   { name: 'Dépenses',     href: '/app/expenses',      icon: Receipt      },
@@ -81,7 +77,6 @@ const navigation = [
 export default function BackOfficeLayout() {
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
   const [stockMenuOpen,     setStockMenuOpen]     = useState(false);
-  const [documentsMenuOpen, setDocumentsMenuOpen] = useState(false);
   const [salesMenuOpen,     setSalesMenuOpen]     = useState(false);
   const [purchasesMenuOpen, setPurchasesMenuOpen] = useState(false);
 
@@ -89,7 +84,8 @@ export default function BackOfficeLayout() {
   const { user, logout } = useAuth();
 
   const isStockActive     = location.pathname.startsWith('/app/stock');
-  const isDocumentsActive = location.pathname.startsWith('/app/documents');
+  const isSalesActive     = location.pathname.startsWith('/app/sales');
+  const isPurchasesActive = location.pathname.startsWith('/app/purchases');
 
   const getUserInitials = () => {
     if (!user?.name) return 'U';
@@ -102,84 +98,53 @@ export default function BackOfficeLayout() {
     if (window.confirm('Voulez-vous vraiment vous déconnecter ?')) logout();
   };
 
-  // ── Composant partagé : rendu récursif des sous-menus ─────────────────────
-  const renderNestedItems = (subItems: any[], mobile = false) =>
-    subItems.map((nestedItem) => {
-      const isNestedActive = location.pathname === nestedItem.href;
-      return (
-        <Link
-          key={nestedItem.name}
-          to={nestedItem.href}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-xs ${
-            isNestedActive
-              ? 'bg-indigo-50 text-indigo-600 font-medium'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-          onClick={mobile ? () => setSidebarOpen(false) : undefined}
-        >
-          <nestedItem.icon className={`h-3 w-3 ${isNestedActive ? 'text-indigo-600' : 'text-gray-400'}`} />
-          {nestedItem.name}
-        </Link>
-      );
-    });
-
   // ── Contenu de la nav (réutilisé mobile + desktop) ────────────────────────
   const NavContent = ({ mobile = false }) => (
     <>
       {navigation.map((item) => {
         const isActive         = location.pathname === item.href;
         const hasSubItems      = item.subItems && item.subItems.length > 0;
-        const isDocumentsSection = item.name === 'Documents';
+        const isSalesSection   = item.name === 'Ventes';
+        const isPurchasesSection = item.name === 'Achats';
         const isStockSection   = item.name === 'Stock';
 
-        if (hasSubItems && isDocumentsSection) {
+        // Handle Ventes section
+        if (hasSubItems && isSalesSection) {
           return (
             <div key={item.name}>
               <button
-                onClick={() => setDocumentsMenuOpen(!documentsMenuOpen)}
+                onClick={() => setSalesMenuOpen(!salesMenuOpen)}
                 className={`sidebar-nav-item flex items-center justify-between w-full gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isDocumentsActive
+                  isSalesActive
                     ? 'active bg-indigo-50 text-indigo-600 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <item.icon className={`h-5 w-5 ${isDocumentsActive ? 'text-indigo-600' : 'text-gray-400'}`} />
+                  <item.icon className={`h-5 w-5 ${isSalesActive ? 'text-indigo-600' : 'text-gray-400'}`} />
                   {item.name}
                 </div>
-                <ChevronDown className={`h-4 w-4 transition-transform ${documentsMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 transition-transform ${salesMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {documentsMenuOpen && (
+              {salesMenuOpen && (
                 <div className="ml-4 mt-1 space-y-1">
                   {item.subItems!.map((subItem) => {
-                    const hasNested         = subItem.subItems && subItem.subItems.length > 0;
-                    const isSalesSection    = subItem.name === 'Ventes';
-                    const isPurchasesSection = subItem.name === 'Achats';
-                    const isOpen            = isSalesSection ? salesMenuOpen : isPurchasesSection ? purchasesMenuOpen : false;
-
+                    const isSubActive = location.pathname === subItem.href;
                     return (
-                      <div key={subItem.name}>
-                        <button
-                          onClick={() => {
-                            if (isSalesSection)    setSalesMenuOpen(!salesMenuOpen);
-                            if (isPurchasesSection) setPurchasesMenuOpen(!purchasesMenuOpen);
-                          }}
-                          className="flex items-center justify-between w-full gap-3 px-4 py-2 rounded-lg transition-colors text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          <div className="flex items-center gap-3">
-                            <subItem.icon className="h-4 w-4 text-gray-400" />
-                            {subItem.name}
-                          </div>
-                          <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {isOpen && hasNested && (
-                          <div className="ml-6 mt-1 space-y-1">
-                            {renderNestedItems(subItem.subItems!, mobile)}
-                          </div>
-                        )}
-                      </div>
+                      <Link
+                        key={subItem.name}
+                        to={subItem.href!}
+                        className={`sidebar-submenu-item flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                          isSubActive
+                            ? 'active bg-indigo-50 text-indigo-600 font-medium'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                        onClick={mobile ? () => setSidebarOpen(false) : undefined}
+                      >
+                        <subItem.icon className={`h-4 w-4 ${isSubActive ? 'text-indigo-600' : 'text-gray-400'}`} />
+                        {subItem.name}
+                      </Link>
                     );
                   })}
                 </div>
@@ -188,6 +153,52 @@ export default function BackOfficeLayout() {
           );
         }
 
+        // Handle Achats section
+        if (hasSubItems && isPurchasesSection) {
+          return (
+            <div key={item.name}>
+              <button
+                onClick={() => setPurchasesMenuOpen(!purchasesMenuOpen)}
+                className={`sidebar-nav-item flex items-center justify-between w-full gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  isPurchasesActive
+                    ? 'active bg-indigo-50 text-indigo-600 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon className={`h-5 w-5 ${isPurchasesActive ? 'text-indigo-600' : 'text-gray-400'}`} />
+                  {item.name}
+                </div>
+                <ChevronDown className={`h-4 w-4 transition-transform ${purchasesMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {purchasesMenuOpen && (
+                <div className="ml-4 mt-1 space-y-1">
+                  {item.subItems!.map((subItem) => {
+                    const isSubActive = location.pathname === subItem.href;
+                    return (
+                      <Link
+                        key={subItem.name}
+                        to={subItem.href!}
+                        className={`sidebar-submenu-item flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                          isSubActive
+                            ? 'active bg-indigo-50 text-indigo-600 font-medium'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                        onClick={mobile ? () => setSidebarOpen(false) : undefined}
+                      >
+                        <subItem.icon className={`h-4 w-4 ${isSubActive ? 'text-indigo-600' : 'text-gray-400'}`} />
+                        {subItem.name}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Handle Stock section
         if (hasSubItems && isStockSection) {
           return (
             <div key={item.name}>
@@ -232,6 +243,7 @@ export default function BackOfficeLayout() {
           );
         }
 
+        // Regular menu items without subitems
         return (
           <Link
             key={item.name}
