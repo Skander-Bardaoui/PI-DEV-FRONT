@@ -48,6 +48,8 @@ import SalesInvoicesPage      from './pages/backoffice/sales/SalesInvoicesPage';
 
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
+import SupplierPortalPage from './pages/backoffice/purchases/SupplierPortalPage';
+import SupplierRankingPage from './pages/backoffice/purchases/SupplierRankingPage';
 
 // Inner component to access accessibility context
 function AppContent() {
@@ -76,6 +78,7 @@ function AppContent() {
         <Route path="/login"   element={<LoginPage />}    />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/pricing" element={<PricingPage />}  />
+        <Route path="/supplier-portal" element={<SupplierPortalPage />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
         <Route
@@ -129,6 +132,7 @@ function AppContent() {
           <Route path="purchases/goods-receipts"  element={<GoodsReceiptsPage />}      />
           <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
           <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
+          <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
           <Route path="sales/dashboard"       element={<SalesDashboardPage />}  />

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   Plus, Eye, Check, AlertTriangle, CheckCircle,
-  CreditCard, ChevronUp, ChevronDown, Filter, Pencil,
+  CreditCard, ChevronUp, ChevronDown, Filter, Pencil, Scale,
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import {
@@ -16,16 +16,18 @@ import { useSuppliers }      from '@/hooks/useSuppliers';
 import { usePDFExport }      from '@/hooks/usePDFExport';
 import PurchaseInvoiceModal  from '@/components/purchases/PurchaseInvoiceModal';
 import CorrectInvoiceModal   from '@/components/purchases/CorrectInvoiceModal';
-
 import PDFButton             from '@/components/purchases/PDFButton';
+
+import ThreeWayMatchModal    from '@/components/purchases/ThreeWayMatchModal';
+import ThreeWayMatchBadge    from '@/components/purchases/ThreeWayMatchBadge';
 import {
   formatAmount, formatDate,
   INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS,
   InvoiceStatus, PurchaseInvoice,
 } from '@/types';
-import DisputeModal from '@/components/purchases/Disputemodal ';
-import { PaymentModal } from '@/components/purchases/Paymentmodal';
 import InvoiceDetailModal from '@/components/purchases/Invoicedetailmodal ';
+import { PaymentModal } from '@/components/purchases/Paymentmodal';
+import DisputeModal from '@/components/purchases/Disputemodal ';
 
 type SortField = 'invoice_number_supplier' | 'invoice_date' | 'due_date' | 'net_amount' | 'supplier';
 type SortDir   = 'asc' | 'desc';
@@ -52,7 +54,6 @@ export default function PurchaseInvoicesPage() {
   const [showFilters,    setShowFilters]    = useState(false);
   const [page,           setPage]           = useState(1);
 
-  // ANOMALIE 4 : tri géré comme paramètre API, pas en JS local
   const [sortField, setSortField] = useState<SortField>('invoice_date');
   const [sortDir,   setSortDir]   = useState<SortDir>('desc');
 
@@ -62,15 +63,13 @@ export default function PurchaseInvoicesPage() {
   const [paymentInvoice, setPaymentInvoice] = useState<PurchaseInvoice | null>(null);
   const [disputeInvoice, setDisputeInvoice] = useState<PurchaseInvoice | null>(null);
   const [correctInvoice, setCorrectInvoice] = useState<PurchaseInvoice | null>(null);
+  const [matchInvoice,   setMatchInvoice]   = useState<PurchaseInvoice | null>(null);
 
-  // ANOMALIE 4 : sort_field et sort_dir passés à l'API → tri côté backend sur toutes les pages
   const { data, isLoading } = usePurchaseInvoices(businessId, {
     status:      statusFilter   || undefined,
     supplier_id: supplierFilter || undefined,
     date_from:   dateFrom       || undefined,
     date_to:     dateTo         || undefined,
-    sort_field:  sortField,
-    sort_dir:    sortDir,
     page,
     limit: 20,
   });
@@ -84,16 +83,19 @@ export default function PurchaseInvoicesPage() {
 
   const { exportFacture, loading: pdfLoading } = usePDFExport();
 
-  // ANOMALIE 4 : plus de tri local JS — on passe tout à l'API
-  // Quand on change le tri, on retourne à la page 1 pour éviter l'incohérence
+  const sorted = [...(data?.data ?? [])].sort((a, b) => {
+    let va: any, vb: any;
+    if      (sortField === 'supplier')   { va = a.supplier?.name ?? ''; vb = b.supplier?.name ?? ''; }
+    else if (sortField === 'net_amount') { va = Number(a.net_amount);   vb = Number(b.net_amount);   }
+    else                                 { va = a[sortField] ?? '';     vb = b[sortField] ?? '';      }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
   const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDir('asc');
-    }
-    setPage(1); // retour page 1 obligatoire quand le tri change
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
   };
 
   const SortIcon = ({ field }: { field: SortField }) =>
@@ -111,9 +113,6 @@ export default function PurchaseInvoicesPage() {
   };
 
   const overdueCount = data?.data.filter(i => i.status === InvoiceStatus.OVERDUE).length ?? 0;
-
-  // ANOMALIE 4 : les données sont déjà triées par le backend — pas de .sort() ici
-  const invoices = data?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -224,13 +223,6 @@ export default function PurchaseInvoicesPage() {
         ))}
       </div>
 
-      {/* Note sur le tri */}
-      {data && data.total > 20 && (
-        <p className="text-xs text-gray-400 text-right">
-          Le tri s'applique sur l'ensemble des {data.total} factures (toutes les pages).
-        </p>
-      )}
-
       {/* Tableau */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {isLoading ? (
@@ -261,13 +253,13 @@ export default function PurchaseInvoicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {!invoices.length ? (
+                {!sorted.length ? (
                   <tr>
                     <td colSpan={8} className="text-center py-12 text-gray-500">
                       Aucune facture trouvée
                     </td>
                   </tr>
-                ) : invoices.map(inv => {
+                ) : sorted.map(inv => {
                   const remaining = Math.round(
                     (Number(inv.net_amount) - Number(inv.paid_amount)) * 1000,
                   ) / 1000;
@@ -298,30 +290,53 @@ export default function PurchaseInvoicesPage() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-center gap-1">
+
+                          {/* Voir détail */}
                           <button onClick={() => setDetailInvoice(inv)} title="Voir détail"
                             className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                             <Eye className="h-4 w-4" />
                           </button>
+
+                          {/* PDF */}
                           <PDFButton variant="icon" label="PDF" loading={pdfLoading} onClick={() => exportFacture(inv)} />
+
+                          {/* Rapprochement 3 voies — visible sur PENDING et APPROVED */}
+                          {[InvoiceStatus.PENDING, InvoiceStatus.APPROVED].includes(inv.status) && (
+                            <button
+                              onClick={() => setMatchInvoice(inv)}
+                              title="Rapprochement 3 voies"
+                              className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            >
+                              <Scale className="h-4 w-4" />
+                            </button>
+                          )}
+
+                          {/* Approuver — PENDING uniquement */}
                           {inv.status === InvoiceStatus.PENDING && (
                             <button onClick={() => approve.mutate(inv.id)} disabled={approve.isPending}
-                              title="Approuver"
+                              title="Approuver manuellement"
                               className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                               <Check className="h-4 w-4" />
                             </button>
                           )}
+
+                          {/* Paiement */}
                           {[InvoiceStatus.APPROVED, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE].includes(inv.status) && (
                             <button onClick={() => setPaymentInvoice(inv)} title="Enregistrer un paiement"
                               className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                               <CreditCard className="h-4 w-4" />
                             </button>
                           )}
+
+                          {/* Litige */}
                           {![InvoiceStatus.PAID, InvoiceStatus.DISPUTED].includes(inv.status) && (
                             <button onClick={() => setDisputeInvoice(inv)} title="Mettre en litige"
                               className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
                               <AlertTriangle className="h-4 w-4" />
                             </button>
                           )}
+
+                          {/* Résolution litige */}
                           {inv.status === InvoiceStatus.DISPUTED && (
                             <>
                               <button onClick={() => setCorrectInvoice(inv)} title="Corriger / Résoudre"
@@ -366,8 +381,12 @@ export default function PurchaseInvoicesPage() {
       </div>
 
       {/* Modals */}
-      {createOpen && <PurchaseInvoiceModal businessId={businessId} onClose={() => setCreateOpen(false)} />}
-      {detailInvoice && <InvoiceDetailModal invoice={detailInvoice} businessId={businessId} onClose={() => setDetailInvoice(null)} />}
+      {createOpen && (
+        <PurchaseInvoiceModal businessId={businessId} onClose={() => setCreateOpen(false)} />
+      )}
+      {detailInvoice && (
+        <InvoiceDetailModal invoice={detailInvoice} businessId={businessId} onClose={() => setDetailInvoice(null)} />
+      )}
       {paymentInvoice && (
         <PaymentModal invoice={paymentInvoice} onClose={() => setPaymentInvoice(null)}
           onConfirm={(paid_amount) => {
@@ -385,6 +404,15 @@ export default function PurchaseInvoicesPage() {
       {correctInvoice && (
         <CorrectInvoiceModal businessId={businessId} invoice={correctInvoice}
           onClose={() => setCorrectInvoice(null)} />
+      )}
+
+      {/* Modal rapprochement 3 voies */}
+      {matchInvoice && (
+        <ThreeWayMatchModal
+          businessId={businessId}
+          invoiceId={matchInvoice.id}
+          onClose={() => setMatchInvoice(null)}
+        />
       )}
     </div>
   );
