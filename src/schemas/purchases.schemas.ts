@@ -1,4 +1,5 @@
 
+import { PaymentMethod } from '@/types/PaymentMethod';
 import { z } from 'zod';
 
 const amountTND = (label: string) =>
@@ -269,3 +270,9 @@ export const correctInvoiceSchema = z.object({
 });
 
 export type CorrectInvoiceFormValues = z.infer<typeof correctInvoiceSchema>;
+
+
+
+
+
+

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { X, AlertTriangle, CheckCircle, ChevronRight } from 'lucide-react';
 import { useUpdatePurchaseInvoice, useResolveDispute, useUpdatePayment } from '@/hooks/usePurchaseInvoices';
 import { formatAmount, PurchaseInvoice, round3 } from '@/types';
-
+import UploadInvoiceScan from '@/components/purchases/UploadInvoiceScan';
 
 const DISPUTE_TYPES: Record<string, {
   label:       string;
@@ -65,16 +65,15 @@ interface Props {
 export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Props) {
   const update        = useUpdatePurchaseInvoice(businessId, invoice.id);
   const resolve       = useResolveDispute(businessId);
-  // FIX BUG 1: import et utilisation correct de useUpdatePayment
   const updatePayment = useUpdatePayment(businessId);
 
   const disputeKey  = Object.keys(DISPUTE_TYPES).find(k =>
-    invoice.dispute_reason?.toLowerCase().includes(k.toLowerCase())
+    invoice.dispute_reason?.toLowerCase().includes(k.toLowerCase()),
   ) ?? 'Autre';
   const disputeType = DISPUTE_TYPES[disputeKey];
 
   const [action, setAction] = useState<
-    'choose' | 'correct_amounts' | 'mark_paid' | 'resolve_only' | 'done'
+    'choose' | 'correct_amounts' | 'mark_paid' | 'resolve_only'
   >('choose');
 
   const [subtotalHT,  setSubtotalHT]  = useState(Number(invoice.subtotal_ht));
@@ -82,33 +81,31 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
   const [timbre,      setTimbre]      = useState(Number(invoice.timbre_fiscal));
   const [invoiceDate, setInvoiceDate] = useState(invoice.invoice_date?.split('T')[0] ?? '');
   const [dueDate,     setDueDate]     = useState(invoice.due_date?.split('T')[0] ?? '');
+  // FONCTIONNALITÉ 2 : état pour le nouveau scan uploadé lors de la correction
+  const [receiptUrl,  setReceiptUrl]  = useState(invoice.receipt_url ?? '');
   const [paidAmount,  setPaidAmount]  = useState(
-    round3(Number(invoice.net_amount) - Number(invoice.paid_amount))
+    round3(Number(invoice.net_amount) - Number(invoice.paid_amount)),
   );
   const [error, setError] = useState('');
 
   const newNet     = round3(subtotalHT + taxAmount + timbre);
   const oldNet     = Number(invoice.net_amount);
   const diff       = round3(newNet - oldNet);
-  const hasChanged = Math.abs(diff) > 0.001;
-
-  // Résoudre EN PREMIER, puis modifier les montants
-  // Raison : resolveDispute vérifie status === DISPUTED
-  // Si on update d'abord, le statut peut changer → resolve échoue
+  const hasChanged = Math.abs(diff) > 0.001 || receiptUrl !== (invoice.receipt_url ?? '');
 
   const handleCorrectAmounts = async () => {
     if (!hasChanged) { setError('Aucune modification détectée'); return; }
     setError('');
     try {
-      // 1. Résoudre le litige EN PREMIER (DISPUTED → APPROVED)
       await resolve.mutateAsync(invoice.id);
-      // 2. Mettre à jour les montants ensuite (statut est maintenant APPROVED)
       await update.mutateAsync({
         subtotal_ht:   subtotalHT,
         tax_amount:    taxAmount,
         timbre_fiscal: timbre,
-        invoice_date:  invoiceDate || undefined,
-        due_date:      dueDate     || undefined,
+        invoice_date:  invoiceDate  || undefined,
+        due_date:      dueDate      || undefined,
+        // FONCTIONNALITÉ 2 : envoyer le nouveau scan si uploadé
+        receipt_url:   receiptUrl   || undefined,
       });
       onClose();
     } catch (err: any) {
@@ -117,17 +114,11 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
     }
   };
 
-  // FIX BUG 1: handleMarkAsPaid utilise maintenant updatePayment avec paid_amount correct
   const handleMarkAsPaid = async () => {
     setError('');
-    if (paidAmount <= 0) {
-      setError('Le montant payé doit être supérieur à 0');
-      return;
-    }
+    if (paidAmount <= 0) { setError('Le montant payé doit être supérieur à 0'); return; }
     try {
-      // 1. Résoudre le litige EN PREMIER (DISPUTED → APPROVED)
       await resolve.mutateAsync(invoice.id);
-      // 2. Enregistrer le paiement avec le bon hook et le bon DTO
       const newTotalPaid = round3(Number(invoice.paid_amount) + paidAmount);
       await updatePayment.mutateAsync({
         id:  invoice.id,
@@ -151,7 +142,6 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
     }
   };
 
-  // FIX BUG 1: isPending inclut maintenant updatePayment.isPending
   const isPending = update.isPending || resolve.isPending || updatePayment.isPending;
 
   return (
@@ -176,7 +166,7 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
 
         <div className="p-6 space-y-5">
 
-          {/* Motif du litige */}
+          {/* Motif */}
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-lg">{disputeType.icon}</span>
@@ -208,7 +198,7 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
                     <div className="h-9 w-9 bg-orange-100 rounded-lg flex items-center justify-center text-lg">💰</div>
                     <div>
                       <p className="font-medium text-gray-900 text-sm">Corriger les montants</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Modifier HT, TVA ou timbre puis résoudre</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Modifier HT, TVA, timbre ou scan</p>
                     </div>
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
@@ -253,7 +243,7 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
             </div>
           )}
 
-          {/* ÉTAPE 2A : Formulaire correction montants */}
+          {/* ÉTAPE 2A : Correction montants + nouveau scan */}
           {action === 'correct_amounts' && (
             <div className="space-y-4">
               <button
@@ -308,17 +298,29 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
                   </div>
                   <div className="flex justify-between font-bold">
                     <span className="text-gray-900">Nouveau net TTC</span>
-                    <span className={`font-mono ${hasChanged ? 'text-orange-600' : 'text-gray-900'}`}>
+                    <span className={`font-mono ${Math.abs(diff) > 0.001 ? 'text-orange-600' : 'text-gray-900'}`}>
                       {formatAmount(newNet)}
                     </span>
                   </div>
-                  {hasChanged && (
+                  {Math.abs(diff) > 0.001 && (
                     <div className={`flex justify-between text-xs font-semibold ${diff > 0 ? 'text-red-600' : 'text-green-600'}`}>
                       <span>Variation</span>
                       <span>{diff > 0 ? '+' : ''}{formatAmount(diff)}</span>
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* FONCTIONNALITÉ 2 : upload nouveau scan lors de la correction */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Scan corrigé <span className="text-gray-400 text-xs font-normal">(optionnel)</span>
+                </label>
+                <UploadInvoiceScan
+                  businessId={businessId}
+                  value={receiptUrl}
+                  onChange={setReceiptUrl}
+                />
               </div>
 
               {hasChanged && (
@@ -331,8 +333,10 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
               )}
 
               <div className="flex gap-3">
-                <button onClick={() => setAction('choose')}
-                  className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors text-sm">
+                <button
+                  onClick={() => setAction('choose')}
+                  className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                >
                   Retour
                 </button>
                 <button
@@ -349,8 +353,10 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
           {/* ÉTAPE 2B : Facture déjà réglée */}
           {action === 'mark_paid' && (
             <div className="space-y-4">
-              <button onClick={() => setAction('choose')}
-                className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+              <button
+                onClick={() => setAction('choose')}
+                className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              >
                 ← Retour
               </button>
 
@@ -380,14 +386,16 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
                   <button type="button"
                     onClick={() => setPaidAmount(round3(Number(invoice.net_amount) - Number(invoice.paid_amount)))}
                     className="flex-1 py-1 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
-                    Solde total ({formatAmount(round3(Number(invoice.net_amount) - Number(invoice.paid_amount)))})
+                    Solde ({formatAmount(round3(Number(invoice.net_amount) - Number(invoice.paid_amount)))})
                   </button>
                 </div>
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => setAction('choose')}
-                  className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors text-sm">
+                <button
+                  onClick={() => setAction('choose')}
+                  className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                >
                   Retour
                 </button>
                 <button
@@ -404,8 +412,10 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
           {/* ÉTAPE 2C : Résoudre uniquement */}
           {action === 'resolve_only' && (
             <div className="space-y-4">
-              <button onClick={() => setAction('choose')}
-                className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+              <button
+                onClick={() => setAction('choose')}
+                className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              >
                 ← Retour
               </button>
 
@@ -443,8 +453,10 @@ export default function CorrectInvoiceModal({ businessId, invoice, onClose }: Pr
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => setAction('choose')}
-                  className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors text-sm">
+                <button
+                  onClick={() => setAction('choose')}
+                  className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                >
                   Retour
                 </button>
                 <button
