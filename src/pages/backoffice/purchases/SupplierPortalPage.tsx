@@ -1,17 +1,19 @@
-// src/pages/SupplierPortalPage.tsx
-// Page PUBLIQUE — accessible sans authentification via /supplier-portal?token=xxx
-// Ajouter cette route dans votre router AVANT les routes protégées :
-// <Route path="/supplier-portal" element={<SupplierPortalPage />} />
+// ══════════════════════════════════════════════════════════════════════════════
+// FIX 5 — SupplierPortalPage.tsx SIMPLIFIÉ
+// SUPPRIMÉ : upload facture par le fournisseur (illogique)
+// GARDÉ    : confirmation/refus BC, historique lecture seule
+// LOGIQUE  : le fournisseur envoie sa facture papier → business_owner l'uploade
+// ══════════════════════════════════════════════════════════════════════════════
+
+// src/pages/SupplierPortalPage.tsx — VERSION CORRIGÉE
 
 import { useState, useEffect } from 'react';
 import { useSearchParams }     from 'react-router-dom';
 import {
-  CheckCircle, XCircle, Upload, FileText,
-  Clock, CreditCard, Package, AlertTriangle,
+  CheckCircle, XCircle, Package, FileText, CreditCard, AlertTriangle,
 } from 'lucide-react';
 import axiosInstance from '@/api/axiosInstance';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 interface PortalData {
   supplier:   { id: string; name: string; email: string; phone?: string };
   current_po: any | null;
@@ -28,19 +30,9 @@ const STATUS_LABELS: Record<string, string> = {
   PARTIALLY_PAID: 'Part. payée', PAID: 'Payée', OVERDUE: 'En retard', DISPUTED: 'En litige',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: 'bg-gray-100 text-gray-700', SENT: 'bg-blue-100 text-blue-700',
-  CONFIRMED: 'bg-indigo-100 text-indigo-700', PARTIALLY_RECEIVED: 'bg-orange-100 text-orange-700',
-  FULLY_RECEIVED: 'bg-green-100 text-green-700', CANCELLED: 'bg-red-100 text-red-700',
-  PENDING: 'bg-gray-100 text-gray-700', APPROVED: 'bg-indigo-100 text-indigo-700',
-  PARTIALLY_PAID: 'bg-orange-100 text-orange-700', PAID: 'bg-green-100 text-green-700',
-  OVERDUE: 'bg-red-100 text-red-700', DISPUTED: 'bg-orange-100 text-orange-700',
-};
-
-const fmt = (n: any) => `${(+n || 0).toFixed(3)} TND`;
+const fmt     = (n: any) => `${(+n || 0).toFixed(3)} TND`;
 const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('fr-TN') : '—';
 
-// ─── Composant refus ─────────────────────────────────────────────────────────
 function RefuseModal({ onConfirm, onCancel }: { onConfirm: (r: string) => void; onCancel: () => void }) {
   const [reason, setReason] = useState('');
   return (
@@ -69,123 +61,14 @@ function RefuseModal({ onConfirm, onCancel }: { onConfirm: (r: string) => void; 
   );
 }
 
-// ─── Composant upload facture ─────────────────────────────────────────────────
-function UploadInvoiceModal({ token, pos, onClose }: { token: string; pos: any[]; onClose: () => void }) {
-  const [form, setForm]   = useState({ invoice_number_supplier: '', invoice_date: new Date().toISOString().split('T')[0], subtotal_ht: '', tax_amount: '', timbre_fiscal: '1.000', supplier_po_id: '' });
-  const [file, setFile]   = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const net = (+form.subtotal_ht || 0) + (+form.tax_amount || 0) + (+form.timbre_fiscal || 0);
-
-  const handleSubmit = async () => {
-    if (!form.invoice_number_supplier || !form.invoice_date || !form.subtotal_ht) {
-      setError('Veuillez remplir tous les champs obligatoires.');
-      return;
-    }
-    setLoading(true); setError('');
-    try {
-      let receipt_url = '';
-      if (file) {
-        const fd = new FormData();
-        fd.append('file', file);
-        const { data } = await axiosInstance.post(`/supplier-portal/upload-scan?token=${token}`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        receipt_url = data.url;
-      }
-      await axiosInstance.post(`/supplier-portal/invoice?token=${token}`, {
-        ...form,
-        subtotal_ht:   +form.subtotal_ht,
-        tax_amount:    +form.tax_amount,
-        timbre_fiscal: +form.timbre_fiscal,
-        receipt_url:   receipt_url || undefined,
-        supplier_po_id: form.supplier_po_id || undefined,
-      });
-      onClose();
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Erreur lors de l\'envoi.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const inp = { style: { width: '100%', padding: '9px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' as const } };
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
-      <div style={{ background: '#fff', borderRadius: 16, padding: '1.5rem', maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ fontWeight: 600, fontSize: 16 }}>Envoyer ma facture</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20 }}>✕</button>
-        </div>
-
-        {error && <div style={{ padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, marginBottom: 12, fontSize: 13, color: '#991B1B' }}>{error}</div>}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={{ fontSize: 12, color: '#6B7280', marginBottom: 4, display: 'block' }}>N° facture *</label>
-            <input {...inp} placeholder="Ex: FACT-2024-0042" value={form.invoice_number_supplier} onChange={e => setForm(f => ({ ...f, invoice_number_supplier: e.target.value }))} />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: '#6B7280', marginBottom: 4, display: 'block' }}>BC associé (optionnel)</label>
-            <select {...inp} value={form.supplier_po_id} onChange={e => setForm(f => ({ ...f, supplier_po_id: e.target.value }))}>
-              <option value="">Sans BC associé</option>
-              {pos.filter(p => ['CONFIRMED','PARTIALLY_RECEIVED','FULLY_RECEIVED'].includes(p.status)).map(p => (
-                <option key={p.id} value={p.id}>{p.po_number}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: '#6B7280', marginBottom: 4, display: 'block' }}>Date facture *</label>
-            <input {...inp} type="date" value={form.invoice_date} onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            {([['subtotal_ht','HT *'],['tax_amount','TVA *'],['timbre_fiscal','Timbre']] as [keyof typeof form, string][]).map(([k, l]) => (
-              <div key={k}>
-                <label style={{ fontSize: 11, color: '#6B7280', marginBottom: 4, display: 'block' }}>{l}</label>
-                <input {...inp} type="number" step="0.001" min="0" value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} style={{ ...inp.style, textAlign: 'right' }} />
-              </div>
-            ))}
-          </div>
-          <div style={{ background: '#EEF2FF', padding: '10px 14px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: '#3730A3' }}>
-            <span>Net TTC</span><span>{net.toFixed(3)} TND</span>
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: '#6B7280', marginBottom: 4, display: 'block' }}>Scan de la facture (PDF/image)</label>
-            <div
-              onClick={() => document.getElementById('portal-file-input')?.click()}
-              style={{ border: '2px dashed #C7D2FE', borderRadius: 8, padding: '16px', textAlign: 'center', cursor: 'pointer', background: file ? '#EEF2FF' : '#F9FAFB' }}
-            >
-              {file ? <p style={{ fontSize: 13, color: '#3730A3', margin: 0 }}>{file.name}</p> : <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>Cliquer pour choisir un fichier</p>}
-            </div>
-            <input id="portal-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] ?? null)} />
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '11px', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', background: '#fff' }}>Annuler</button>
-          <button onClick={handleSubmit} disabled={loading}
-            style={{ flex: 2, padding: '11px', background: '#4F46E5', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Envoi...' : 'Envoyer ma facture'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Page principale ──────────────────────────────────────────────────────────
 export default function SupplierPortalPage() {
   const [params]         = useSearchParams();
   const token            = params.get('token') ?? '';
-
   const [data,     setData]     = useState<PortalData | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
-  const [tab,      setTab]      = useState<'bc'|'invoices'|'payments'>('bc');
+  const [tab,      setTab]      = useState<'bc' | 'invoices' | 'payments'>('bc');
   const [refusing, setRefusing] = useState(false);
-  const [uploading,setUploading]= useState(false);
   const [actionMsg,setActionMsg]= useState('');
   const [actionOk, setActionOk] = useState(false);
 
@@ -201,10 +84,15 @@ export default function SupplierPortalPage() {
     try {
       await axiosInstance.post(`/supplier-portal/confirm?token=${token}`, { po_id: data.current_po.id });
       setActionOk(true);
-      setActionMsg(`Le bon de commande ${data.current_po.po_number} a été confirmé. Nous allons préparer votre commande.`);
+      // FIX : message amélioré mentionnant l'email envoyé au business_owner
+      setActionMsg(
+        `✓ Le bon de commande ${data.current_po.po_number} a été confirmé. ` +
+        `Votre client a été notifié par email. Préparez votre livraison.`
+      );
       setData(d => d ? { ...d, current_po: { ...d.current_po, status: 'CONFIRMED' } } : d);
     } catch (e: any) {
       setActionMsg(e?.response?.data?.message ?? 'Erreur lors de la confirmation.');
+      setActionOk(false);
     }
   };
 
@@ -214,18 +102,22 @@ export default function SupplierPortalPage() {
       await axiosInstance.post(`/supplier-portal/refuse?token=${token}`, { po_id: data.current_po.id, reason });
       setRefusing(false);
       setActionOk(false);
-      setActionMsg(`Le bon de commande ${data.current_po.po_number} a été refusé. Votre client en sera informé.`);
+      setActionMsg(
+        `Le bon de commande ${data.current_po.po_number} a été refusé. ` +
+        `Votre client a été notifié et sera contacté pour trouver une solution.`
+      );
       setData(d => d ? { ...d, current_po: { ...d.current_po, status: 'CANCELLED' } } : d);
     } catch (e: any) {
       setActionMsg(e?.response?.data?.message ?? 'Erreur lors du refus.');
+      setActionOk(false);
     }
   };
 
-  // ── États de chargement / erreur ──
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F7FF' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ width: 40, height: 40, border: '3px solid #E5E7EB', borderTopColor: '#4F46E5', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         <p style={{ color: '#6B7280', fontSize: 14 }}>Chargement de votre portail...</p>
       </div>
     </div>
@@ -243,8 +135,8 @@ export default function SupplierPortalPage() {
 
   if (!data) return null;
 
-  const po      = data.current_po;
-  const canAct  = po && po.status === 'SENT';
+  const po     = data.current_po;
+  const canAct = po && po.status === 'SENT';
 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F7FF', fontFamily: 'Arial, sans-serif' }}>
@@ -295,7 +187,11 @@ export default function SupplierPortalPage() {
                 <Package size={18} color="#4F46E5" />
                 <span style={{ fontWeight: 600, fontSize: 15 }}>{po.po_number}</span>
               </div>
-              <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, ...(po.status === 'CONFIRMED' ? { background: '#EEF2FF', color: '#3730A3' } : po.status === 'CANCELLED' ? { background: '#FEF2F2', color: '#991B1B' } : { background: '#DBEAFE', color: '#1E40AF' }) }}>
+              <span style={{
+                padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                background: po.status === 'CONFIRMED' ? '#EEF2FF' : po.status === 'CANCELLED' ? '#FEF2F2' : '#DBEAFE',
+                color:      po.status === 'CONFIRMED' ? '#3730A3' : po.status === 'CANCELLED' ? '#991B1B'  : '#1E40AF',
+              }}>
                 {STATUS_LABELS[po.status] ?? po.status}
               </span>
             </div>
@@ -323,11 +219,17 @@ export default function SupplierPortalPage() {
                 </tbody>
               </table>
 
-              {/* Totaux BC */}
+              {/* Totaux */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: canAct ? 16 : 0 }}>
                 <div style={{ background: '#EEF2FF', padding: '10px 16px', borderRadius: 8, minWidth: 220 }}>
-                  {[['Sous-total HT', (+po.subtotal_ht).toFixed(3)],['TVA', (+po.tax_amount).toFixed(3)],['Timbre fiscal', '1,000']].map(([l,v]) => (
-                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', marginBottom: 3 }}><span>{l}</span><span>{v} TND</span></div>
+                  {[
+                    ['Sous-total HT', (+po.subtotal_ht).toFixed(3)],
+                    ['TVA',           (+po.tax_amount).toFixed(3)],
+                    ['Timbre fiscal', '1,000'],
+                  ].map(([l, v]) => (
+                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', marginBottom: 3 }}>
+                      <span>{l}</span><span>{v} TND</span>
+                    </div>
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, color: '#3730A3', borderTop: '1px solid #C7D2FE', paddingTop: 6, marginTop: 4 }}>
                     <span>Net TTC</span><span>{(+po.net_amount).toFixed(3)} TND</span>
@@ -335,7 +237,7 @@ export default function SupplierPortalPage() {
                 </div>
               </div>
 
-              {/* Boutons confirmation */}
+              {/* Boutons confirmation/refus */}
               {canAct && (
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setRefusing(true)}
@@ -348,11 +250,22 @@ export default function SupplierPortalPage() {
                   </button>
                 </div>
               )}
+
+              {/* Message instructions pour la facture (FIX : remplace le bouton upload) */}
+              {po.status === 'CONFIRMED' && (
+                <div style={{ marginTop: 12, padding: '12px 14px', background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, fontSize: 13, color: '#92400E' }}>
+                  <p style={{ margin: 0, fontWeight: 600, marginBottom: 4 }}>📄 Envoi de votre facture</p>
+                  <p style={{ margin: 0 }}>
+                    Veuillez envoyer votre facture directement à votre client par email ou courrier.
+                    Votre client l'enregistrera dans son système après réception des marchandises.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Tabs historique */}
+        {/* Historique — tabs */}
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
           <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB' }}>
             {([
@@ -368,19 +281,10 @@ export default function SupplierPortalPage() {
           </div>
 
           <div style={{ padding: '12px 16px' }}>
-
-            {/* Bouton upload facture */}
-            {tab === 'invoices' && (
-              <button onClick={() => setUploading(true)}
-                style={{ width: '100%', padding: '10px', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Upload size={15} /> Envoyer une facture
-              </button>
-            )}
-
             {tab === 'bc' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {data.pos.length === 0 && <p style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Aucun bon de commande</p>}
-                {data.pos.map(p => (
+                {data.pos.map((p: any) => (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, fontSize: 13 }}>
                     <div>
                       <p style={{ margin: 0, fontWeight: 600 }}>{p.po_number}</p>
@@ -388,7 +292,7 @@ export default function SupplierPortalPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontWeight: 600 }}>{fmt(p.net_amount)}</span>
-                      <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600, ...(STATUS_COLORS[p.status] ? {} : {}), background: '#E5E7EB', color: '#374151' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600, background: '#E5E7EB', color: '#374151' }}>
                         {STATUS_LABELS[p.status] ?? p.status}
                       </span>
                     </div>
@@ -398,32 +302,38 @@ export default function SupplierPortalPage() {
             )}
 
             {tab === 'invoices' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {data.invoices.length === 0 && <p style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Aucune facture</p>}
-                {data.invoices.map(inv => (
-                  <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, fontSize: 13 }}>
-                    <div>
-                      <p style={{ margin: 0, fontWeight: 600 }}>{inv.invoice_number_supplier}</p>
-                      <p style={{ margin: '2px 0 0', fontSize: 11, color: '#9CA3AF' }}>{fmtDate(inv.invoice_date)} — Éch. {fmtDate(inv.due_date)}</p>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'right' }}>
+              <div>
+                <div style={{ padding: '10px 12px', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 8, marginBottom: 10, fontSize: 12, color: '#3730A3' }}>
+                  <strong>Note :</strong> Les factures ci-dessous ont été enregistrées par votre client.
+                  Pour toute question, contactez votre client directement.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {data.invoices.length === 0 && <p style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Aucune facture enregistrée</p>}
+                  {data.invoices.map((inv: any) => (
+                    <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, fontSize: 13 }}>
                       <div>
-                        <p style={{ margin: 0, fontWeight: 600 }}>{fmt(inv.net_amount)}</p>
-                        <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6B7280' }}>payé {fmt(inv.paid_amount)}</p>
+                        <p style={{ margin: 0, fontWeight: 600 }}>{inv.invoice_number_supplier}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 11, color: '#9CA3AF' }}>{fmtDate(inv.invoice_date)} — Éch. {fmtDate(inv.due_date)}</p>
                       </div>
-                      <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600, background: inv.status === 'PAID' ? '#DCFCE7' : inv.status === 'OVERDUE' ? '#FEE2E2' : '#EEF2FF', color: inv.status === 'PAID' ? '#166534' : inv.status === 'OVERDUE' ? '#991B1B' : '#3730A3' }}>
-                        {STATUS_LABELS[inv.status] ?? inv.status}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'right' }}>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 600 }}>{fmt(inv.net_amount)}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6B7280' }}>payé {fmt(inv.paid_amount)}</p>
+                        </div>
+                        <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600, background: inv.status === 'PAID' ? '#DCFCE7' : inv.status === 'OVERDUE' ? '#FEE2E2' : '#EEF2FF', color: inv.status === 'PAID' ? '#166534' : inv.status === 'OVERDUE' ? '#991B1B' : '#3730A3' }}>
+                          {STATUS_LABELS[inv.status] ?? inv.status}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
 
             {tab === 'payments' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {data.payments.length === 0 && <p style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Aucun paiement reçu</p>}
-                {data.payments.map(p => (
+                {data.payments.map((p: any) => (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#F9FAFB', borderRadius: 8, fontSize: 13 }}>
                     <div>
                       <p style={{ margin: 0, fontWeight: 600 }}>{p.payment_number}</p>
@@ -437,11 +347,9 @@ export default function SupplierPortalPage() {
             )}
           </div>
         </div>
-
       </div>
 
-      {refusing  && <RefuseModal onConfirm={handleRefuse} onCancel={() => setRefusing(false)} />}
-      {uploading && <UploadInvoiceModal token={token} pos={data.pos} onClose={() => { setUploading(false); window.location.reload(); }} />}
+      {refusing && <RefuseModal onConfirm={handleRefuse} onCancel={() => setRefusing(false)} />}
     </div>
   );
 }
