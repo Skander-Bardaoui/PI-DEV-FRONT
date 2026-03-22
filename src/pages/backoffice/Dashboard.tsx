@@ -1,6 +1,4 @@
 import {
-  TrendingUp,
-  TrendingDown,
   DollarSign,
   FileText,
   Users,
@@ -18,47 +16,11 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell
 } from 'recharts';
-
-const stats = [
-  {
-    title: 'Revenus ce mois',
-    value: '45,200 TND',
-    change: '+12.5%',
-    trend: 'up',
-    icon: DollarSign,
-    color: 'indigo'
-  },
-  {
-    title: 'Dépenses ce mois',
-    value: '12,800 TND',
-    change: '-3.2%',
-    trend: 'down',
-    icon: Receipt,
-    color: 'red'
-  },
-  {
-    title: 'Factures en attente',
-    value: '23',
-    change: '+5',
-    trend: 'up',
-    icon: FileText,
-    color: 'yellow'
-  },
-  {
-    title: 'Clients actifs',
-    value: '127',
-    change: '+8',
-    trend: 'up',
-    icon: Users,
-    color: 'green'
-  }
-];
+import { useTranslation } from 'react-i18next';
 
 const revenueData = [
   { month: 'Jan', revenus: 32000, depenses: 12000 },
@@ -67,12 +29,6 @@ const revenueData = [
   { month: 'Avr', revenus: 42000, depenses: 15000 },
   { month: 'Mai', revenus: 48000, depenses: 13000 },
   { month: 'Jun', revenus: 45200, depenses: 12800 }
-];
-
-const invoiceStatusData = [
-  { name: 'Payées', value: 65, color: '#22C55E' },
-  { name: 'En attente', value: 23, color: '#EAB308' },
-  { name: 'En retard', value: 12, color: '#EF4444' }
 ];
 
 const recentInvoices = [
@@ -96,28 +52,71 @@ const statusColors = {
   overdue: 'bg-red-100 text-red-700'
 };
 
-const statusLabels = {
-  paid: 'Payée',
-  pending: 'En attente',
-  overdue: 'En retard'
-};
-
 export default function Dashboard() {
+  const { t } = useTranslation();
+
+  const stats = [
+    {
+      title: t('dashboard.revenue'),
+      value: '45,200 TND',
+      change: '+12.5%',
+      trend: 'up',
+      icon: DollarSign,
+      color: 'indigo'
+    },
+    {
+      title: t('dashboard.expenses'),
+      value: '12,800 TND',
+      change: '-3.2%',
+      trend: 'down',
+      icon: Receipt,
+      color: 'red'
+    },
+    {
+      title: t('salesInvoices.title'),
+      value: '23',
+      change: '+5',
+      trend: 'up',
+      icon: FileText,
+      color: 'yellow'
+    },
+    {
+      title: t('clients.title'),
+      value: '127',
+      change: '+8',
+      trend: 'up',
+      icon: Users,
+      color: 'green'
+    }
+  ];
+
+  const invoiceStatusData = [
+    { name: t('salesInvoices.paid'), value: 65, color: '#22C55E' },
+    { name: t('common.pending'), value: 23, color: '#EAB308' },
+    { name: t('salesInvoices.overdue'), value: 12, color: '#EF4444' }
+  ];
+
+  const statusLabels = {
+    paid: t('salesInvoices.paid'),
+    pending: t('common.pending'),
+    overdue: t('salesInvoices.overdue')
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-500">Bienvenue ! Voici un aperçu de votre activité.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.dashboard')}</h1>
+          <p className="text-gray-500">{t('dashboard.welcome')}</p>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
             <Calendar className="h-4 w-4" />
-            Ce mois
+            {t('dashboard.thisMonth')}
           </button>
           <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-            Nouvelle facture
+            {t('salesInvoices.new')}
           </button>
         </div>
       </div>
@@ -161,8 +160,8 @@ export default function Dashboard() {
         <div className="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Revenus vs Dépenses</h2>
-              <p className="text-sm text-gray-500">Évolution sur les 6 derniers mois</p>
+              <h2 className="text-lg font-semibold text-gray-900">{t('dashboard.revenue')} vs {t('dashboard.expenses')}</h2>
+              <p className="text-sm text-gray-500">{t('dashboard.lastMonths', { defaultValue: 'Évolution sur les 6 derniers mois' })}</p>
             </div>
             <button className="p-2 hover:bg-gray-100 rounded-lg">
               <MoreHorizontal className="h-5 w-5 text-gray-400" />
@@ -219,8 +218,8 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Statut des factures</h2>
-              <p className="text-sm text-gray-500">Répartition actuelle</p>
+              <h2 className="text-lg font-semibold text-gray-900">{t('common.status')} {t('salesInvoices.title')}</h2>
+              <p className="text-sm text-gray-500">{t('dashboard.currentDistribution', { defaultValue: 'Répartition actuelle' })}</p>
             </div>
           </div>
           <div className="h-64">
@@ -265,9 +264,9 @@ export default function Dashboard() {
         {/* Recent Invoices */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Factures récentes</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('dashboard.recentActivity')}</h2>
             <a href="/app/invoices" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-              Voir tout
+              {t('common.viewAll', { defaultValue: 'Voir tout' })}
             </a>
           </div>
           <div className="divide-y divide-gray-100">
@@ -298,9 +297,9 @@ export default function Dashboard() {
         {/* Recent Expenses */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Dépenses récentes</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('nav.expenses')}</h2>
             <a href="/app/expenses" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-              Voir tout
+              {t('common.viewAll', { defaultValue: 'Voir tout' })}
             </a>
           </div>
           <div className="divide-y divide-gray-100">
