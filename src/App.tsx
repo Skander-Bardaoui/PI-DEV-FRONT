@@ -4,101 +4,152 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AccessibilityButton from './components/AccessibilityButton';
 import AccessibilityPanel from './components/AccessibilityPanel';
+import FingerScrollControl from './components/FingerScrollControl';
+import { useAccessibility } from './context/AccessibilityContext';
 import { Role } from './types/auth.types';
 
 // Front Office Pages
-import LandingPage from './pages/frontoffice/LandingPage';
-import LoginPage from './pages/frontoffice/LoginPage';
-import RegisterPage from './pages/frontoffice/RegisterPage';
-import PricingPage from './pages/frontoffice/PricingPage';
-import ClientPortal from './pages/frontoffice/ClientPortal';
+import LandingPage   from './pages/frontoffice/LandingPage';
+import LoginPage     from './pages/frontoffice/LoginPage';
+import RegisterPage  from './pages/frontoffice/RegisterPage';
+import PricingPage   from './pages/frontoffice/PricingPage';
+import ClientPortal  from './pages/frontoffice/ClientPortal';
 
 // Back Office Pages
-import Dashboard from './pages/backoffice/Dashboard';
-import Clients from './pages/backoffice/Clients';
-import Invoices from './pages/backoffice/Invoices';
-import Expenses from './pages/backoffice/Expenses';
-import Reports from './pages/backoffice/Reports';
-import Team from './pages/backoffice/Team';
-import Settings from './pages/backoffice/Settings';
+import Dashboard     from './pages/backoffice/Dashboard';
+import Clients       from './pages/backoffice/Clients';
+import Invoices      from './pages/backoffice/Invoices';
+import Expenses      from './pages/backoffice/Expenses';
+import Reports       from './pages/backoffice/Reports';
+import Team          from './pages/backoffice/Team';
+import Collaboration from './pages/backoffice/Collaboration';
+import Settings      from './pages/backoffice/Settings';
 
 // Stock Management Pages
 import StockDashboard from './pages/backoffice/StockDashboard';
-import Products from './pages/backoffice/Products';
-import Categories from './pages/backoffice/Categories';
+import Products       from './pages/backoffice/Products';
+import Categories     from './pages/backoffice/Categories';
 import StockMovements from './pages/backoffice/StockMovements';
+
+// ── Module 3 — Gestion Fournisseurs & Achats ──────────────────────────────
+import SuppliersPage          from './pages/backoffice/purchases/SuppliersPage';
+import SupplierPOsPage        from './pages/backoffice/purchases/SupplierPOsPage';
+import PurchaseInvoicesPage   from './pages/backoffice/purchases/PurchaseInvoicesPage';
+import SupplierPaymentsPage   from './pages/backoffice/purchases/SupplierPaymentsPage';
+import PurchasesDashboardPage from './pages/backoffice/purchases/Purchasesdashboardpage';
+import GoodsReceiptsPage      from './pages/backoffice/purchases/Goodsreceiptspage';
+
+// ── Module Ventes ──────────────────────────────────────────────────────────
+import SalesDashboardPage     from './pages/backoffice/sales/SalesDashboardPage';
+import QuotesPage             from './pages/backoffice/sales/QuotesPage';
+import SalesOrdersPage        from './pages/backoffice/sales/SalesOrdersPage';
+import DeliveryNotesPage      from './pages/backoffice/sales/DeliveryNotesPage';
+import SalesInvoicesPage      from './pages/backoffice/sales/SalesInvoicesPage';
 
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
+
+// Inner component to access accessibility context
+function AppContent() {
+  const { isFingerScrollActive, toggleFingerScroll } = useAccessibility();
+
+  return (
+    <>
+      {/* Accessibility Components - Available on all pages */}
+      <AccessibilityButton />
+      <AccessibilityPanel />
+      
+      {/* Finger Scroll Control - Rendered at app level, independent of panel */}
+      <FingerScrollControl 
+        isActive={isFingerScrollActive} 
+        onClose={toggleFingerScroll} 
+      />
+
+      {/* Skip to main content link for keyboard navigation */}
+      <a href="#main-content" className="skip-to-content">
+        Aller au contenu principal
+      </a>
+
+      <Routes>
+        {/* ─── Public Routes ───────────────────────────────────────── */}
+        <Route path="/"        element={<LandingPage />}  />
+        <Route path="/login"   element={<LoginPage />}    />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/pricing" element={<PricingPage />}  />
+
+        {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
+        <Route
+          path="/portal"
+          element={
+            <ProtectedRoute allowedRoles={[Role.CLIENT]}>
+              <ClientPortal />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ─── Back Office (all roles except CLIENT) ──────────────── */}
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                Role.PLATFORM_ADMIN,
+                Role.BUSINESS_OWNER,
+                Role.BUSINESS_ADMIN,
+                Role.ACCOUNTANT,
+                Role.TEAM_MEMBER,
+              ]}
+            >
+              <BackOfficeLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Nested routes inside BackOfficeLayout */}
+          <Route index element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="dashboard"   element={<Dashboard />}   />
+          <Route path="clients"     element={<Clients />}     />
+          <Route path="invoices"    element={<Invoices />}    />
+          <Route path="expenses"    element={<Expenses />}    />
+
+          {/* Stock Management Routes */}
+          <Route path="stock"             element={<StockDashboard />} />
+          <Route path="stock/products"    element={<Products />}       />
+          <Route path="stock/categories"  element={<Categories />}     />
+          <Route path="stock/movements"   element={<StockMovements />} />
+
+          <Route path="reports"       element={<Reports />}       />
+          <Route path="team"          element={<Team />}          />
+          <Route path="collaboration" element={<Collaboration />} />
+          <Route path="settings"      element={<Settings />}      />
+
+          {/* ── Module 3 — Achats ─────────────────────────────────── */}
+          <Route path="purchases/dashboard"       element={<PurchasesDashboardPage />} />
+          <Route path="purchases/suppliers"       element={<SuppliersPage />}          />
+          <Route path="purchases/orders"          element={<SupplierPOsPage />}        />
+          <Route path="purchases/goods-receipts"  element={<GoodsReceiptsPage />}      />
+          <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
+          <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
+
+          {/* ── Module Ventes ──────────────────────────────────────── */}
+          <Route path="sales/dashboard"       element={<SalesDashboardPage />}  />
+          <Route path="sales/quotes"          element={<QuotesPage />}          />
+          <Route path="sales/orders"          element={<SalesOrdersPage />}     />
+          <Route path="sales/delivery-notes"  element={<DeliveryNotesPage />}   />
+          <Route path="sales/invoices"        element={<SalesInvoicesPage />}   />
+        </Route>
+
+        {/* ─── Catch-all redirect ──────────────────────────────────── */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
+  );
+}
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        {/* Accessibility Components - Available on all pages */}
-        <AccessibilityButton />
-        <AccessibilityPanel />
-        
-        {/* Skip to main content link for keyboard navigation */}
-        <a href="#main-content" className="skip-to-content">
-          Aller au contenu principal
-        </a>
-        
-        <Routes>
-          {/* ─── Public Routes ───────────────────────────────────────── */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-
-          {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
-          <Route
-            path="/portal"
-            element={
-              <ProtectedRoute allowedRoles={[Role.CLIENT]}>
-                <ClientPortal />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* ─── Back Office (all roles except CLIENT) ──────────────── */}
-          <Route
-            path="/app"
-            element={
-              <ProtectedRoute
-                allowedRoles={[
-                  Role.PLATFORM_ADMIN,
-                  Role.BUSINESS_OWNER,
-                  Role.BUSINESS_ADMIN,
-                  Role.ACCOUNTANT,
-                  Role.TEAM_MEMBER,
-                ]}
-              >
-                <BackOfficeLayout />
-              </ProtectedRoute>
-            }
-          >
-            {/* Nested routes inside BackOfficeLayout */}
-            <Route index element={<Navigate to="/app/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="clients" element={<Clients />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="expenses" element={<Expenses />} />
-            
-            {/* Stock Management Routes */}
-            <Route path="stock" element={<StockDashboard />} />
-            <Route path="stock/products" element={<Products />} />
-            <Route path="stock/categories" element={<Categories />} />
-            <Route path="stock/movements" element={<StockMovements />} />
-            
-            <Route path="reports" element={<Reports />} />
-            <Route path="team" element={<Team />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-
-          {/* ─── Catch-all redirect ──────────────────────────────────── */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <AppContent />
       </AuthProvider>
     </BrowserRouter>
   );

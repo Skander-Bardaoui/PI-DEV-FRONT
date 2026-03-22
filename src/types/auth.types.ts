@@ -18,6 +18,7 @@ export interface User {
   phone_number?: string;
   role: Role;
   is_verified: boolean;
+  business_id: string | null;  // ← ajouter cette ligne
   is_suspended: boolean;
   created_at: string;
   updated_at: string;

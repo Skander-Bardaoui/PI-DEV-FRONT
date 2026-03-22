@@ -11,6 +11,7 @@ interface AccessibilitySettings {
   reduceAnimations: boolean;
   highlightLinks: boolean;
   dyslexiaFont: boolean;
+  fingerScroll: boolean;
 }
 
 interface AccessibilityContextType {
@@ -22,6 +23,8 @@ interface AccessibilityContextType {
   resetSettings: () => void;
   isAccessibilityPanelOpen: boolean;
   toggleAccessibilityPanel: () => void;
+  isFingerScrollActive: boolean;
+  toggleFingerScroll: () => void;
 }
 
 const defaultSettings: AccessibilitySettings = {
@@ -35,6 +38,7 @@ const defaultSettings: AccessibilitySettings = {
   reduceAnimations: false,
   highlightLinks: false,
   dyslexiaFont: false,
+  fingerScroll: false,
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
@@ -45,6 +49,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : defaultSettings;
   });
   const [isAccessibilityPanelOpen, setIsAccessibilityPanelOpen] = useState(false);
+  const [isFingerScrollActive, setIsFingerScrollActive] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('accessibility-settings', JSON.stringify(settings));
@@ -102,6 +107,10 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     setIsAccessibilityPanelOpen((prev) => !prev);
   };
 
+  const toggleFingerScroll = () => {
+    setIsFingerScrollActive((prev) => !prev);
+  };
+
   return (
     <AccessibilityContext.Provider
       value={{
@@ -110,6 +119,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         resetSettings,
         isAccessibilityPanelOpen,
         toggleAccessibilityPanel,
+        isFingerScrollActive,
+        toggleFingerScroll,
       }}
     >
       {children}

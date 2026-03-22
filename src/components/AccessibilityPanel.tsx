@@ -1,8 +1,8 @@
-import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Volume2, Zap, Link as LinkIcon } from 'lucide-react';
+import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Volume2, Zap, Link as LinkIcon, Hand } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 
 export default function AccessibilityPanel() {
-  const { settings, updateSetting, resetSettings, isAccessibilityPanelOpen, toggleAccessibilityPanel } = useAccessibility();
+  const { settings, updateSetting, resetSettings, isAccessibilityPanelOpen, toggleAccessibilityPanel, isFingerScrollActive, toggleFingerScroll } = useAccessibility();
 
   if (!isAccessibilityPanelOpen) return null;
 
@@ -192,6 +192,12 @@ export default function AccessibilityPanel() {
 
           {/* Toggle Options */}
           <div className="space-y-3 pt-4 border-t border-gray-200">
+            <ToggleOption
+              icon={<Hand className="h-4 w-4" />}
+              label="Contrôle par geste"
+              checked={isFingerScrollActive}
+              onChange={toggleFingerScroll}
+            />
             <ToggleOption
               icon={<BookOpen className="h-4 w-4" />}
               label="Police dyslexie"
