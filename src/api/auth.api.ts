@@ -3,20 +3,18 @@ import axiosInstance from './axiosInstance';
 import {
   LoginRequest,
   RegisterRequest,
-  AuthResponse,
   User,
-  RefreshTokenRequest,
 } from '../types/auth.types';
 
-// ─── Register  register ────────────────────────────────────────────────────────────
-export const registerUser = async (data: RegisterRequest): Promise<AuthResponse> => {
-  const response = await axiosInstance.post<AuthResponse>('/auth/register', data);
+// ─── Register ────────────────────────────────────────────────────────────
+export const registerUser = async (data: RegisterRequest): Promise<{ user: User }> => {
+  const response = await axiosInstance.post<{ user: User }>('/auth/register', data);
   return response.data;
 };
 
 // ─── Login ───────────────────────────────────────────────────────────────
-export const loginUser = async (data: LoginRequest): Promise<AuthResponse> => {
-  const response = await axiosInstance.post<AuthResponse>('/auth/login', data);
+export const loginUser = async (data: LoginRequest): Promise<{ user: User }> => {
+  const response = await axiosInstance.post<{ user: User }>('/auth/login', data);
   return response.data;
 };
 
@@ -27,16 +25,14 @@ export const getCurrentUser = async (): Promise<User> => {
 };
 
 // ─── Refresh Tokens ──────────────────────────────────────────────────────
-export const refreshTokens = async (refreshToken: string): Promise<AuthResponse> => {
-  const response = await axiosInstance.post<AuthResponse>('/auth/refresh', {
-    refresh_token: refreshToken,
-  });
+export const refreshTokens = async (): Promise<{ user: User }> => {
+  const response = await axiosInstance.post<{ user: User }>('/auth/refresh', {});
   return response.data;
 };
 
 // ─── Logout ──────────────────────────────────────────────────────────────
-export const logoutUser = async (refreshToken: string): Promise<void> => {
-  await axiosInstance.post('/auth/logout', { refresh_token: refreshToken });
+export const logoutUser = async (): Promise<void> => {
+  await axiosInstance.post('/auth/logout', {});
 };
 
 // ─── Update Profile ──────────────────────────────────────────────────────
@@ -55,11 +51,22 @@ export const verifyEmail = async (token: string): Promise<void> => {
 };
 
 // ─── Forgot Password ─────────────────────────────────────────────────────
-export const forgotPassword = async (email: string): Promise<void> => {
-  await axiosInstance.post('/auth/forgot-password', { email });
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  const response = await axiosInstance.post<{ message: string }>('/auth/forgot-password', { email });
+  return response.data;
 };
 
 // ─── Reset Password ──────────────────────────────────────────────────────
-export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
-  await axiosInstance.post('/auth/reset-password', { token, newPassword });
+export const resetPassword = async (token: string, newPassword: string): Promise<{ message: string }> => {
+  const response = await axiosInstance.post<{ message: string }>('/auth/reset-password', { token, newPassword });
+  return response.data;
+};
+
+// ─── Change Password ─────────────────────────────────────────────────────
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<{ message: string }> => {
+  const response = await axiosInstance.post<{ message: string }>('/auth/change-password', {
+    currentPassword,
+    newPassword,
+  });
+  return response.data;
 };

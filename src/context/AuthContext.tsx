@@ -26,22 +26,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── On Mount: Check if User is Already Logged In ─────────────────────
   useEffect(() => {
     const initializeAuth = async () => {
-      const accessToken = localStorage.getItem('access_token');
-      
-      if (!accessToken) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        // Fetch user data from /auth/me
+        // Only try to fetch user if we're not on a public page
+        // This prevents unnecessary API calls on landing/login/register pages
+        const publicPaths = ['/', '/login', '/register', '/pricing', '/forgot-password', '/reset-password'];
+        const currentPath = window.location.pathname;
+        
+        if (publicPaths.includes(currentPath)) {
+          setIsLoading(false);
+          return;
+        }
+        
+        // Try to fetch user data from /auth/me (cookie-based)
         const userData = await getCurrentUser();
         setUser(userData);
       } catch (error) {
         console.error('Failed to fetch user:', error);
-        // Token might be expired, clear storage
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
+        // No valid session, user stays null
       } finally {
         setIsLoading(false);
       }
@@ -55,16 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await loginUser({ email, password });
       
-      // Store tokens
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('refresh_token', response.refresh_token);
-      
-      // Fetch user data
-      const userData = await getCurrentUser();
-      setUser(userData);
+      // Set user from response (cookies are set by backend)
+      setUser(response.user);
       
       // Redirect based on role
-      if (userData.role === Role.CLIENT) {
+      if (response.user.role === Role.CLIENT) {
         navigate('/portal');
       } else {
         navigate('/app');
@@ -82,15 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await registerUser(data);
       
-      // Store tokens
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('refresh_token', response.refresh_token);
+      // Set user from response (cookies are set by backend)
+      setUser(response.user);
       
-      // Fetch user data
-      const userData = await getCurrentUser();
-      setUser(userData);
-      
-      // Redirect to dashboard (new users default to TEAM_MEMBER role)
+      // Redirect to dashboard
       navigate('/app');
     } catch (error: any) {
       console.error('Registration failed:', error);
@@ -103,17 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Logout Function ─────────────────────────────────────────────────
   const logout = async () => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token');
-      
-      if (refreshToken) {
-        await logoutUser(refreshToken);
-      }
+      await logoutUser();
     } catch (error) {
       console.error('Logout API call failed:', error);
     } finally {
-      // Always clear local state and storage
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+      // Always clear local state
       setUser(null);
       navigate('/login');
     }

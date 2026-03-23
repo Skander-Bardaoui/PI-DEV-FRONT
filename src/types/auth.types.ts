@@ -66,27 +66,11 @@ export interface RegisterRequest {
   };
 }
 
-export interface RefreshTokenRequest {
-  refresh_token: string;
-}
-
 export interface UpdateProfileRequest {
   name?: string;
   email?: string;
   password?: string;
 }
-
-// ─── API Response Types ──────────────────────────────────────────────────
-export interface AuthResponse {
-  access_token: string;
-  refresh_token: string;
-}
-
-export interface LoginResponse extends AuthResponse {}
-
-export interface RegisterResponse extends AuthResponse {}
-
-export interface RefreshResponse extends AuthResponse {}
 
 // ─── Auth Context State ──────────────────────────────────────────────────
 export interface AuthContextType {

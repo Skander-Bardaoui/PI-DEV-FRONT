@@ -1,5 +1,6 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AccessibilityButton from './components/AccessibilityButton';
@@ -12,6 +13,8 @@ import LoginPage from './pages/frontoffice/LoginPage';
 import RegisterPage from './pages/frontoffice/RegisterPage';
 import PricingPage from './pages/frontoffice/PricingPage';
 import ClientPortal from './pages/frontoffice/ClientPortal';
+import ForgotPasswordPage from './pages/frontoffice/ForgotPasswordPage';
+import ResetPasswordPage from './pages/frontoffice/ResetPasswordPage';
 
 // Back Office Pages
 import Dashboard from './pages/backoffice/Dashboard';
@@ -36,6 +39,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        {/* Toast Notifications */}
+        <Toaster />
+        
         {/* Accessibility Components - Available on all pages */}
         <AccessibilityButton />
         <AccessibilityPanel />
@@ -51,6 +57,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
           <Route

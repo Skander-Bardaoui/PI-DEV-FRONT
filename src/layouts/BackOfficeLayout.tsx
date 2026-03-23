@@ -16,7 +16,7 @@ import {
   Building2,
   ChevronDown,
 
-  MessageSquare
+  MessageSquare,
 
   Package,
   Tag,
@@ -85,6 +85,7 @@ export default function BackOfficeLayout() {
   const [documentsMenuOpen, setDocumentsMenuOpen] = useState(false);
   const [salesMenuOpen, setSalesMenuOpen] = useState(false);
   const [purchasesMenuOpen, setPurchasesMenuOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -103,9 +104,8 @@ export default function BackOfficeLayout() {
   };
 
   const handleLogout = () => {
-    if (window.confirm('Voulez-vous vraiment vous déconnecter ?')) {
-      logout();
-    }
+    setProfileDropdownOpen(false);
+    logout();
   };
 
   return (
@@ -484,10 +484,46 @@ export default function BackOfficeLayout() {
               <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
             </button>
 
-            <div className="flex items-center gap-3">
-              <div className="user-avatar h-9 w-9 rounded-full bg-indigo-600 flex items-center justify-center">
-                <span className="text-white text-sm font-medium">{getUserInitials()}</span>
-              </div>
+            <div className="relative">
+              <button
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+              >
+                <div className="user-avatar h-9 w-9 rounded-full bg-indigo-600 flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">{getUserInitials()}</span>
+                </div>
+              </button>
+
+              {/* Profile Dropdown */}
+              {profileDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setProfileDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-20">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                    </div>
+                    <Link
+                      to="/app/settings"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <UserCircle className="h-4 w-4" />
+                      Profil
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full text-left"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Déconnexion
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
