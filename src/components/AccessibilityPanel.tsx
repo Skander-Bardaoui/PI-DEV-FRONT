@@ -1,22 +1,25 @@
-import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Volume2, Zap, Link as LinkIcon, Hand } from 'lucide-react';
+// src/components/AccessibilityPanel.tsx
+import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Zap, Link as LinkIcon, Hand, Camera } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 
 export default function AccessibilityPanel() {
-  const { settings, updateSetting, resetSettings, isAccessibilityPanelOpen, toggleAccessibilityPanel, isFingerScrollActive, toggleFingerScroll } = useAccessibility();
+  const {
+    settings, updateSetting, resetSettings,
+    isAccessibilityPanelOpen, toggleAccessibilityPanel,
+    isFingerScrollActive, toggleFingerScroll,
+  } = useAccessibility();
 
   if (!isAccessibilityPanelOpen) return null;
 
   return (
     <>
-      {/* Overlay */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/50 z-[100]"
         onClick={toggleAccessibilityPanel}
         aria-hidden="true"
       />
 
-      {/* Panel */}
-      <div 
+      <div
         className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-2xl z-[101] overflow-y-auto accessibility-panel"
         role="dialog"
         aria-labelledby="accessibility-title"
@@ -37,7 +40,8 @@ export default function AccessibilityPanel() {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Font Size */}
+
+          {/* ── Taille du texte ──────────────────────────────────────────── */}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">
               <Type className="inline h-4 w-4 mr-2" />
@@ -62,135 +66,85 @@ export default function AccessibilityPanel() {
             </div>
           </div>
 
-          {/* Contrast */}
+          {/* ── Contraste ────────────────────────────────────────────────── */}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">
               <Contrast className="inline h-4 w-4 mr-2" />
               Contraste
             </label>
             <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => updateSetting('contrast', 'normal')}
-                className={`p-3 border-2 rounded-lg transition-all ${
-                  settings.contrast === 'normal'
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-                aria-pressed={settings.contrast === 'normal'}
-              >
-                <div className="text-xs font-medium">Normal</div>
-              </button>
-              <button
-                onClick={() => updateSetting('contrast', 'high')}
-                className={`p-3 border-2 rounded-lg transition-all ${
-                  settings.contrast === 'high'
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-                aria-pressed={settings.contrast === 'high'}
-              >
-                <div className="text-xs font-medium">Élevé</div>
-              </button>
-              <button
-                onClick={() => updateSetting('contrast', 'dark')}
-                className={`p-3 border-2 rounded-lg transition-all ${
-                  settings.contrast === 'dark'
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-                aria-pressed={settings.contrast === 'dark'}
-              >
-                <div className="text-xs font-medium">Sombre</div>
-              </button>
+              {(['normal','high','dark'] as const).map(c => (
+                <button
+                  key={c}
+                  onClick={() => updateSetting('contrast', c)}
+                  className={`p-3 border-2 rounded-lg transition-all ${
+                    settings.contrast === c
+                      ? 'border-indigo-600 bg-indigo-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  aria-pressed={settings.contrast === c}
+                >
+                  <div className="text-xs font-medium">
+                    {c === 'normal' ? 'Normal' : c === 'high' ? 'Élevé' : 'Sombre'}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Line Height */}
+          {/* ── Hauteur de ligne ─────────────────────────────────────────── */}
           <div className="space-y-3">
             <label htmlFor="line-height" className="block text-sm font-medium text-gray-700">
               Hauteur de ligne
             </label>
-            <input
-              id="line-height"
-              type="range"
-              min="1"
-              max="2.5"
-              step="0.1"
+            <input id="line-height" type="range" min="1" max="2.5" step="0.1"
               value={settings.lineHeight}
-              onChange={(e) => updateSetting('lineHeight', parseFloat(e.target.value))}
+              onChange={e => updateSetting('lineHeight', parseFloat(e.target.value))}
               className="w-full"
-              aria-valuemin={1}
-              aria-valuemax={2.5}
-              aria-valuenow={settings.lineHeight}
             />
             <div className="text-center text-sm text-gray-600">{settings.lineHeight.toFixed(1)}</div>
           </div>
 
-          {/* Letter Spacing */}
+          {/* ── Espacement lettres ───────────────────────────────────────── */}
           <div className="space-y-3">
             <label htmlFor="letter-spacing" className="block text-sm font-medium text-gray-700">
               Espacement des lettres
             </label>
-            <input
-              id="letter-spacing"
-              type="range"
-              min="0"
-              max="5"
-              step="0.5"
+            <input id="letter-spacing" type="range" min="0" max="5" step="0.5"
               value={settings.letterSpacing}
-              onChange={(e) => updateSetting('letterSpacing', parseFloat(e.target.value))}
+              onChange={e => updateSetting('letterSpacing', parseFloat(e.target.value))}
               className="w-full"
-              aria-valuemin={0}
-              aria-valuemax={5}
-              aria-valuenow={settings.letterSpacing}
             />
             <div className="text-center text-sm text-gray-600">{settings.letterSpacing}px</div>
           </div>
 
-          {/* Cursor Size */}
+          {/* ── Taille du curseur ────────────────────────────────────────── */}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">
               <MousePointer className="inline h-4 w-4 mr-2" />
               Taille du curseur
             </label>
             <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => updateSetting('cursorSize', 'normal')}
-                className={`p-3 border-2 rounded-lg transition-all ${
-                  settings.cursorSize === 'normal'
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-                aria-pressed={settings.cursorSize === 'normal'}
-              >
-                <div className="text-xs font-medium">Normal</div>
-              </button>
-              <button
-                onClick={() => updateSetting('cursorSize', 'large')}
-                className={`p-3 border-2 rounded-lg transition-all ${
-                  settings.cursorSize === 'large'
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-                aria-pressed={settings.cursorSize === 'large'}
-              >
-                <div className="text-xs font-medium">Grand</div>
-              </button>
-              <button
-                onClick={() => updateSetting('cursorSize', 'extra-large')}
-                className={`p-3 border-2 rounded-lg transition-all ${
-                  settings.cursorSize === 'extra-large'
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-                aria-pressed={settings.cursorSize === 'extra-large'}
-              >
-                <div className="text-xs font-medium">Très grand</div>
-              </button>
+              {(['normal','large','extra-large'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => updateSetting('cursorSize', s)}
+                  className={`p-3 border-2 rounded-lg transition-all ${
+                    settings.cursorSize === s
+                      ? 'border-indigo-600 bg-indigo-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  aria-pressed={settings.cursorSize === s}
+                >
+                  <div className="text-xs font-medium">
+                    {s === 'normal' ? 'Normal' : s === 'large' ? 'Grand' : 'Très grand'}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Toggle Options */}
+          {/* ── Toggles ──────────────────────────────────────────────────── */}
           <div className="space-y-3 pt-4 border-t border-gray-200">
             <ToggleOption
               icon={<Hand className="h-4 w-4" />}
@@ -202,23 +156,23 @@ export default function AccessibilityPanel() {
               icon={<BookOpen className="h-4 w-4" />}
               label="Police dyslexie"
               checked={settings.dyslexiaFont}
-              onChange={(checked) => updateSetting('dyslexiaFont', checked)}
+              onChange={v => updateSetting('dyslexiaFont', v)}
             />
             <ToggleOption
               icon={<LinkIcon className="h-4 w-4" />}
               label="Surligner les liens"
               checked={settings.highlightLinks}
-              onChange={(checked) => updateSetting('highlightLinks', checked)}
+              onChange={v => updateSetting('highlightLinks', v)}
             />
             <ToggleOption
               icon={<Zap className="h-4 w-4" />}
               label="Réduire les animations"
               checked={settings.reduceAnimations}
-              onChange={(checked) => updateSetting('reduceAnimations', checked)}
+              onChange={v => updateSetting('reduceAnimations', v)}
             />
           </div>
 
-          {/* Reset Button */}
+          {/* ── Reset ────────────────────────────────────────────────────── */}
           <button
             onClick={resetSettings}
             className="w-full flex items-center justify-center gap-2 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
@@ -233,9 +187,9 @@ export default function AccessibilityPanel() {
 }
 
 interface ToggleOptionProps {
-  icon: React.ReactNode;
-  label: string;
-  checked: boolean;
+  icon:     React.ReactNode;
+  label:    string;
+  checked:  boolean;
   onChange: (checked: boolean) => void;
 }
 
@@ -249,7 +203,7 @@ function ToggleOption({ icon, label, checked, onChange }: ToggleOptionProps) {
       <input
         type="checkbox"
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={e => onChange(e.target.checked)}
         className="h-5 w-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
       />
     </label>

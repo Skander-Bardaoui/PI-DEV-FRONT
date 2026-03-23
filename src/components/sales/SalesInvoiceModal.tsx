@@ -3,7 +3,7 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { useCreateSalesInvoice, useUpdateSalesInvoice } from '@/hooks/useSalesInvoices';
 import { useClients } from '@/hooks/useClients';
-import { CreateSalesInvoiceItemDto } from '@/types/sales-invoice';
+import { CreateSalesInvoiceItemDto, SalesInvoiceType } from '@/types/sales-invoice';
 import { useState } from 'react';
 
 const TIMBRE_FISCAL = 1.000;
@@ -11,6 +11,8 @@ const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
 interface SalesInvoiceFormValues {
   client_id: string;
+  type: SalesInvoiceType;
+  original_invoice_id?: string;
   date?: string;
   due_date?: string;
   notes?: string;
@@ -36,6 +38,35 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
 
   const isEdit = !!invoice;
 
+  const getInitialValues = () => {
+    if (isEdit) {
+      return {
+        client_id: invoice.client_id || '',
+        type: invoice.type || SalesInvoiceType.NORMAL,
+        original_invoice_id: invoice.original_invoice_id || '',
+        date: invoice.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        due_date: invoice.due_date?.split('T')[0] || '',
+        notes: invoice.notes || '',
+        items: invoice.items?.map((item: any) => ({
+          description: item.description || '',
+          quantity: item.quantity || 1,
+          unit_price: item.unit_price || 0,
+          tax_rate_value: item.tax_rate_value || 19,
+        })) || [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19 }],
+      };
+    }
+
+    return {
+      client_id: '',
+      type: SalesInvoiceType.NORMAL,
+      original_invoice_id: '',
+      date: new Date().toISOString().split('T')[0],
+      due_date: '',
+      notes: '',
+      items: [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19 }],
+    };
+  };
+
   const {
     register,
     control,
@@ -43,28 +74,12 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
     watch,
     formState: { errors, isSubmitting },
   } = useForm<SalesInvoiceFormValues>({
-    defaultValues: isEdit ? {
-      client_id: invoice.client_id || '',
-      date: invoice.date?.split('T')[0] || new Date().toISOString().split('T')[0],
-      due_date: invoice.due_date?.split('T')[0] || '',
-      notes: invoice.notes || '',
-      items: invoice.items?.map((item: any) => ({
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        tax_rate_value: item.tax_rate_value,
-      })) || [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19 }],
-    } : {
-      client_id: '',
-      date: new Date().toISOString().split('T')[0],
-      due_date: '',
-      notes: '',
-      items: [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19 }],
-    },
+    defaultValues: getInitialValues(),
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const watchedItems = watch('items') || [];
+  const watchedType = watch('type');
 
   const computed = (watchedItems || []).map(l => {
     const ht = round3((l?.quantity || 0) * (l?.unit_price || 0));
@@ -89,6 +104,8 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
 
       const payload = {
         client_id: values.client_id,
+        type: values.type || SalesInvoiceType.NORMAL,
+        original_invoice_id: values.type === SalesInvoiceType.AVOIR ? values.original_invoice_id : undefined,
         date: values.date || undefined,
         due_date: values.due_date || undefined,
         notes: values.notes || undefined,
@@ -148,6 +165,23 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type de facture <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register('type', { required: 'Type requis' })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value={SalesInvoiceType.NORMAL}>Facture normale</option>
+                <option value={SalesInvoiceType.AVOIR}>Avoir (remboursement)</option>
+                <option value={SalesInvoiceType.PROFORMA}>Facture proforma</option>
+                <option value={SalesInvoiceType.ACOMPTE}>Facture d'acompte</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date de facture
               </label>
               <input
@@ -156,18 +190,34 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date d'échéance
+              </label>
+              <input
+                type="date"
+                {...register('due_date')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date d'échéance
-            </label>
-            <input
-              type="date"
-              {...register('due_date')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          {watchedType === SalesInvoiceType.AVOIR && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Facture d'origine (pour avoir)
+              </label>
+              <input
+                type="text"
+                {...register('original_invoice_id')}
+                placeholder="ID de la facture d'origine"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Optionnel : ID de la facture originale pour laquelle cet avoir est créé
+              </p>
+            </div>
+          )}
 
           {/* Lignes */}
           <div>

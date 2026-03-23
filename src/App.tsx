@@ -7,6 +7,7 @@ import AccessibilityPanel from './components/AccessibilityPanel';
 import FingerScrollControl from './components/FingerScrollControl';
 import { useAccessibility } from './context/AccessibilityContext';
 import { Role } from './types/auth.types';
+import { useTranslation } from 'react-i18next';
 
 // Front Office Pages
 import LandingPage   from './pages/frontoffice/LandingPage';
@@ -45,13 +46,17 @@ import QuotesPage             from './pages/backoffice/sales/QuotesPage';
 import SalesOrdersPage        from './pages/backoffice/sales/SalesOrdersPage';
 import DeliveryNotesPage      from './pages/backoffice/sales/DeliveryNotesPage';
 import SalesInvoicesPage      from './pages/backoffice/sales/SalesInvoicesPage';
+import RecurringInvoicesPage  from './pages/backoffice/sales/RecurringInvoicesPage';
 
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
+import SupplierPortalPage from './pages/backoffice/purchases/SupplierPortalPage';
+import SupplierRankingPage from './pages/backoffice/purchases/SupplierRankingPage';
 
 // Inner component to access accessibility context
 function AppContent() {
   const { isFingerScrollActive, toggleFingerScroll } = useAccessibility();
+  const { t } = useTranslation();
 
   return (
     <>
@@ -67,7 +72,7 @@ function AppContent() {
 
       {/* Skip to main content link for keyboard navigation */}
       <a href="#main-content" className="skip-to-content">
-        Aller au contenu principal
+        {t('accessibility.skipToContent', { defaultValue: 'Aller au contenu principal' })}
       </a>
 
       <Routes>
@@ -76,6 +81,7 @@ function AppContent() {
         <Route path="/login"   element={<LoginPage />}    />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/pricing" element={<PricingPage />}  />
+        <Route path="/supplier-portal" element={<SupplierPortalPage />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
         <Route
@@ -129,13 +135,15 @@ function AppContent() {
           <Route path="purchases/goods-receipts"  element={<GoodsReceiptsPage />}      />
           <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
           <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
+          <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
-          <Route path="sales/dashboard"       element={<SalesDashboardPage />}  />
-          <Route path="sales/quotes"          element={<QuotesPage />}          />
-          <Route path="sales/orders"          element={<SalesOrdersPage />}     />
-          <Route path="sales/delivery-notes"  element={<DeliveryNotesPage />}   />
-          <Route path="sales/invoices"        element={<SalesInvoicesPage />}   />
+          <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />
+          <Route path="sales/quotes"             element={<QuotesPage />}             />
+          <Route path="sales/orders"             element={<SalesOrdersPage />}        />
+          <Route path="sales/delivery-notes"     element={<DeliveryNotesPage />}      />
+          <Route path="sales/invoices"           element={<SalesInvoicesPage />}      />
+          <Route path="sales/recurring-invoices" element={<RecurringInvoicesPage />}  />
         </Route>
 
         {/* ─── Catch-all redirect ──────────────────────────────────── */}

@@ -1,5 +1,6 @@
 // src/hooks/useSalesInvoices.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/Toast';
 import {
   CreateSalesInvoiceDto,
   UpdateSalesInvoiceDto,
@@ -91,8 +92,17 @@ export const useCancelSalesInvoice = (businessId: string) => {
 
 export const useDeleteSalesInvoice = (businessId: string) => {
   const qc = useQueryClient();
+  const toast = useToast();
+  
   return useMutation({
     mutationFn: (id: string) => import('@/api/sales-invoices').then(m => m.deleteSalesInvoice(businessId, id)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [SALES_INVOICES_KEY, businessId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [SALES_INVOICES_KEY, businessId] });
+      toast.success('Facture supprimée', 'La facture a été supprimée avec succès');
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || 'Erreur lors de la suppression';
+      toast.error('Suppression impossible', errorMessage);
+    },
   });
 };

@@ -75,6 +75,14 @@ export const cancelSalesOrder = async (
   return data;
 };
 
+export const convertSalesOrderToInvoice = async (
+  businessId: string,
+  id: string,
+): Promise<any> => {
+  const { data } = await axiosInstance.post(`${base(businessId)}/${id}/convert-to-invoice`);
+  return data;
+};
+
 export const deleteSalesOrder = async (
   businessId: string,
   id: string,

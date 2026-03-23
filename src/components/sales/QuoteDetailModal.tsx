@@ -1,12 +1,15 @@
 // src/components/sales/QuoteDetailModal.tsx
-import { X, Package, ChevronDown, ChevronUp, Edit, Trash2, Send, Check, XCircle } from 'lucide-react';
+import { X, Package, ChevronDown, ChevronUp, Edit, Trash2, Send, Check, XCircle, FileText, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Quote, QUOTE_STATUS_COLORS, QUOTE_STATUS_LABELS, QuoteStatus } from '@/types/quote';
 import {
   useSendQuote,
   useAcceptQuote,
   useRejectQuote,
   useConvertQuote,
+  useConvertQuoteToInvoice,
+  useConvertQuoteToOrder,
   useQuote,
 } from '@/hooks/useQuotes';
 import QuoteModal from './QuoteModal';
@@ -14,6 +17,7 @@ import ConfirmModal from '../ui/ConfirmModal';
 import PDFButton from '../purchases/PDFButton';
 import { printQuote } from '@/utils/sales-quote-print';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/Toast';
 
 interface Props {
   quote: Quote;
@@ -27,6 +31,8 @@ export default function QuoteDetailModal({ quote: initialQuote, businessId, onCl
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const toast = useToast();
 
   // Fetch full quote details with items
   const { data: fullQuote, isLoading } = useQuote(businessId, initialQuote.id);
@@ -36,13 +42,39 @@ export default function QuoteDetailModal({ quote: initialQuote, businessId, onCl
   const accept = useAcceptQuote(businessId);
   const reject = useRejectQuote(businessId);
   const convert = useConvertQuote(businessId);
+  const convertToInvoice = useConvertQuoteToInvoice(businessId);
+  const convertToOrder = useConvertQuoteToOrder(businessId);
+
+  const handleConvertToInvoice = async () => {
+    try {
+      await convertToInvoice.mutateAsync(quote.id);
+      toast.success('Facture créée', 'La facture a été créée avec succès. Rafraîchissez la page pour voir les changements.');
+      onClose();
+    } catch (error: any) {
+      console.error('Conversion error:', error);
+      const errorMessage = error?.response?.data?.message || 'Erreur lors de la conversion';
+      toast.error('Erreur de conversion', errorMessage);
+    }
+  };
+
+  const handleConvertToOrder = async () => {
+    try {
+      await convertToOrder.mutateAsync(quote.id);
+      toast.success('Commande créée', 'La commande a été créée avec succès. Rafraîchissez la page pour voir les changements.');
+      onClose();
+    } catch (error: any) {
+      console.error('Conversion error:', error);
+      const errorMessage = error?.response?.data?.message || 'Erreur lors de la conversion';
+      toast.error('Erreur de conversion', errorMessage);
+    }
+  };
 
   const canEdit = quote.status === QuoteStatus.DRAFT;
   const canSend = quote.status === QuoteStatus.DRAFT;
   const canAccept = quote.status === QuoteStatus.SENT;
   const canReject = quote.status === QuoteStatus.SENT;
   const canConvert = quote.status === QuoteStatus.ACCEPTED;
-  const canDelete = quote.status === QuoteStatus.DRAFT;
+  const canDelete = quote.status === QuoteStatus.DRAFT || quote.status === QuoteStatus.CONVERTED;
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR');
@@ -213,13 +245,24 @@ export default function QuoteDetailModal({ quote: initialQuote, businessId, onCl
                 </button>
               )}
               {canConvert && (
-                <button
-                  onClick={() => convert.mutate(quote.id)}
-                  disabled={convert.isPending}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  Convertir en commande
-                </button>
+                <>
+                  <button
+                    onClick={handleConvertToInvoice}
+                    disabled={convertToInvoice.isPending}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <FileText className="h-4 w-4" />
+                    {convertToInvoice.isPending ? 'Conversion...' : 'Convertir en facture'}
+                  </button>
+                  <button
+                    onClick={handleConvertToOrder}
+                    disabled={convertToOrder.isPending}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    {convertToOrder.isPending ? 'Conversion...' : 'Convertir en commande'}
+                  </button>
+                </>
               )}
               {canDelete && (
                 <button
