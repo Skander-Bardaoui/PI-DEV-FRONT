@@ -80,6 +80,14 @@ export const useCancelSalesOrder = (businessId: string) => {
   });
 };
 
+export const useConvertSalesOrderToInvoice = (businessId: string) => {
+  // Don't use queryClient here - no automatic invalidation
+  // The parent component will handle refresh manually
+  return useMutation({
+    mutationFn: (id: string) => import('@/api/sales-orders').then(m => m.convertSalesOrderToInvoice(businessId, id)),
+  });
+};
+
 export const useDeleteSalesOrder = (businessId: string) => {
   const qc = useQueryClient();
   return useMutation({

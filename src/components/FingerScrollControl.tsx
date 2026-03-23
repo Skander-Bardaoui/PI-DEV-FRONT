@@ -169,62 +169,14 @@ export default function FingerScrollControl({ isActive, onClose }: FingerScrollC
             return;
           }
 
-          // ── 1 main → scroll + curseur + clic + pinch-to-zoom ─────────────────
+          // ── 1 main → scroll + curseur + clic ─────────────
           const hand           = allHands[0];
           const indexFingerTip = hand[8];  // bout index
           const thumbTip       = hand[4];  // bout pouce
-          const ringTip        = hand[16]; // bout annulaire
-          const ringKnuckle    = hand[14]; // articulation annulaire
 
-          // Détection mode zoom : annulaire replié (tip plus bas que knuckle)
-          // Cela distingue le geste zoom du scroll normal (index levé seul)
-          const ringIsDown     = ringTip.y > ringKnuckle.y;
           const thumbIndexDist = dist2D(thumbTip, indexFingerTip);
 
-          // ── PINCH TO ZOOM 1 main ──────────────────────────────────────────
-          // Geste : annulaire replié + écarter/rapprocher pouce et index
-          if (ringIsDown && thumbIndexDist > 0.05) {
-            // Dessiner pouce et index en couleurs distinctes
-            ctx.fillStyle = '#00FF88';
-            ctx.beginPath();
-            ctx.arc(thumbTip.x * 320, thumbTip.y * 240, 10, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.fillStyle = '#FF6600';
-            ctx.beginPath();
-            ctx.arc(indexFingerTip.x * 320, indexFingerTip.y * 240, 10, 0, 2 * Math.PI);
-            ctx.fill();
-            // Ligne pouce ↔ index
-            ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth   = 3;
-            ctx.beginPath();
-            ctx.moveTo(thumbTip.x * 320,       thumbTip.y * 240);
-            ctx.lineTo(indexFingerTip.x * 320, indexFingerTip.y * 240);
-            ctx.stroke();
-
-            if (pinchDistRef.current === null) {
-              // Début du geste : mémoriser distance initiale + zoom actuel
-              pinchDistRef.current = thumbIndexDist;
-              pinchZoomRef.current = getCurrentZoom();
-            } else {
-              const ratio   = thumbIndexDist / pinchDistRef.current;
-              const newZoom = Math.max(50, Math.min(200,
-                Math.round(pinchZoomRef.current * ratio),
-              ));
-              const applied = applyZoom(newZoom);
-              setCurrentZoom(applied);
-              showZoomIndicator(applied);
-              setStatus(`Zoom ${applied}% — ${ratio > 1 ? 'agrandir 🔍+' : 'réduire 🔍-'}`);
-            }
-
-            scrollSpeedRef.current  = 0;
-            cursorDot.style.display = 'none';
-            isPinchingRef.current   = false;
-            return;
-          }
-
-          // Fin du geste zoom → reset
-          pinchDistRef.current = null;
-
+          // ── SCROLL MODE (index levé) ──────────────────────────────────────
           const screenX = (1 - indexFingerTip.x) * window.innerWidth;
           const screenY = indexFingerTip.y        * window.innerHeight;
 
@@ -329,7 +281,7 @@ export default function FingerScrollControl({ isActive, onClose }: FingerScrollC
           if (displayVideoRef.current) displayVideoRef.current.srcObject = streamRef.current;
         }
 
-        setStatus('Caméra prête — index : scroll / annulaire replié + pouce-index : zoom');
+        setStatus('Caméra prête — index : scroll / pince pouce-index : clic');
         setIsLoading(false);
 
       } catch (err) {
@@ -448,8 +400,6 @@ export default function FingerScrollControl({ isActive, onClose }: FingerScrollC
                   <li>• <strong>Index levé — haut/bas</strong> : défilement de la page</li>
                   <li>• <strong>Index — curseur</strong> : déplace le point rouge</li>
                   <li>• <strong>Pince pouce+index</strong> : clic</li>
-                  <li>• <strong>Annulaire replié + écarter pouce/index</strong> : zoom avant 🔍+</li>
-                  <li>• <strong>Annulaire replié + rapprocher pouce/index</strong> : zoom arrière 🔍-</li>
                 </ul>
               </div>
 

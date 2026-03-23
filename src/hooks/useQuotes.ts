@@ -1,5 +1,6 @@
 // src/hooks/useQuotes.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/Toast';
 import {
   CreateQuoteDto,
   UpdateQuoteDto,
@@ -89,10 +90,36 @@ export const useConvertQuote = (businessId: string) => {
   });
 };
 
-export const useDeleteQuote = (businessId: string) => {
-  const qc = useQueryClient();
+export const useConvertQuoteToInvoice = (businessId: string) => {
+  // Don't use queryClient here - no automatic invalidation
+  // The parent component will handle refresh manually
   return useMutation({
-    mutationFn: (id: string) => import('@/api/quotes').then(m => m.deleteQuote(businessId, id)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [QUOTES_KEY, businessId] }),
+    mutationFn: (id: string) => import('@/api/quotes').then(m => m.convertQuoteToInvoice(businessId, id)),
   });
 };
+
+export const useConvertQuoteToOrder = (businessId: string) => {
+  // Don't use queryClient here - no automatic invalidation
+  // The parent component will handle refresh manually
+  return useMutation({
+    mutationFn: (id: string) => import('@/api/quotes').then(m => m.convertQuoteToOrder(businessId, id)),
+  });
+};
+
+export const useDeleteQuote = (businessId: string) => {
+  const qc = useQueryClient();
+  const toast = useToast();
+  
+  return useMutation({
+    mutationFn: (id: string) => import('@/api/quotes').then(m => m.deleteQuote(businessId, id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUOTES_KEY, businessId] });
+      toast.success('Devis supprimé', 'Le devis a été supprimé avec succès');
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || 'Erreur lors de la suppression';
+      toast.error('Suppression impossible', errorMessage);
+    },
+  });
+};
+

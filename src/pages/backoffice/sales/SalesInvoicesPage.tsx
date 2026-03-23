@@ -1,10 +1,26 @@
 import { useState } from 'react';
-import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2 } from 'lucide-react';
+import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, ScanLine, Bell } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useSalesInvoices, useDeleteSalesInvoice } from '@/hooks/useSalesInvoices';
-import { SALES_INVOICE_STATUS_COLORS, SALES_INVOICE_STATUS_LABELS } from '@/types/sales-invoice';
+import { SALES_INVOICE_STATUS_COLORS, SALES_INVOICE_STATUS_LABELS, SalesInvoiceType } from '@/types/sales-invoice';
 import SalesInvoiceModal from '@/components/sales/SalesInvoiceModal';
 import SalesInvoiceDetailModal from '@/components/sales/SalesInvoiceDetailModal';
+import SendInvoiceEmailModal from '@/components/sales/SendInvoiceEmailModal';
+import SalesOcrInvoiceModal from '@/components/sales/SalesOcrInvoiceModal';
+
+const INVOICE_TYPE_LABELS: Record<SalesInvoiceType, string> = {
+  [SalesInvoiceType.NORMAL]: 'Normale',
+  [SalesInvoiceType.AVOIR]: 'Avoir',
+  [SalesInvoiceType.PROFORMA]: 'Proforma',
+  [SalesInvoiceType.ACOMPTE]: 'Acompte',
+};
+
+const INVOICE_TYPE_COLORS: Record<SalesInvoiceType, string> = {
+  [SalesInvoiceType.NORMAL]: 'bg-blue-100 text-blue-700',
+  [SalesInvoiceType.AVOIR]: 'bg-red-100 text-red-700',
+  [SalesInvoiceType.PROFORMA]: 'bg-purple-100 text-purple-700',
+  [SalesInvoiceType.ACOMPTE]: 'bg-orange-100 text-orange-700',
+};
 
 type SortField = 'invoice_number' | 'date' | 'due_date' | 'net_amount' | 'client';
 type SortDir = 'asc' | 'desc';
@@ -34,6 +50,9 @@ export default function SalesInvoicesPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showOcrModal, setShowOcrModal] = useState(false);
+  const [invoiceForEmail, setInvoiceForEmail] = useState<any>(null);
 
   const { data, isLoading } = useSalesInvoices(businessId, {
     status: statusFilter || undefined,
@@ -89,13 +108,22 @@ export default function SalesInvoicesPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Factures clients</h1>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
-        >
-          <Plus className="h-5 w-5" />
-          Nouvelle facture
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowOcrModal(true)}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition-colors"
+          >
+            <ScanLine className="h-5 w-5" />
+            Scanner une facture
+          </button>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Nouvelle facture
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow">
@@ -168,6 +196,9 @@ export default function SalesInvoicesPage() {
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => toggleSort('invoice_number')}>
                   N° Facture <SortIcon field="invoice_number" />
                 </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                  Type
+                </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => toggleSort('client')}>
                   Client <SortIcon field="client" />
                 </th>
@@ -187,13 +218,13 @@ export default function SalesInvoicesPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     Chargement...
                   </td>
                 </tr>
               ) : sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     Aucune facture trouvée
                   </td>
                 </tr>
@@ -201,6 +232,11 @@ export default function SalesInvoicesPage() {
                 sorted.map((invoice) => (
                   <tr key={invoice.id} className="border-t hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium">{invoice.invoice_number}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs ${INVOICE_TYPE_COLORS[invoice.type || SalesInvoiceType.NORMAL]}`}>
+                        {INVOICE_TYPE_LABELS[invoice.type || SalesInvoiceType.NORMAL]}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">{invoice.client?.name || 'N/A'}</td>
                     <td className="px-4 py-3">{formatDate(invoice.date)}</td>
                     <td className="px-4 py-3">{formatDate(invoice.due_date)}</td>
@@ -219,6 +255,28 @@ export default function SalesInvoicesPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
+                        <button
+                          onClick={() => {
+                            setInvoiceForEmail(invoice);
+                            setShowEmailModal(true);
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Envoyer par email"
+                        >
+                          <Mail className="h-4 w-4" />
+                        </button>
+                        {(invoice.status === 'OVERDUE' || invoice.status === 'SENT') && (
+                          <button
+                            onClick={() => {
+                              setInvoiceForEmail(invoice);
+                              setShowEmailModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                            title="Rappel de paiement"
+                          >
+                            <Bell className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setSelectedInvoice(invoice)}
                           className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -245,7 +303,10 @@ export default function SalesInvoicesPage() {
       </div>
 
       {modalOpen && (
-        <SalesInvoiceModal businessId={businessId} onClose={() => setModalOpen(false)} />
+        <SalesInvoiceModal 
+          businessId={businessId} 
+          onClose={() => setModalOpen(false)}
+        />
       )}
 
       {selectedInvoice && (
@@ -254,6 +315,33 @@ export default function SalesInvoicesPage() {
           businessId={businessId}
           onClose={() => setSelectedInvoice(null)}
           onDelete={(id) => deleteInvoice.mutate(id)}
+        />
+      )}
+
+      {showEmailModal && invoiceForEmail && (
+        <SendInvoiceEmailModal
+          isOpen={showEmailModal}
+          onClose={() => {
+            setShowEmailModal(false);
+            setInvoiceForEmail(null);
+          }}
+          invoice={invoiceForEmail}
+          businessId={businessId}
+          onSuccess={() => {
+            // Rafraîchir la liste si nécessaire
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {showOcrModal && (
+        <SalesOcrInvoiceModal
+          businessId={businessId}
+          onClose={() => setShowOcrModal(false)}
+          onCreated={() => {
+            setShowOcrModal(false);
+            window.location.reload();
+          }}
         />
       )}
     </div>

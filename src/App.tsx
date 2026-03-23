@@ -46,6 +46,7 @@ import QuotesPage             from './pages/backoffice/sales/QuotesPage';
 import SalesOrdersPage        from './pages/backoffice/sales/SalesOrdersPage';
 import DeliveryNotesPage      from './pages/backoffice/sales/DeliveryNotesPage';
 import SalesInvoicesPage      from './pages/backoffice/sales/SalesInvoicesPage';
+import RecurringInvoicesPage  from './pages/backoffice/sales/RecurringInvoicesPage';
 
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
@@ -137,11 +138,12 @@ function AppContent() {
           <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
-          <Route path="sales/dashboard"       element={<SalesDashboardPage />}  />
-          <Route path="sales/quotes"          element={<QuotesPage />}          />
-          <Route path="sales/orders"          element={<SalesOrdersPage />}     />
-          <Route path="sales/delivery-notes"  element={<DeliveryNotesPage />}   />
-          <Route path="sales/invoices"        element={<SalesInvoicesPage />}   />
+          <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />
+          <Route path="sales/quotes"             element={<QuotesPage />}             />
+          <Route path="sales/orders"             element={<SalesOrdersPage />}        />
+          <Route path="sales/delivery-notes"     element={<DeliveryNotesPage />}      />
+          <Route path="sales/invoices"           element={<SalesInvoicesPage />}      />
+          <Route path="sales/recurring-invoices" element={<RecurringInvoicesPage />}  />
         </Route>
 
         {/* ─── Catch-all redirect ──────────────────────────────────── */}

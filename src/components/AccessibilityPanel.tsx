@@ -1,5 +1,5 @@
 // src/components/AccessibilityPanel.tsx
-import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Volume2, Zap, Link as LinkIcon, Hand, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Zap, Link as LinkIcon, Hand, Camera } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 
 export default function AccessibilityPanel() {
@@ -40,63 +40,6 @@ export default function AccessibilityPanel() {
         </div>
 
         <div className="p-6 space-y-6">
-
-          {/* ── Zoom à distance ──────────────────────────────────────────── */}
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">
-              <ZoomIn className="inline h-4 w-4 mr-2" />
-              Zoom de la page
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => (updateSetting as any)('zoom', Math.max(50, ((settings as any).zoom ?? 100) - 10))}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                aria-label="Réduire le zoom"
-              >
-                <ZoomOut className="h-4 w-4" />
-              </button>
-              <div className="flex-1 text-center">
-                <span className="font-semibold text-lg text-indigo-600">{(settings as any).zoom ?? 100}%</span>
-              </div>
-              <button
-                onClick={() => (updateSetting as any)('zoom', Math.min(200, ((settings as any).zoom ?? 100) + 10))}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                aria-label="Augmenter le zoom"
-              >
-                <ZoomIn className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Barre de zoom rapide */}
-            <div className="flex gap-2 flex-wrap">
-              {[75, 100, 125, 150, 175, 200].map(z => (
-                <button
-                  key={z}
-                  onClick={() => (updateSetting as any)('zoom', z)}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                    ((settings as any).zoom ?? 100) === z
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'border-gray-300 text-gray-600 hover:border-indigo-400'
-                  }`}
-                >
-                  {z}%
-                </button>
-              ))}
-            </div>
-
-            {/* Toggle scroll pour zoomer */}
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-              <ToggleOption
-                icon={<ZoomIn className="h-4 w-4" />}
-                label="Ctrl + Scroll pour zoomer"
-                checked={(settings as any).scrollToZoom ?? false}
-                onChange={v => (updateSetting as any)('scrollToZoom', v)}
-              />
-              <p className="text-xs text-indigo-600 mt-1 ml-6">
-                Maintenez <kbd className="bg-white border border-indigo-300 px-1 rounded text-xs">Ctrl</kbd> et faites défiler la molette pour zoomer/dézoomer
-              </p>
-            </div>
-          </div>
 
           {/* ── Taille du texte ──────────────────────────────────────────── */}
           <div className="space-y-3">

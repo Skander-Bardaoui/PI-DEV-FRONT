@@ -1,11 +1,13 @@
 // src/components/sales/SalesOrderDetailModal.tsx
 import { X, Package, ChevronDown, ChevronUp, Edit, Trash2, Play, Truck, FileText, XCircle } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SalesOrder, SALES_ORDER_STATUS_COLORS, SALES_ORDER_STATUS_LABELS, SalesOrderStatus } from '@/types/sales-order';
 import {
   useStartProgressSalesOrder,
   useMarkDeliveredSalesOrder,
   useMarkInvoicedSalesOrder,
+  useConvertSalesOrderToInvoice,
   useCancelSalesOrder,
   useSalesOrder,
 } from '@/hooks/useSalesOrders';
@@ -14,6 +16,7 @@ import ConfirmModal from '../ui/ConfirmModal';
 import PDFButton from '../purchases/PDFButton';
 import { printSalesOrder } from '@/utils/sales-order-print';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/Toast';
 
 interface Props {
   order: SalesOrder;
@@ -27,6 +30,8 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const toast = useToast();
 
   // Fetch full order details with items
   const { data: fullOrder, isLoading } = useSalesOrder(businessId, initialOrder.id);
@@ -35,14 +40,27 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
   const startProgress = useStartProgressSalesOrder(businessId);
   const markDelivered = useMarkDeliveredSalesOrder(businessId);
   const markInvoiced = useMarkInvoicedSalesOrder(businessId);
+  const convertToInvoice = useConvertSalesOrderToInvoice(businessId);
   const cancel = useCancelSalesOrder(businessId);
+
+  const handleConvertToInvoice = async () => {
+    try {
+      const result = await convertToInvoice.mutateAsync(order.id);
+      toast.success('Facture créée', 'La facture a été créée avec succès. Rafraîchissez la page pour voir les changements.');
+      onClose();
+    } catch (error: any) {
+      console.error('Conversion error:', error);
+      const errorMessage = error?.response?.data?.message || 'Erreur lors de la conversion';
+      toast.error('Erreur de conversion', errorMessage);
+    }
+  };
 
   const canEdit = order.status === SalesOrderStatus.CONFIRMED;
   const canStartProgress = order.status === SalesOrderStatus.CONFIRMED;
   const canMarkDelivered = order.status === SalesOrderStatus.IN_PROGRESS;
   const canMarkInvoiced = order.status === SalesOrderStatus.DELIVERED;
   const canCancel = [SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS].includes(order.status);
-  const canDelete = order.status === SalesOrderStatus.CONFIRMED;
+  const canDelete = order.status === SalesOrderStatus.CONFIRMED || order.status === SalesOrderStatus.INVOICED;
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR');
@@ -204,12 +222,12 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
               )}
               {canMarkInvoiced && (
                 <button
-                  onClick={() => markInvoiced.mutate(order.id)}
-                  disabled={markInvoiced.isPending}
+                  onClick={handleConvertToInvoice}
+                  disabled={convertToInvoice.isPending}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1"
                 >
                   <FileText className="h-4 w-4" />
-                  Marquer facturé
+                  {convertToInvoice.isPending ? 'Conversion...' : 'Convertir en facture'}
                 </button>
               )}
               {canCancel && (

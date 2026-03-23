@@ -5,7 +5,7 @@ import {
   BarChart3, Settings, Menu, X, LogOut, Bell, Search,
   Building2, ChevronDown, MessageSquare, Package, Tag,
   TrendingUp, Box, ShoppingCart, ShoppingBag, FileCheck,
-  Truck, ClipboardList, Award,
+  Truck, ClipboardList, Award, RefreshCw,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
@@ -48,11 +48,12 @@ export default function BackOfficeLayout() {
     {
       name: t('nav.sales'), href: '/app/sales', icon: ShoppingCart,
       subItems: [
-        { name: t('nav.dashboard'),  href: '/app/sales/dashboard',      icon: LayoutDashboard },
-        { name: t('nav.quotes'),     href: '/app/sales/quotes',         icon: FileCheck       },
-        { name: t('nav.orders'),     href: '/app/sales/orders',         icon: ClipboardList   },
-        { name: t('nav.deliveries'), href: '/app/sales/delivery-notes', icon: Truck           },
-        { name: t('nav.invoices'),   href: '/app/sales/invoices',       icon: FileText        },
+        { name: t('nav.dashboard'),  href: '/app/sales/dashboard',          icon: LayoutDashboard },
+        { name: t('nav.quotes'),     href: '/app/sales/quotes',             icon: FileCheck       },
+        { name: t('nav.orders'),     href: '/app/sales/orders',             icon: ClipboardList   },
+        { name: t('nav.deliveries'), href: '/app/sales/delivery-notes',     icon: Truck           },
+        { name: t('nav.invoices'),   href: '/app/sales/invoices',           icon: FileText        },
+        { name: 'Factures récurrentes', href: '/app/sales/recurring-invoices', icon: RefreshCw    },
       ],
     },
     {

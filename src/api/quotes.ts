@@ -83,6 +83,22 @@ export const convertQuote = async (
   return data;
 };
 
+export const convertQuoteToInvoice = async (
+  businessId: string,
+  id: string,
+): Promise<any> => {
+  const { data } = await axiosInstance.post(`${base(businessId)}/${id}/convert-to-invoice`);
+  return data;
+};
+
+export const convertQuoteToOrder = async (
+  businessId: string,
+  id: string,
+): Promise<any> => {
+  const { data } = await axiosInstance.post(`${base(businessId)}/${id}/convert-to-order`);
+  return data;
+};
+
 export const deleteQuote = async (
   businessId: string,
   id: string,
