@@ -15,6 +15,7 @@ import LoginPage     from './pages/frontoffice/LoginPage';
 import RegisterPage  from './pages/frontoffice/RegisterPage';
 import PricingPage   from './pages/frontoffice/PricingPage';
 import ClientPortal  from './pages/frontoffice/ClientPortal';
+import SalesOrderClientPortal from './pages/frontoffice/SalesOrderClientPortal';
 
 // Back Office Pages
 import Dashboard     from './pages/backoffice/Dashboard';
@@ -82,6 +83,7 @@ function AppContent() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/pricing" element={<PricingPage />}  />
         <Route path="/supplier-portal" element={<SupplierPortalPage />} />
+        <Route path="/client-portal" element={<SalesOrderClientPortal />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
         <Route
