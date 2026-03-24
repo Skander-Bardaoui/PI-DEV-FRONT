@@ -11,19 +11,26 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useAccounts } from '@/hooks/useAccounts';
-import { Account, CreateAccountDto } from '@/types/treasury';
+import { useTransfers } from '@/hooks/useTransfers';
+import { Account, CreateAccountDto, CreateTransferDto } from '@/types/treasury';
 import AccountModal from '@/components/treasury/AccountModal';
+import TransferModal from '@/components/treasury/TransferModal';
 
 export default function AccountsPage() {
   const { accounts, loading, error, fetchAccounts, createAccount, updateAccount, toggleActive } =
     useAccounts();
+  const { transfer, error: transferError } = useTransfers();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | { field: string; message: string }[] | null>(null);
+
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [preselectedFromId, setPreselectedFromId] = useState<string | null>(null);
 
   // ── Totals ──────────────────────────────────────────────────────────────
   const totalBalance = accounts
@@ -45,13 +52,12 @@ export default function AccountsPage() {
       const payload: CreateAccountDto = {
         name: dto.name?.trim() || '',
         type: dto.type || 'BANK',
-        bank_name: dto.bank_name?.trim() || undefined,   // ← undefined, not null
-        rib: dto.rib?.trim() || undefined,               // ← undefined, not null
+        bank_name: dto.bank_name?.trim() || undefined,
+        rib: dto.rib?.trim() || undefined,
         opening_balance: typeof dto.opening_balance === 'number' ? dto.opening_balance : 0,
         currency: dto.currency || 'TND',
         is_default: dto.is_default ?? false,
       };
-
       await createAccount(payload);
       setModalOpen(false);
     } catch (e: any) {
@@ -59,28 +65,38 @@ export default function AccountsPage() {
     }
   };
 
-  const handleUpdate = async (dto: CreateAccountDto) => {
+  const handleUpdate = async (dto: CreateAccountDto & { current_balance?: number }) => {
     if (!editingAccount) return;
     setActionError(null);
     try {
-      const payload: CreateAccountDto = {
+      const payload = {
         name: dto.name?.trim() || editingAccount.name || '',
         type: dto.type || editingAccount.type || 'BANK',
-        bank_name: dto.bank_name?.trim() || editingAccount.bank_name || undefined,  // ← undefined, not null
-        rib: dto.rib?.trim() || editingAccount.rib || undefined,                    // ← undefined, not null
-        opening_balance:
-          typeof dto.opening_balance === 'number'
-            ? dto.opening_balance
-            : editingAccount.opening_balance,
+        bank_name: dto.bank_name?.trim() || editingAccount.bank_name || undefined,
+        rib: dto.rib?.trim() || editingAccount.rib || undefined,
         currency: dto.currency || editingAccount.currency || 'TND',
         is_default: dto.is_default ?? editingAccount.is_default ?? false,
+        current_balance:
+          typeof dto.current_balance === 'number'
+            ? dto.current_balance
+            : Number(editingAccount.current_balance),
       };
-
       await updateAccount(editingAccount.id, payload);
       setEditingAccount(null);
       setModalOpen(false);
     } catch (e: any) {
       setActionError(e?.response?.data || 'Failed to update account');
+    }
+  };
+
+  const handleTransfer = async (dto: CreateTransferDto) => {
+    setActionError(null);
+    try {
+      await transfer(dto);
+      await fetchAccounts(); // refresh balances after transfer
+    } catch (e: any) {
+      setActionError(e?.response?.data || 'Failed to process transfer');
+      throw e; // re-throw so modal stays open on error
     }
   };
 
@@ -105,6 +121,12 @@ export default function AccountsPage() {
     setModalOpen(true);
   };
 
+  const openTransfer = (fromAccountId?: string) => {
+    setPreselectedFromId(fromAccountId || null);
+    setMenuOpenId(null);
+    setTransferModalOpen(true);
+  };
+
   const formatAmount = (amount: number, currency = 'TND') =>
     `${Number(amount).toLocaleString('fr-TN', { minimumFractionDigits: 3 })} ${currency}`;
 
@@ -125,6 +147,16 @@ export default function AccountsPage() {
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
+          {/* Transfer button — only show if 2+ active accounts */}
+          {accounts.filter((a) => a.is_active).length >= 2 && (
+            <button
+              onClick={() => openTransfer()}
+              className="flex items-center gap-2 px-4 py-2 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              Transfer
+            </button>
+          )}
           <button
             onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -140,17 +172,11 @@ export default function AccountsPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm space-y-1">
           {Array.isArray(error)
             ? error.map((e: any, idx: number) => (
-                <p key={idx}>
-                  {e.field ? `${e.field}: ` : ''}
-                  {e.message}
-                </p>
+                <p key={idx}>{e.field ? `${e.field}: ` : ''}{e.message}</p>
               ))
             : Array.isArray(actionError)
             ? actionError.map((e: any, idx: number) => (
-                <p key={idx}>
-                  {e.field ? `${e.field}: ` : ''}
-                  {e.message}
-                </p>
+                <p key={idx}>{e.field ? `${e.field}: ` : ''}{e.message}</p>
               ))
             : <p>{error || actionError}</p>}
         </div>
@@ -242,11 +268,7 @@ export default function AccountsPage() {
                       {/* Name */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                              account.type === 'BANK' ? 'bg-blue-100' : 'bg-green-100'
-                            }`}
-                          >
+                          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${account.type === 'BANK' ? 'bg-blue-100' : 'bg-green-100'}`}>
                             {account.type === 'BANK' ? (
                               <Building2 className="h-5 w-5 text-blue-600" />
                             ) : (
@@ -267,18 +289,8 @@ export default function AccountsPage() {
 
                       {/* Type */}
                       <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                            account.type === 'BANK'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-green-100 text-green-700'
-                          }`}
-                        >
-                          {account.type === 'BANK' ? (
-                            <Building2 className="h-3 w-3" />
-                          ) : (
-                            <Wallet className="h-3 w-3" />
-                          )}
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${account.type === 'BANK' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                          {account.type === 'BANK' ? <Building2 className="h-3 w-3" /> : <Wallet className="h-3 w-3" />}
                           {account.type}
                         </span>
                       </td>
@@ -288,9 +300,7 @@ export default function AccountsPage() {
                         {account.type === 'BANK' ? (
                           <div>
                             <p className="font-medium">{account.bank_name || '—'}</p>
-                            {account.rib && (
-                              <p className="text-xs text-gray-400 font-mono">{account.rib}</p>
-                            )}
+                            {account.rib && <p className="text-xs text-gray-400 font-mono">{account.rib}</p>}
                           </div>
                         ) : (
                           <span className="text-gray-400">—</span>
@@ -309,16 +319,8 @@ export default function AccountsPage() {
                             {formatAmount(account.current_balance, account.currency)}
                           </p>
                           {diff !== 0 && (
-                            <p
-                              className={`text-xs flex items-center justify-end gap-0.5 ${
-                                diff >= 0 ? 'text-green-600' : 'text-red-500'
-                              }`}
-                            >
-                              {diff >= 0 ? (
-                                <TrendingUp className="h-3 w-3" />
-                              ) : (
-                                <TrendingDown className="h-3 w-3" />
-                              )}
+                            <p className={`text-xs flex items-center justify-end gap-0.5 ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              {diff >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                               {diff >= 0 ? '+' : ''}
                               {formatAmount(diff, account.currency)}
                             </p>
@@ -328,13 +330,7 @@ export default function AccountsPage() {
 
                       {/* Status */}
                       <td className="px-6 py-4 text-center">
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${
-                            account.is_active
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${account.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                           {account.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -342,9 +338,7 @@ export default function AccountsPage() {
                       {/* Actions */}
                       <td className="px-6 py-4 text-right relative">
                         <button
-                          onClick={() =>
-                            setMenuOpenId(menuOpenId === account.id ? null : account.id)
-                          }
+                          onClick={() => setMenuOpenId(menuOpenId === account.id ? null : account.id)}
                           className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                         >
                           <MoreHorizontal className="h-4 w-4 text-gray-400" />
@@ -352,11 +346,8 @@ export default function AccountsPage() {
 
                         {menuOpenId === account.id && (
                           <>
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setMenuOpenId(null)}
-                            />
-                            <div className="absolute right-6 top-12 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-44">
+                            <div className="fixed inset-0 z-10" onClick={() => setMenuOpenId(null)} />
+                            <div className="absolute right-6 top-12 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-48">
                               <button
                                 onClick={() => openEdit(account)}
                                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -364,11 +355,19 @@ export default function AccountsPage() {
                                 <Pencil className="h-4 w-4 text-gray-400" />
                                 Edit
                               </button>
+                              {/* Transfer from this account — only if another active account exists */}
+                              {account.is_active && accounts.filter((a) => a.is_active && a.id !== account.id).length >= 1 && (
+                                <button
+                                  onClick={() => openTransfer(account.id)}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-indigo-600 hover:bg-gray-50"
+                                >
+                                  <ArrowRightLeft className="h-4 w-4" />
+                                  Transfer from here
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleToggleActive(account)}
-                                className={`flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-50 ${
-                                  account.is_active ? 'text-red-600' : 'text-green-600'
-                                }`}
+                                className={`flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-50 ${account.is_active ? 'text-red-600' : 'text-green-600'}`}
                               >
                                 <PowerOff className="h-4 w-4" />
                                 {account.is_active ? 'Deactivate' : 'Activate'}
@@ -386,15 +385,21 @@ export default function AccountsPage() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Account Modal */}
       <AccountModal
         open={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditingAccount(null);
-        }}
+        onClose={() => { setModalOpen(false); setEditingAccount(null); }}
         onSubmit={editingAccount ? handleUpdate : handleCreate}
         account={editingAccount}
+      />
+
+      {/* Transfer Modal */}
+      <TransferModal
+        open={transferModalOpen}
+        onClose={() => { setTransferModalOpen(false); setPreselectedFromId(null); }}
+        onSubmit={handleTransfer}
+        accounts={accounts}
+        preselectedFromId={preselectedFromId}
       />
     </div>
   );

@@ -6,24 +6,27 @@ import { Account, CreateAccountDto, AccountType } from '@/types/treasury';
 interface AccountModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateAccountDto) => Promise<void>;
+  onSubmit: (data: CreateAccountDto & { current_balance?: number }) => Promise<void>;
   account?: Account | null;
 }
 
-const defaultForm: CreateAccountDto = {
+const defaultForm = {
   name: '',
-  type: 'BANK',
-  bank_name: undefined,
-  rib: undefined,
+  type: 'BANK' as AccountType,
+  bank_name: undefined as string | undefined,
+  rib: undefined as string | undefined,
   opening_balance: 0,
   currency: 'TND',
   is_default: false,
+  current_balance: undefined as number | undefined, // only used in edit mode
 };
 
 export default function AccountModal({ open, onClose, onSubmit, account }: AccountModalProps) {
-  const [form, setForm] = useState<CreateAccountDto>(defaultForm);
+  const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof CreateAccountDto, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+
+  const isEdit = !!account;
 
   useEffect(() => {
     if (account) {
@@ -35,6 +38,7 @@ export default function AccountModal({ open, onClose, onSubmit, account }: Accou
         opening_balance: account.opening_balance ?? 0,
         currency: account.currency || 'TND',
         is_default: account.is_default ?? false,
+        current_balance: account.current_balance ?? 0, // ← prefill with existing current_balance
       });
     } else {
       setForm(defaultForm);
@@ -43,12 +47,14 @@ export default function AccountModal({ open, onClose, onSubmit, account }: Accou
   }, [account, open]);
 
   const validate = (): boolean => {
-    const newErrors: Partial<Record<keyof CreateAccountDto, string>> = {};
+    const newErrors: Record<string, string> = {};
     if (!form.name?.trim()) newErrors.name = 'Account name is required';
     if (form.type === 'BANK' && !form.bank_name?.trim())
       newErrors.bank_name = 'Bank name is required for bank accounts';
-    if (form.opening_balance !== undefined && form.opening_balance < 0)
+    if (!isEdit && form.opening_balance !== undefined && form.opening_balance < 0)
       newErrors.opening_balance = 'Balance cannot be negative';
+    if (isEdit && form.current_balance !== undefined && form.current_balance < 0)
+      newErrors.current_balance = 'Balance cannot be negative';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -59,14 +65,18 @@ export default function AccountModal({ open, onClose, onSubmit, account }: Accou
 
     setSubmitting(true);
     try {
-      const payload: CreateAccountDto = {
+      const payload: CreateAccountDto & { current_balance?: number } = {
         name: form.name?.trim() || '',
         type: form.type || 'BANK',
-        bank_name: form.bank_name?.trim() || undefined,   // ← undefined, not null
-        rib: form.rib?.trim() || undefined,               // ← undefined, not null
-        opening_balance: typeof form.opening_balance === 'number' ? form.opening_balance : 0,
+        bank_name: form.bank_name?.trim() || undefined,
+        rib: form.rib?.trim() || undefined,
         currency: form.currency || 'TND',
         is_default: form.is_default ?? false,
+        // On create → send opening_balance, on edit → send current_balance
+        ...(isEdit
+          ? { current_balance: typeof form.current_balance === 'number' ? form.current_balance : 0 }
+          : { opening_balance: typeof form.opening_balance === 'number' ? form.opening_balance : 0 }
+        ),
       };
 
       await onSubmit(payload);
@@ -93,7 +103,7 @@ export default function AccountModal({ open, onClose, onSubmit, account }: Accou
               )}
             </div>
             <h2 className="text-lg font-semibold text-gray-900">
-              {account ? 'Edit Account' : 'New Account'}
+              {isEdit ? 'Edit Account' : 'New Account'}
             </h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -180,27 +190,60 @@ export default function AccountModal({ open, onClose, onSubmit, account }: Accou
             </>
           )}
 
-          {/* Opening Balance + Currency */}
+          {/* Balance + Currency */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Opening Balance
-              </label>
-              <input
-                type="number"
-                min={0}
-                step="0.001"
-                value={form.opening_balance ?? ''}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    opening_balance: e.target.value === '' ? 0 : parseFloat(e.target.value),
-                  }))
-                }
-                className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.opening_balance ? 'border-red-400' : 'border-gray-300'
-                }`}
-              />
+              {isEdit ? (
+                // Edit mode → Current Balance (editable)
+                <>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current Balance
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.001"
+                    value={form.current_balance ?? ''}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        current_balance: e.target.value === '' ? 0 : parseFloat(e.target.value),
+                      }))
+                    }
+                    className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      errors.current_balance ? 'border-red-400' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.current_balance && (
+                    <p className="text-xs text-red-500 mt-1">{errors.current_balance}</p>
+                  )}
+                </>
+              ) : (
+                // Create mode → Opening Balance
+                <>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Opening Balance
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.001"
+                    value={form.opening_balance ?? ''}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        opening_balance: e.target.value === '' ? 0 : parseFloat(e.target.value),
+                      }))
+                    }
+                    className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      errors.opening_balance ? 'border-red-400' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.opening_balance && (
+                    <p className="text-xs text-red-500 mt-1">{errors.opening_balance}</p>
+                  )}
+                </>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
@@ -241,7 +284,7 @@ export default function AccountModal({ open, onClose, onSubmit, account }: Accou
               disabled={submitting}
               className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm font-medium"
             >
-              {submitting ? 'Saving...' : account ? 'Save Changes' : 'Create Account'}
+              {submitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Account'}
             </button>
           </div>
         </form>
