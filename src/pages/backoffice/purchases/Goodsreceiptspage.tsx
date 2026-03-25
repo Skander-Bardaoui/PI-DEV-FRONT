@@ -273,11 +273,17 @@ export default function GoodsReceiptsPage() {
           </div>
         )}
 
-        {data && (data.total_pages ?? 1) > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">{data.total} BCs</p>
+        {/* Pagination toujours visible */}
+        {data && (
+          <div className="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
-            <div className="flex gap-2">
+            <p className="text-sm text-gray-500">
+              {data.total} BCs — page {page} / {data.total_pages ?? 1}
+            </p>
+
+            <div className="flex items-center gap-2">
+
+              {/* Bouton précédent */}
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
@@ -286,6 +292,33 @@ export default function GoodsReceiptsPage() {
                 Précédent
               </button>
 
+              {/* Numéros de pages */}
+              {Array.from({ length: data.total_pages ?? 1 }, (_, i) => i + 1)
+                .filter(p =>
+                  p === 1 ||
+                  p === (data.total_pages ?? 1) ||
+                  Math.abs(p - page) <= 1
+                )
+                .map((p, index, arr) => (
+                  <span key={p} className="flex items-center">
+                    {index > 0 && arr[index - 1] !== p - 1 && (
+                      <span className="px-1 text-gray-400">...</span>
+                    )}
+
+                    <button
+                      onClick={() => setPage(p)}
+                      className={`px-3 py-1 border rounded-lg text-sm transition-colors ${
+                        page === p
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                ))}
+
+              {/* Bouton suivant */}
               <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={page >= (data.total_pages ?? 1)}
@@ -293,6 +326,7 @@ export default function GoodsReceiptsPage() {
               >
                 Suivant
               </button>
+
             </div>
           </div>
         )}
