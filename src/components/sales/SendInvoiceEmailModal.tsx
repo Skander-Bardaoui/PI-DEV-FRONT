@@ -1,6 +1,7 @@
 // src/components/sales/SendInvoiceEmailModal.tsx
 import { useState } from 'react';
-import { X, Mail, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Mail, Send, Loader2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { useEmailDraft } from '../../hooks/useEmailDraft';
 
 interface SendInvoiceEmailModalProps {
   isOpen: boolean;
@@ -18,11 +19,95 @@ export default function SendInvoiceEmailModal({
   onSuccess,
 }: SendInvoiceEmailModalProps) {
   const [email, setEmail] = useState(invoice?.client?.email || '');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [isReminder, setIsReminder] = useState(false);
+  const [language, setLanguage] = useState<'fr' | 'ar'>('fr');
   const [isSending, setIsSending] = useState(false);
+  const [isGeneratingAndSending, setIsGeneratingAndSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { generateDraft, isGenerating, error: draftError } = useEmailDraft();
+
   if (!isOpen) return null;
+
+  const handleGenerateDraft = async () => {
+    const draft = await generateDraft({
+      businessId,
+      clientName: invoice.client?.name || 'Client',
+      invoiceNumber: invoice.invoice_number,
+      amount: Number(invoice.net_amount || 0),
+      dueDate: new Date(invoice.due_date).toLocaleDateString('fr-TN'),
+      isReminder,
+      language,
+    });
+
+    if (draft) {
+      setSubject(draft.subject);
+      setBody(draft.body);
+    }
+  };
+
+  const handleGenerateAndSend = async () => {
+    if (!email || !email.includes('@')) {
+      setError('Veuillez entrer une adresse email valide');
+      return;
+    }
+
+    setIsGeneratingAndSending(true);
+    setError(null);
+
+    try {
+      // Generate AI draft
+      const draft = await generateDraft({
+        businessId,
+        clientName: invoice.client?.name || 'Client',
+        invoiceNumber: invoice.invoice_number,
+        amount: Number(invoice.net_amount || 0),
+        dueDate: new Date(invoice.due_date).toLocaleDateString('fr-TN'),
+        isReminder,
+        language,
+      });
+
+      if (!draft) {
+        setError('Impossible de générer le brouillon');
+        return;
+      }
+
+      // Send email immediately with AI-generated content
+      const response = await fetch(
+        `http://localhost:3001/businesses/${businessId}/invoices/${invoice.id}/send-email`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          },
+          body: JSON.stringify({ 
+            email,
+            subject: draft.subject,
+            body: draft.body,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erreur lors de l\'envoi');
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        onSuccess?.();
+        handleClose();
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de la génération et l\'envoi');
+    } finally {
+      setIsGeneratingAndSending(false);
+    }
+  };
 
   const handleSend = async () => {
     if (!email || !email.includes('@')) {
@@ -42,7 +127,12 @@ export default function SendInvoiceEmailModal({
             'Content-Type': 'application/json',
           },
           credentials: 'include', // Send cookies automatically
-          body: JSON.stringify({ email }),
+
+          body: JSON.stringify({ 
+            email,
+            subject: subject || undefined,  // Send custom subject if available
+            body: body || undefined,        // Send custom body if available
+          }),
         }
       );
 
@@ -65,6 +155,10 @@ export default function SendInvoiceEmailModal({
 
   const handleClose = () => {
     setEmail(invoice?.client?.email || '');
+    setSubject('');
+    setBody('');
+    setIsReminder(false);
+    setLanguage('fr');
     setSuccess(false);
     setError(null);
     onClose();
@@ -73,8 +167,8 @@ export default function SendInvoiceEmailModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-50" onClick={handleClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-2xl max-w-md w-full">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full my-8 max-h-[90vh] flex flex-col">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -89,7 +183,7 @@ export default function SendInvoiceEmailModal({
             </button>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
             {/* Invoice Info */}
             <div className="bg-gray-50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between">
@@ -123,6 +217,128 @@ export default function SendInvoiceEmailModal({
               />
             </div>
 
+            {/* AI Email Generator */}
+            <div className="border border-purple-200 rounded-lg p-3 bg-gradient-to-br from-purple-50 to-pink-50 space-y-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+                <p className="font-semibold text-purple-900">Générer avec Gemini AI</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Type d'email */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Type d'email
+                  </label>
+                  <select
+                    value={isReminder ? 'reminder' : 'first'}
+                    onChange={(e) => setIsReminder(e.target.value === 'reminder')}
+                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500"
+                    disabled={isGenerating}
+                  >
+                    <option value="first">Premier envoi</option>
+                    <option value="reminder">Rappel</option>
+                  </select>
+                </div>
+
+                {/* Langue */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Langue
+                  </label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value as 'fr' | 'ar')}
+                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500"
+                    disabled={isGenerating}
+                  >
+                    <option value="fr">🇫🇷 FR</option>
+                    <option value="ar">🇹🇳 AR</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateDraft}
+                  disabled={isGenerating}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-1.5 rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-medium flex items-center justify-center gap-1.5"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Génération...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3" />
+                      Brouillon
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateAndSend}
+                  disabled={isGeneratingAndSending || isSending}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white py-1.5 rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-medium flex items-center justify-center gap-1.5"
+                >
+                  {isGeneratingAndSending ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Envoi...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-3 w-3" />
+                      Générer & Envoyer
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {draftError && (
+                <p className="text-red-600 text-xs flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {draftError}
+                </p>
+              )}
+            </div>
+
+            {/* Email Fields */}
+            {(subject || body) && (
+              <div className="space-y-2 border-t pt-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Objet de l'email
+                  </label>
+                  <input
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    placeholder="Objet de l'email..."
+                    disabled={isSending || success}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Corps du message
+                  </label>
+                  <textarea
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    placeholder="Corps de l'email..."
+                    disabled={isSending || success}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Success Message */}
             {success && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
@@ -148,16 +364,16 @@ export default function SendInvoiceEmailModal({
             )}
 
             {/* Info */}
-            {!success && (
+            {!success && !subject && !body && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-900">
-                  💡 La facture sera envoyée en pièce jointe au format PDF avec un email personnalisé.
+                  💡 Utilisez l'IA pour générer automatiquement un email professionnel, ou la facture sera envoyée avec un email standard.
                 </p>
               </div>
             )}
 
             {/* Actions */}
-            <div className="flex gap-3 justify-end pt-4 border-t">
+            <div className="flex gap-3 justify-end pt-3 border-t mt-4">
               <button
                 onClick={handleClose}
                 className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

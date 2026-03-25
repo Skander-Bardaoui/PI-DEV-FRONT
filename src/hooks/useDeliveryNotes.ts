@@ -51,7 +51,11 @@ export const useMarkDelivered = (businessId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => markDelivered(businessId, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [DELIVERY_NOTES_KEY, businessId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [DELIVERY_NOTES_KEY, businessId] });
+      // Also invalidate sales orders since they might be updated
+      qc.invalidateQueries({ queryKey: ['sales-orders', businessId] });
+    },
   });
 };
 

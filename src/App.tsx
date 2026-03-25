@@ -17,6 +17,7 @@ import RegisterPage  from './pages/frontoffice/RegisterPage';
 import PricingPage   from './pages/frontoffice/PricingPage';
 import ClientPortal  from './pages/frontoffice/ClientPortal';
 import AcceptInvitationPage from './pages/frontoffice/AcceptInvitationPage';
+import SalesOrderClientPortal from './pages/frontoffice/SalesOrderClientPortal';
 
 // Back Office Pages
 import Dashboard     from './pages/backoffice/Dashboard';
@@ -54,6 +55,7 @@ import RecurringInvoicesPage  from './pages/backoffice/sales/RecurringInvoicesPa
 import BackOfficeLayout from './layouts/BackOfficeLayout';
 import SupplierPortalPage from './pages/backoffice/purchases/SupplierPortalPage';
 import SupplierRankingPage from './pages/backoffice/purchases/SupplierRankingPage';
+import AccountsPage from './pages/backoffice/treasury/AccountsPage';
 
 // Inner component to access accessibility context
 function AppContent() {
@@ -68,11 +70,11 @@ function AppContent() {
       {/* Accessibility Components - Available on all pages */}
       <AccessibilityButton />
       <AccessibilityPanel />
-      
+
       {/* Finger Scroll Control - Rendered at app level, independent of panel */}
-      <FingerScrollControl 
-        isActive={isFingerScrollActive} 
-        onClose={toggleFingerScroll} 
+      <FingerScrollControl
+        isActive={isFingerScrollActive}
+        onClose={toggleFingerScroll}
       />
 
       {/* Skip to main content link for keyboard navigation */}
@@ -88,6 +90,7 @@ function AppContent() {
         <Route path="/pricing" element={<PricingPage />}  />
         <Route path="/supplier-portal" element={<SupplierPortalPage />} />
         <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
+        <Route path="/client-portal" element={<SalesOrderClientPortal />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
         <Route
@@ -142,6 +145,9 @@ function AppContent() {
           <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
           <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
           <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
+
+          {/*treasury*/}
+          <Route path="/app/treasury/accounts" element={<AccountsPage />} />
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
           <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />
