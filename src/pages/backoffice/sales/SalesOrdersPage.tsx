@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2 } from 'lucide-react';
+import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, Edit, Play, Truck, XCircle, MoreVertical } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
-import { useSalesOrders, useDeleteSalesOrder } from '@/hooks/useSalesOrders';
-import { SALES_ORDER_STATUS_COLORS, SALES_ORDER_STATUS_LABELS } from '@/types/sales-order';
+import { useSalesOrders, useDeleteSalesOrder, useStartProgressSalesOrder, useMarkDeliveredSalesOrder, useConvertSalesOrderToInvoice, useCancelSalesOrder, useSendSalesOrderEmail } from '@/hooks/useSalesOrders';
+import { SALES_ORDER_STATUS_COLORS, SALES_ORDER_STATUS_LABELS, SalesOrderStatus } from '@/types/sales-order';
 import SalesOrderModal from '@/components/sales/SalesOrderModal';
 import SalesOrderDetailModal from '@/components/sales/SalesOrderDetailModal';
+import { useToast } from '@/components/ui/Toast';
 
 type SortField = 'orderNumber' | 'orderDate' | 'netAmount' | 'client';
 type SortDir = 'asc' | 'desc';
@@ -21,6 +22,7 @@ const STATUS_OPTIONS = [
 export default function SalesOrdersPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const toast = useToast();
 
   const [statusFilter, setStatusFilter] = useState('');
   const [clientFilter, setClientFilter] = useState('');
@@ -33,6 +35,7 @@ export default function SalesOrdersPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
 
   const { data, isLoading } = useSalesOrders(businessId, {
     status: statusFilter || undefined,
@@ -42,6 +45,11 @@ export default function SalesOrdersPage() {
   });
 
   const deleteOrder = useDeleteSalesOrder(businessId);
+  const startProgress = useStartProgressSalesOrder(businessId);
+  const markDelivered = useMarkDeliveredSalesOrder(businessId);
+  const convertToInvoice = useConvertSalesOrderToInvoice(businessId);
+  const cancel = useCancelSalesOrder(businessId);
+  const sendEmail = useSendSalesOrderEmail(businessId);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -214,21 +222,122 @@ export default function SalesOrdersPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="PDF"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteOrder.mutate(order.id)}
-                          disabled={deleteOrder.isPending}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        
+                        {order.status === SalesOrderStatus.CONFIRMED && order.client?.email && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await sendEmail.mutateAsync(order.id);
+                                toast.success('Email envoyé', `Email de confirmation envoyé à ${order.client.email}`);
+                              } catch (error: any) {
+                                toast.error('Erreur', error?.response?.data?.message || 'Erreur lors de l\'envoi');
+                              }
+                            }}
+                            disabled={sendEmail.isPending}
+                            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Envoyer au client"
+                          >
+                            <Mail className="h-4 w-4" />
+                          </button>
+                        )}
+                        
+                        {order.status === SalesOrderStatus.CONFIRMED && (
+                          <>
+                            <button
+                              onClick={() => setEditingOrder(order)}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Modifier"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await startProgress.mutateAsync(order.id);
+                                  toast.success('Commande démarrée', 'Un bon de livraison a été créé automatiquement');
+                                } catch (error: any) {
+                                  toast.error('Erreur', error?.response?.data?.message || 'Erreur lors du démarrage');
+                                }
+                              }}
+                              disabled={startProgress.isPending}
+                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Démarrer"
+                            >
+                              <Play className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                        
+                        {order.status === SalesOrderStatus.IN_PROGRESS && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await markDelivered.mutateAsync(order.id);
+                                toast.success('Commande livrée', 'La commande a été marquée comme livrée');
+                              } catch (error: any) {
+                                toast.error('Erreur', error?.response?.data?.message || 'Erreur lors de la mise à jour');
+                              }
+                            }}
+                            disabled={markDelivered.isPending}
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Marquer livré"
+                          >
+                            <Truck className="h-4 w-4" />
+                          </button>
+                        )}
+                        
+                        {order.status === SalesOrderStatus.DELIVERED && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await convertToInvoice.mutateAsync(order.id);
+                                toast.success('Facture créée', 'La facture a été créée avec succès');
+                              } catch (error: any) {
+                                toast.error('Erreur', error?.response?.data?.message || 'Erreur lors de la conversion');
+                              }
+                            }}
+                            disabled={convertToInvoice.isPending}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Convertir en facture"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                        )}
+                        
+                        {[SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS].includes(order.status) && (
+                          <button
+                            onClick={async () => {
+                              if (confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) {
+                                try {
+                                  await cancel.mutateAsync(order.id);
+                                  toast.success('Commande annulée', 'La commande a été annulée');
+                                } catch (error: any) {
+                                  toast.error('Erreur', error?.response?.data?.message || 'Erreur lors de l\'annulation');
+                                }
+                              }
+                            }}
+                            disabled={cancel.isPending}
+                            className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Annuler"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        )}
+                        
+                        {(order.status === SalesOrderStatus.CONFIRMED || order.status === SalesOrderStatus.INVOICED) && (
+                          <button
+                            onClick={() => {
+                              if (confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {
+                                deleteOrder.mutate(order.id);
+                              }
+                            }}
+                            disabled={deleteOrder.isPending}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -241,6 +350,14 @@ export default function SalesOrdersPage() {
 
       {modalOpen && (
         <SalesOrderModal businessId={businessId} onClose={() => setModalOpen(false)} />
+      )}
+
+      {editingOrder && (
+        <SalesOrderModal 
+          businessId={businessId} 
+          order={editingOrder}
+          onClose={() => setEditingOrder(null)} 
+        />
       )}
 
       {selectedOrder && (

@@ -89,3 +89,11 @@ export const deleteSalesOrder = async (
 ): Promise<void> => {
   await axiosInstance.delete(`${base(businessId)}/${id}`);
 };
+
+export const sendSalesOrderEmail = async (
+  businessId: string,
+  id: string,
+): Promise<{ message: string }> => {
+  const { data } = await axiosInstance.post(`${base(businessId)}/${id}/send-email`);
+  return data;
+};

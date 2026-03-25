@@ -1,5 +1,5 @@
 // src/components/sales/SalesOrderDetailModal.tsx
-import { X, Package, ChevronDown, ChevronUp, Edit, Trash2, Play, Truck, FileText, XCircle } from 'lucide-react';
+import { X, Package, ChevronDown, ChevronUp, Edit, Trash2, Play, Truck, FileText, XCircle, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SalesOrder, SALES_ORDER_STATUS_COLORS, SALES_ORDER_STATUS_LABELS, SalesOrderStatus } from '@/types/sales-order';
@@ -10,6 +10,7 @@ import {
   useConvertSalesOrderToInvoice,
   useCancelSalesOrder,
   useSalesOrder,
+  useSendSalesOrderEmail,
 } from '@/hooks/useSalesOrders';
 import SalesOrderModal from './SalesOrderModal';
 import ConfirmModal from '../ui/ConfirmModal';
@@ -42,6 +43,7 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
   const markInvoiced = useMarkInvoicedSalesOrder(businessId);
   const convertToInvoice = useConvertSalesOrderToInvoice(businessId);
   const cancel = useCancelSalesOrder(businessId);
+  const sendEmail = useSendSalesOrderEmail(businessId);
 
   const handleConvertToInvoice = async () => {
     try {
@@ -191,6 +193,15 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
                 label="Télécharger PDF"
                 variant="ghost"
               />
+              <button
+                onClick={() => sendEmail.mutate(order.id)}
+                disabled={sendEmail.isPending || !order.client?.email}
+                className="px-4 py-2 border border-green-300 text-green-600 rounded-lg text-sm hover:bg-green-50 flex items-center gap-1 disabled:opacity-50"
+                title={!order.client?.email ? 'Le client n\'a pas d\'email' : 'Envoyer par email'}
+              >
+                <Mail className="h-4 w-4" />
+                {sendEmail.isPending ? 'Envoi...' : 'Envoyer au client'}
+              </button>
               {canEdit && (
                 <button
                   onClick={() => setEditOpen(true)}
@@ -202,22 +213,40 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
               )}
               {canStartProgress && (
                 <button
-                  onClick={() => startProgress.mutate(order.id)}
+                  onClick={async () => {
+                    try {
+                      await startProgress.mutateAsync(order.id);
+                      toast.success('Commande démarrée', 'Un bon de livraison a été créé automatiquement');
+                      onClose();
+                      // Optionally navigate to delivery notes page
+                      // navigate('/app/sales/delivery-notes');
+                    } catch (error: any) {
+                      toast.error('Erreur', error?.response?.data?.message || 'Erreur lors du démarrage');
+                    }
+                  }}
                   disabled={startProgress.isPending}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
                 >
                   <Play className="h-4 w-4" />
-                  Démarrer
+                  {startProgress.isPending ? 'Démarrage...' : 'Démarrer'}
                 </button>
               )}
               {canMarkDelivered && (
                 <button
-                  onClick={() => markDelivered.mutate(order.id)}
+                  onClick={async () => {
+                    try {
+                      await markDelivered.mutateAsync(order.id);
+                      toast.success('Commande livrée', 'La commande a été marquée comme livrée');
+                      onClose();
+                    } catch (error: any) {
+                      toast.error('Erreur', error?.response?.data?.message || 'Erreur lors de la mise à jour');
+                    }
+                  }}
                   disabled={markDelivered.isPending}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
                 >
                   <Truck className="h-4 w-4" />
-                  Marquer livré
+                  {markDelivered.isPending ? 'Mise à jour...' : 'Marquer livré'}
                 </button>
               )}
               {canMarkInvoiced && (

@@ -1,5 +1,6 @@
 // src/hooks/useSalesOrders.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/Toast';
 import {
   CreateSalesOrderDto,
   UpdateSalesOrderDto,
@@ -14,6 +15,7 @@ import {
   markDeliveredSalesOrder,
   markInvoicedSalesOrder,
   cancelSalesOrder,
+  sendSalesOrderEmail,
 } from '@/api/sales-orders';
 
 export const SALES_ORDERS_KEY = 'sales-orders';
@@ -93,5 +95,20 @@ export const useDeleteSalesOrder = (businessId: string) => {
   return useMutation({
     mutationFn: (id: string) => import('@/api/sales-orders').then(m => m.deleteSalesOrder(businessId, id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: [SALES_ORDERS_KEY, businessId] }),
+  });
+};
+
+export const useSendSalesOrderEmail = (businessId: string) => {
+  const toast = useToast();
+  
+  return useMutation({
+    mutationFn: (id: string) => sendSalesOrderEmail(businessId, id),
+    onSuccess: (data) => {
+      toast.success('Email envoyé', data.message || 'L\'email de confirmation a été envoyé au client');
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || 'Erreur lors de l\'envoi de l\'email';
+      toast.error('Erreur d\'envoi', errorMessage);
+    },
   });
 };
