@@ -2,6 +2,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { FileText, ShoppingCart, Truck, Receipt, TrendingUp, DollarSign, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../../api/axiosInstance';
+import { AiForecastPanel } from '../../../components/sales/AiForecastPanel';
 
 interface DashboardStats {
   pendingQuotes: number;
@@ -140,26 +141,35 @@ export default function SalesDashboardPage() {
         </div>
       </div>
 
-      <div className="mt-6 bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Activité récente</h2>
-        <div className="space-y-3">
-          {stats?.recentActivity && stats.recentActivity.length > 0 ? (
-            stats.recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 border-l-4 border-blue-500 bg-gray-50 rounded">
-                <div className="flex-1">
-                  <p className="font-medium">{activity.type}</p>
-                  <p className="text-sm text-gray-600">{activity.description}</p>
+      {/* Section avec Activité récente et Prévisions IA */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
+        {/* Activité récente - 2 colonnes sur grand écran */}
+        <div className="xl:col-span-2 bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Activité récente</h2>
+          <div className="space-y-3">
+            {stats?.recentActivity && stats.recentActivity.length > 0 ? (
+              stats.recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 border-l-4 border-blue-500 bg-gray-50 rounded">
+                  <div className="flex-1">
+                    <p className="font-medium">{activity.type}</p>
+                    <p className="text-sm text-gray-600">{activity.description}</p>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {new Date(activity.date).toLocaleDateString('fr-FR')}
+                  </span>
                 </div>
-                <span className="text-xs text-gray-500">
-                  {new Date(activity.date).toLocaleDateString('fr-FR')}
-                </span>
+              ))
+            ) : (
+              <div className="text-center text-gray-400 py-8">
+                Aucune activité récente
               </div>
-            ))
-          ) : (
-            <div className="text-center text-gray-400 py-8">
-              Aucune activité récente
-            </div>
-          )}
+            )}
+          </div>
+        </div>
+
+        {/* Prévisions IA - 1 colonne sur grand écran */}
+        <div>
+          <AiForecastPanel businessId={businessId} />
         </div>
       </div>
     </div>

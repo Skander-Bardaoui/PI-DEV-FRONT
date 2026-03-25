@@ -314,13 +314,19 @@ export default function SalesOcrInvoiceModal({ businessId, onClose, onCreated }:
                 <div style={{ width: 44, height: 44, borderRadius: '50%', background: ocrData.ocr_confidence >= 60 ? '#16A34A' : '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
                   {ocrData.ocr_confidence}%
                 </div>
-                <div>
+                <div style={{ flex: 1 }}>
                   <p style={{ margin: 0, fontWeight: 500, fontSize: 13, color: ocrData.ocr_confidence >= 60 ? '#166534' : '#92400E' }}>
                     {ocrData.ocr_confidence >= 80 ? 'Extraction excellente' : ocrData.ocr_confidence >= 60 ? 'Extraction correcte' : 'Extraction partielle — vérifiez les champs'}
                   </p>
                   <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6B7280' }}>
                     Traité en {ocrData.processing_time_ms}ms — {ocrData.file_name}
                   </p>
+                  {/* Afficher la confiance AI si disponible */}
+                  {ocrData.ai_enrichment && (
+                    <p style={{ margin: '4px 0 0', fontSize: 11, color: '#4F46E5', fontWeight: 500 }}>
+                      🤖 AI enrichment confidence: {ocrData.ai_enrichment.confidence}%
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => setStep('upload')}

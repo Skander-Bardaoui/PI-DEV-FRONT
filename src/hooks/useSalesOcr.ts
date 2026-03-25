@@ -35,6 +35,11 @@ export interface SalesOcrResult {
   file_url: string;
   file_name: string;
   file_size: number;
+  // AI enrichment data
+  ai_enrichment?: {
+    confidence: number;
+    documentType: string;
+  };
 }
 
 export function useSalesOcrExtract(businessId: string, documentType: 'invoice' | 'quote' | 'delivery_note' | 'order' = 'invoice') {
@@ -123,6 +128,11 @@ export function useSalesOcrExtract(businessId: string, documentType: 'invoice' |
         file_url: result.file_url || '',
         file_name: file.name,
         file_size: file.size,
+        // Include AI enrichment data if available
+        ai_enrichment: result.ai_enrichment ? {
+          confidence: result.ai_enrichment.confidence || 0,
+          documentType: result.ai_enrichment.documentType || 'UNKNOWN',
+        } : undefined,
       };
     },
   });
