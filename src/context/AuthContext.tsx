@@ -26,22 +26,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── On Mount: Check if User is Already Logged In ─────────────────────
   useEffect(() => {
     const initializeAuth = async () => {
-      const accessToken = localStorage.getItem('access_token');
-      
-      if (!accessToken) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        // Fetch user data from /auth/me
+        // Try to fetch user data from /auth/me
+        // If there's a valid cookie, this will succeed
         const userData = await getCurrentUser();
         setUser(userData);
       } catch (error) {
-        console.error('Failed to fetch user:', error);
-        // Token might be expired, clear storage
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
+        // No valid session, user is not logged in
+        console.log('No active session');
       } finally {
         setIsLoading(false);
       }
@@ -53,13 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Login Function ──────────────────────────────────────────────────
   const login = async (email: string, password: string) => {
     try {
-      const response = await loginUser({ email, password });
+      await loginUser({ email, password });
       
-      // Store tokens
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('refresh_token', response.refresh_token);
-      
-      // Fetch user data
+      // Fetch user data after successful login
       const userData = await getCurrentUser();
       setUser(userData);
       
@@ -80,17 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Register Function ───────────────────────────────────────────────
   const register = async (data: RegisterRequest) => {
     try {
-      const response = await registerUser(data);
+      await registerUser(data);
       
-      // Store tokens
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('refresh_token', response.refresh_token);
-      
-      // Fetch user data
+      // Fetch user data after successful registration
       const userData = await getCurrentUser();
       setUser(userData);
       
-      // Redirect to dashboard (new users default to TEAM_MEMBER role)
+      // Redirect to dashboard
       navigate('/app');
     } catch (error: any) {
       console.error('Registration failed:', error);
@@ -103,17 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Logout Function ─────────────────────────────────────────────────
   const logout = async () => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token');
-      
-      if (refreshToken) {
-        await logoutUser(refreshToken);
-      }
+      await logoutUser();
     } catch (error) {
       console.error('Logout API call failed:', error);
     } finally {
-      // Always clear local state and storage
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+      // Always clear local state
       setUser(null);
       navigate('/login');
     }

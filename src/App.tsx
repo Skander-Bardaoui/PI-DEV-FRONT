@@ -8,6 +8,7 @@ import FingerScrollControl from './components/FingerScrollControl';
 import { useAccessibility } from './context/AccessibilityContext';
 import { Role } from './types/auth.types';
 import { useTranslation } from 'react-i18next';
+import { Toaster } from 'sonner';
 
 // Front Office Pages
 import LandingPage   from './pages/frontoffice/LandingPage';
@@ -15,6 +16,7 @@ import LoginPage     from './pages/frontoffice/LoginPage';
 import RegisterPage  from './pages/frontoffice/RegisterPage';
 import PricingPage   from './pages/frontoffice/PricingPage';
 import ClientPortal  from './pages/frontoffice/ClientPortal';
+import AcceptInvitationPage from './pages/frontoffice/AcceptInvitationPage';
 import SalesOrderClientPortal from './pages/frontoffice/SalesOrderClientPortal';
 
 // Back Office Pages
@@ -62,6 +64,9 @@ function AppContent() {
 
   return (
     <>
+      {/* Sonner Toast Notifications */}
+      <Toaster position="bottom-right" richColors closeButton />
+      
       {/* Accessibility Components - Available on all pages */}
       <AccessibilityButton />
       <AccessibilityPanel />
@@ -84,6 +89,7 @@ function AppContent() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/pricing" element={<PricingPage />}  />
         <Route path="/supplier-portal" element={<SupplierPortalPage />} />
+        <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
         <Route path="/client-portal" element={<SalesOrderClientPortal />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}

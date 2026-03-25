@@ -7,17 +7,14 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Enable sending cookies with requests
 });
 
-// ─── Request Interceptor: Auto-attach Access Token ───────────────────────
+// ─── Request Interceptor: No longer needed for token attachment ──────────
+// Cookies are sent automatically with withCredentials: true
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const accessToken = localStorage.getItem('access_token');
-    
-    if (accessToken && config.headers) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    
+    // Cookies are automatically sent, no manual token attachment needed
     return config;
   },
   (error) => {
@@ -32,12 +29,12 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: Error | null, token: string | null = null) => {
+const processQueue = (error: Error | null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve();
     }
   });
 
@@ -53,11 +50,12 @@ axiosInstance.interceptors.response.use(
 
     // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Don't retry login/register/refresh endpoints
+      // Don't retry login/register/refresh/me endpoints during initial auth
       if (
         originalRequest.url?.includes('/auth/login') ||
         originalRequest.url?.includes('/auth/register') ||
-        originalRequest.url?.includes('/auth/refresh')
+        originalRequest.url?.includes('/auth/refresh') ||
+        originalRequest.url?.includes('/auth/me')
       ) {
         return Promise.reject(error);
       }
@@ -78,45 +76,27 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('refresh_token');
-
-      if (!refreshToken) {
-        // No refresh token → logout
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
       try {
-        // Call refresh endpoint
-        const response = await axios.post(
+        // Call refresh endpoint - cookies are sent automatically
+        await axios.post(
           'http://localhost:3001/auth/refresh',
-          { refresh_token: refreshToken }
+          {},
+          { withCredentials: true }
         );
 
-        const { access_token, refresh_token: newRefreshToken } = response.data;
-
-        // Store new tokens
-        localStorage.setItem('access_token', access_token);
-        localStorage.setItem('refresh_token', newRefreshToken);
-
-        // Update authorization header
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        }
-
-        processQueue(null, access_token);
+        // Refresh succeeded, process queued requests
+        processQueue(null);
 
         // Retry original request
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError as Error, null);
+        processQueue(refreshError as Error);
         
-        // Refresh failed → logout
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        // Refresh failed → redirect to login only if not already on auth pages
+        if (!window.location.pathname.includes('/login') && 
+            !window.location.pathname.includes('/register')) {
+          window.location.href = '/login';
+        }
         
         return Promise.reject(refreshError);
       } finally {
