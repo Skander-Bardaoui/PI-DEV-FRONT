@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Receipt, Users, UserCircle,
   BarChart3, Settings, Menu, X, LogOut, Bell, Search,
   Building2, ChevronDown, MessageSquare, Package, Tag,
   TrendingUp, Box, ShoppingCart, ShoppingBag, FileCheck,
-  Truck, ClipboardList, Award, RefreshCw,
+  Truck, ClipboardList, Award, RefreshCw, User,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
@@ -15,12 +15,14 @@ import LanguageSwitcher          from '@/components/LanguageSwitcher';
 
 export default function BackOfficeLayout() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
 
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
   const [stockMenuOpen,     setStockMenuOpen]      = useState(false);
   const [salesMenuOpen,     setSalesMenuOpen]      = useState(false);
   const [purchasesMenuOpen, setPurchasesMenuOpen]  = useState(false);
   const [alertsPanelOpen,   setAlertsPanelOpen]    = useState(false);
+  const [userMenuOpen,      setUserMenuOpen]       = useState(false);
 
   const location   = useLocation();
   const { user, logout } = useAuth();
@@ -32,10 +34,15 @@ export default function BackOfficeLayout() {
 
   // Fermer le panel alertes si clic en dehors
   const alertsRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (alertsRef.current && !alertsRef.current.contains(e.target as Node)) {
         setAlertsPanelOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -79,7 +86,8 @@ export default function BackOfficeLayout() {
         { name: t('nav.movements'),   href: '/app/stock/movements',  icon: TrendingUp      },
       ],
     },
-    { name: t('nav.team'),          href: '/app/team',          icon: UserCircle    },
+    // Hide Team section for TEAM_MEMBER role
+    ...(user?.role !== 'TEAM_MEMBER' ? [{ name: t('nav.team'), href: '/app/team', icon: UserCircle }] : []),
     { name: t('nav.collaboration'), href: '/app/collaboration', icon: MessageSquare },
     { name: t('nav.reports'),       href: '/app/reports',       icon: BarChart3     },
     { name: t('nav.settings'),      href: '/app/settings',      icon: Settings      },
@@ -90,14 +98,31 @@ export default function BackOfficeLayout() {
   const isPurchasesActive = location.pathname.startsWith('/app/purchases');
 
   const getUserInitials = () => {
-    if (!user?.name) return 'U';
-    const names = user.name.split(' ');
-    if (names.length >= 2) return `${names[0][0]}${names[1][0]}`.toUpperCase();
-    return user.name.substring(0, 2).toUpperCase();
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    return 'U';
+  };
+
+  const getUserFullName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return 'Utilisateur';
+  };
+
+  const getRoleLabel = (role: string) => {
+    // Return the role as-is from the enum
+    return role || 'TEAM_MEMBER';
   };
 
   const handleLogout = () => {
-    if (window.confirm(t('nav.logout') + ' ?')) logout();
+    logout();
+  };
+
+  const handleProfileClick = () => {
+    setUserMenuOpen(false);
+    navigate('/app/settings');
   };
 
   // ── Sous-menu générique ───────────────────────────────────────────────────
@@ -176,6 +201,8 @@ export default function BackOfficeLayout() {
     </>
   );
 
+  const avatarUrl = user?.avatarUrl;
+
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -192,6 +219,28 @@ export default function BackOfficeLayout() {
               <X className="h-6 w-6 text-gray-500" />
             </button>
           </div>
+          
+          {/* User Card in Mobile Sidebar */}
+          <div className="p-4 flex-shrink-0 border-b border-gray-200">
+            <div className="sidebar-user-card flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div className="sidebar-user-avatar h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                {avatarUrl ? (
+                  <img
+                    src={`http://localhost:3001${avatarUrl}`}
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white font-semibold">{getUserInitials()}</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{getUserFullName()}</p>
+                <p className="text-xs text-gray-500">{getRoleLabel(user?.role || '')}</p>
+              </div>
+            </div>
+          </div>
+
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto pb-6 min-h-0">
             <NavContent mobile />
           </nav>
@@ -212,18 +261,28 @@ export default function BackOfficeLayout() {
             <Building2 className="h-8 w-8 text-indigo-600" />
             <span className="text-xl font-bold text-gray-900">BizManage</span>
           </div>
-          <div className="p-4 flex-shrink-0">
-            <div className="sidebar-user-card flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <div className="sidebar-user-avatar h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                <span className="text-indigo-600 font-semibold">{getUserInitials()}</span>
+          
+          {/* User Card in Desktop Sidebar */}
+          <div className="p-4 flex-shrink-0 border-b border-gray-200">
+            <div className="sidebar-user-card flex items-center gap-3 p-3 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl">
+              <div className="sidebar-user-avatar h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {avatarUrl ? (
+                  <img
+                    src={`http://localhost:3001${avatarUrl}`}
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white font-semibold text-lg">{getUserInitials()}</span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{user?.name || 'Utilisateur'}</p>
-                <p className="text-xs text-gray-500 capitalize">{user?.role?.toLowerCase().replace(/_/g, ' ') || 'Membre'}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{getUserFullName()}</p>
+                <p className="text-xs text-indigo-600 font-medium">{getRoleLabel(user?.role || '')}</p>
               </div>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
             </div>
           </div>
+
           <nav className="flex-1 px-4 space-y-1 overflow-y-auto pb-6 min-h-0">
             <NavContent />
           </nav>
@@ -294,10 +353,49 @@ export default function BackOfficeLayout() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="user-avatar h-9 w-9 rounded-full bg-indigo-600 flex items-center justify-center">
-                <span className="text-white text-sm font-medium">{getUserInitials()}</span>
-              </div>
+            {/* ── User Avatar Dropdown ───────────────────────────────────── */}
+            <div ref={userMenuRef} className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 p-1 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <div className="user-avatar h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                  {avatarUrl ? (
+                    <img
+                      src={`http://localhost:3001${avatarUrl}`}
+                      alt="Profile"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white text-sm font-medium">{getUserInitials()}</span>
+                  )}
+                </div>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Dropdown Menu */}
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-900">{getUserFullName()}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
+                  </div>
+                  <button
+                    onClick={handleProfileClick}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <User className="h-4 w-4 text-gray-400" />
+                    Mon Profil
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Déconnexion
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

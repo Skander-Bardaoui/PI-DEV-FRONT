@@ -3,20 +3,18 @@ import axiosInstance from './axiosInstance';
 import {
   LoginRequest,
   RegisterRequest,
-  AuthResponse,
   User,
-  RefreshTokenRequest,
 } from '../types/auth.types';
 
-// ─── Register  register ────────────────────────────────────────────────────────────
-export const registerUser = async (data: RegisterRequest): Promise<AuthResponse> => {
-  const response = await axiosInstance.post<AuthResponse>('/auth/register', data);
+// ─── Register ────────────────────────────────────────────────────────────
+export const registerUser = async (data: RegisterRequest): Promise<{ message: string; user: any }> => {
+  const response = await axiosInstance.post('/auth/register', data);
   return response.data;
 };
 
 // ─── Login ───────────────────────────────────────────────────────────────
-export const loginUser = async (data: LoginRequest): Promise<AuthResponse> => {
-  const response = await axiosInstance.post<AuthResponse>('/auth/login', data);
+export const loginUser = async (data: LoginRequest): Promise<{ message: string; user: any }> => {
+  const response = await axiosInstance.post('/auth/login', data);
   return response.data;
 };
 
@@ -26,17 +24,9 @@ export const getCurrentUser = async (): Promise<User> => {
   return response.data;
 };
 
-// ─── Refresh Tokens ──────────────────────────────────────────────────────
-export const refreshTokens = async (refreshToken: string): Promise<AuthResponse> => {
-  const response = await axiosInstance.post<AuthResponse>('/auth/refresh', {
-    refresh_token: refreshToken,
-  });
-  return response.data;
-};
-
 // ─── Logout ──────────────────────────────────────────────────────────────
-export const logoutUser = async (refreshToken: string): Promise<void> => {
-  await axiosInstance.post('/auth/logout', { refresh_token: refreshToken });
+export const logoutUser = async (): Promise<void> => {
+  await axiosInstance.post('/auth/logout');
 };
 
 // ─── Update Profile ──────────────────────────────────────────────────────
