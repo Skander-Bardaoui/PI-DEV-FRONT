@@ -69,6 +69,23 @@ export default function QuoteDetailModal({ quote: initialQuote, businessId, onCl
     }
   };
 
+  const handleAccept = async () => {
+    try {
+      // First accept the quote
+      await accept.mutateAsync(quote.id);
+      
+      // Then automatically convert to sales order
+      await convertToOrder.mutateAsync(quote.id);
+      
+      toast.success('Devis accepté et converti', 'Le devis a été accepté et converti en commande avec succès.');
+      onClose();
+    } catch (error: any) {
+      console.error('Accept/Convert error:', error);
+      const errorMessage = error?.response?.data?.message || 'Erreur lors de l\'acceptation';
+      toast.error('Erreur', errorMessage);
+    }
+  };
+
   const canEdit = quote.status === QuoteStatus.DRAFT;
   const canSend = quote.status === QuoteStatus.DRAFT;
   const canAccept = quote.status === QuoteStatus.SENT;
@@ -226,12 +243,12 @@ export default function QuoteDetailModal({ quote: initialQuote, businessId, onCl
               )}
               {canAccept && (
                 <button
-                  onClick={() => accept.mutate(quote.id)}
-                  disabled={accept.isPending}
+                  onClick={handleAccept}
+                  disabled={accept.isPending || convertToOrder.isPending}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
                 >
                   <Check className="h-4 w-4" />
-                  Accepter
+                  {(accept.isPending || convertToOrder.isPending) ? 'Acceptation...' : 'Accepter → Commande'}
                 </button>
               )}
               {canReject && (

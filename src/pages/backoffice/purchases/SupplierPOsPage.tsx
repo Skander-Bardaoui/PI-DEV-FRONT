@@ -90,6 +90,7 @@ export default function SupplierPOsPage() {
     sortField === field
       ? (sortDir === 'asc' ? <ChevronUp className="h-3 w-3 inline ml-1" /> : <ChevronDown className="h-3 w-3 inline ml-1" />)
       : <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  const totalPages = data?.total_pages ?? 1;
 
   // ── Actions avec toast ────────────────────────────────────────────────────
   const handleSend = async (po: SupplierPO) => {
@@ -269,18 +270,71 @@ export default function SupplierPOsPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {data && (data.total_pages ?? 1) > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">{data.total} BCs — page {page} / {data.total_pages}</p>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50">Précédent</button>
-              <button onClick={() => setPage(p => p + 1)} disabled={page >= (data.total_pages ?? 1)}
-                className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50">Suivant</button>
-            </div>
-          </div>
-        )}
+      
+        {/* Pagination toujours visible */}
+{data && (
+  <div className="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+    <p className="text-sm text-gray-500">
+      {data.total} BCs — page {page} / {data.total_pages ?? 1}
+    </p>
+
+    <div className="flex items-center gap-2">
+
+      {/* Bouton précédent */}
+      <button onClick={() => setPage(1)} disabled={page === 1}
+      className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors">
+      «
+      </button>
+      <button
+        onClick={() => setPage(p => Math.max(1, p - 1))}
+        disabled={page === 1}
+        className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
+      >
+        Précédent
+      </button>
+
+      {/* Numéros de pages */}
+      {Array.from({ length: data.total_pages ?? 1 }, (_, i) => i + 1)
+        .filter(p =>
+          p === 1 ||
+          p === (data.total_pages ?? 1) ||
+          Math.abs(p - page) <= 1
+        )
+        .map((p, index, arr) => (
+          <span key={p} className="flex items-center">
+            {index > 0 && arr[index - 1] !== p - 1 && (
+              <span className="px-1 text-gray-400">...</span>
+            )}
+
+            <button
+              onClick={() => setPage(p)}
+              className={`px-3 py-1 border rounded-lg text-sm transition-colors ${
+                page === p
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {p}
+            </button>
+          </span>
+        ))}
+
+      {/* Bouton suivant */}
+      <button
+        onClick={() => setPage(p => p + 1)}
+        disabled={page >= (data.total_pages ?? 1)}
+        className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
+      >
+        Suivant
+      </button>
+            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              »
+            </button>
+    </div>
+  </div>
+)}
       </div>
 
       {/* Modals */}

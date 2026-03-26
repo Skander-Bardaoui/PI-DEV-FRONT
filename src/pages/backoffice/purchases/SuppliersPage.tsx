@@ -33,23 +33,20 @@ const CATEGORY_OPTIONS = [
   { value: 'Logistique',         label: 'Logistique'         },
 ];
 
+const LIMIT = 10;
+
 export default function SuppliersPage() {
   const { user }   = useAuth();
   const businessId = (user as any)?.business_id ?? '';
   const navigate   = useNavigate();
 
-  // Filtres
   const [search,         setSearch]         = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showInactive,   setShowInactive]   = useState(false);
   const [showFilters,    setShowFilters]    = useState(false);
   const [page,           setPage]           = useState(1);
-
-  // Tri
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir,   setSortDir]   = useState<SortDir>('asc');
-
-  // Modals
   const [modalOpen,      setModalOpen]      = useState(false);
   const [selected,       setSelected]       = useState<Supplier | null>(null);
   const [detailOpen,     setDetailOpen]     = useState(false);
@@ -61,12 +58,11 @@ export default function SuppliersPage() {
     category: categoryFilter || undefined,
     ...(showInactive ? {} : { is_active: true }),
     page,
-    limit: 20,
+    limit: LIMIT,
   });
 
   const archive = useArchiveSupplier(businessId);
   const restore = useRestoreSupplier(businessId);
-
   const { exportReleve, loading: pdfLoading } = usePDFExport();
   const { data: posData } = useSupplierPOs(businessId, { supplier_id: detailSupplier?.id, limit: 100 });
   const { data: invData } = usePurchaseInvoices(businessId, { supplier_id: detailSupplier?.id, limit: 100 });
@@ -98,62 +94,60 @@ export default function SuppliersPage() {
 
   const hasActiveFilters = search || categoryFilter || showInactive;
   const clearFilters = () => { setSearch(''); setCategoryFilter(''); setShowInactive(false); setPage(1); };
+  const totalPages = data?.total_pages ?? 1;
+  const total      = data?.total ?? 0;
+
+  // Calcul des numéros de pages à afficher
+  const getPageNumbers = () => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (page <= 3)       return [1, 2, 3, 4, 5];
+    if (page >= totalPages - 2) return [totalPages-4, totalPages-3, totalPages-2, totalPages-1, totalPages];
+    return [page-2, page-1, page, page+1, page+2];
+  };
 
   return (
     <div className="space-y-6">
 
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fournisseurs</h1>
-          <p className="text-gray-500 text-sm">{data?.total ?? 0} fournisseur(s) au total</p>
+          <p className="text-gray-500 text-sm">{total} fournisseur(s) au total</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate('/app/purchases/supplier-ranking')}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-indigo-300 bg-indigo-50 text-indigo-700 rounded-lg text-sm hover:bg-indigo-100 transition-colors"
-            title="Voir le classement complet"
-          >
-            <Award className="h-4 w-4" />
-            Classement
+          <button onClick={() => navigate('/app/purchases/supplier-ranking')}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-indigo-300 bg-indigo-50 text-indigo-700 rounded-lg text-sm hover:bg-indigo-100 transition-colors">
+            <Award className="h-4 w-4" /> Classement
           </button>
-          <button
-            onClick={() => setShowFilters(f => !f)}
+          <button onClick={() => setShowFilters(f => !f)}
             className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors ${
               hasActiveFilters ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
+            }`}>
             <Filter className="h-4 w-4" />
             Filtres {hasActiveFilters && '(actifs)'}
           </button>
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            Nouveau fournisseur
+          <button onClick={openCreate}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+            <Plus className="h-5 w-5" /> Nouveau fournisseur
           </button>
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-4 border border-gray-200">
           <p className="text-sm text-gray-500">Total fournisseurs</p>
-          <p className="text-2xl font-bold text-gray-900">{data?.total ?? 0}</p>
+          <p className="text-2xl font-bold text-gray-900">{total}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-200">
           <p className="text-sm text-gray-500">Actifs</p>
           <p className="text-2xl font-bold text-green-600">{data?.data.filter(s => s.is_active).length ?? 0}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-500">{showInactive ? 'Archivés affichés' : 'Affichés'}</p>
+          <p className="text-sm text-gray-500">Page actuelle</p>
           <p className="text-2xl font-bold text-gray-900">{data?.data.length ?? 0}</p>
-          <p className="text-xs text-gray-400 mt-0.5">sur {data?.total ?? 0} au total</p>
+          <p className="text-xs text-gray-400 mt-0.5">sur {total} au total</p>
         </div>
       </div>
 
-      {/* Filtres avancés */}
       {showFilters && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -192,7 +186,6 @@ export default function SuppliersPage() {
         </div>
       )}
 
-      {/* Barre recherche rapide */}
       {!showFilters && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -213,7 +206,6 @@ export default function SuppliersPage() {
         </div>
       )}
 
-      {/* Tableau */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -243,15 +235,10 @@ export default function SuppliersPage() {
               <tbody className="divide-y divide-gray-100">
                 {!sorted.length ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-gray-500">
-                      Aucun fournisseur trouvé
-                    </td>
+                    <td colSpan={8} className="text-center py-12 text-gray-500">Aucun fournisseur trouvé</td>
                   </tr>
                 ) : sorted.map(s => (
-                  <tr key={s.id}
-                    className={`hover:bg-gray-50 transition-colors ${!s.is_active ? 'opacity-60' : ''}`}>
-
-                    {/* Nom + MF */}
+                  <tr key={s.id} className={`hover:bg-gray-50 transition-colors ${!s.is_active ? 'opacity-60' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${s.is_active ? 'bg-indigo-100' : 'bg-gray-100'}`}>
@@ -259,26 +246,18 @@ export default function SuppliersPage() {
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{s.name}</p>
-                          {s.matricule_fiscal && (
-                            <p className="text-xs text-gray-500 font-mono">{s.matricule_fiscal}</p>
-                          )}
+                          {s.matricule_fiscal && <p className="text-xs text-gray-500 font-mono">{s.matricule_fiscal}</p>}
                         </div>
                       </div>
                     </td>
-
-                    {/* Catégorie */}
                     <td className="px-6 py-4">
                       {s.category
                         ? <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">{s.category}</span>
                         : <span className="text-gray-400">—</span>}
                     </td>
-
-                    {/* Délai */}
                     <td className="px-6 py-4">
                       <span className="text-sm font-medium text-gray-900">{s.payment_terms}j</span>
                     </td>
-
-                    {/* Contact */}
                     <td className="px-6 py-4">
                       <div className="space-y-1">
                         {s.email && (
@@ -294,50 +273,23 @@ export default function SuppliersPage() {
                         )}
                       </div>
                     </td>
-
-                    {/* Score — badge cliquable */}
                     <td className="px-6 py-4 text-center">
-                      <SupplierScoreBadge
-                        businessId={businessId}
-                        supplierId={s.id}
-                        onClick={() => setScoreSupplier(s)}
-                      />
+                      <SupplierScoreBadge businessId={businessId} supplierId={s.id} onClick={() => setScoreSupplier(s)} />
                     </td>
-
-                    {/* Statut */}
                     <td className="px-6 py-4 text-center">
-                      <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                        s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                      }`}>
+                      <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                         {s.is_active ? 'Actif' : 'Archivé'}
                       </span>
                     </td>
-
-                    {/* Actions */}
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => openDetail(s)} title="Voir"
-                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => setScoreSupplier(s)} title="Score fournisseur"
-                          className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
-                          <Award className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => openEdit(s)} title="Modifier"
-                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                          <Edit className="h-4 w-4" />
-                        </button>
+                        <button onClick={() => openDetail(s)} title="Voir" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Eye className="h-4 w-4" /></button>
+                        <button onClick={() => setScoreSupplier(s)} title="Score" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"><Award className="h-4 w-4" /></button>
+                        <button onClick={() => openEdit(s)} title="Modifier" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit className="h-4 w-4" /></button>
                         {s.is_active ? (
-                          <button onClick={() => archive.mutate(s.id)} disabled={archive.isPending} title="Archiver"
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <button onClick={() => archive.mutate(s.id)} disabled={archive.isPending} title="Archiver" className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="h-4 w-4" /></button>
                         ) : (
-                          <button onClick={() => restore.mutate(s.id)} disabled={restore.isPending} title="Restaurer"
-                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
-                            <RotateCcw className="h-4 w-4" />
-                          </button>
+                          <button onClick={() => restore.mutate(s.id)} disabled={restore.isPending} title="Restaurer" className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"><RotateCcw className="h-4 w-4" /></button>
                         )}
                       </div>
                     </td>
@@ -348,138 +300,86 @@ export default function SuppliersPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {data && (data.total_pages ?? 1) > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              {data.total} fournisseurs — page {page} / {data.total_pages}
-            </p>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50">
-                Précédent
+        {/* Pagination — toujours visible */}
+        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between flex-wrap gap-3">
+          <p className="text-sm text-gray-500">
+            {total === 0
+              ? 'Aucun résultat'
+              : `${(page - 1) * LIMIT + 1}–${Math.min(page * LIMIT, total)} sur ${total} fournisseur${total > 1 ? 's' : ''}`
+            }
+          </p>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(1)} disabled={page === 1}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              «
+            </button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              Précédent
+            </button>
+            {getPageNumbers().map(n => (
+              <button key={n} onClick={() => setPage(n)}
+                className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                  page === n ? 'bg-indigo-600 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}>
+                {n}
               </button>
-              <button onClick={() => setPage(p => p + 1)} disabled={page >= (data.total_pages ?? 1)}
-                className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50">
-                Suivant
-              </button>
-            </div>
+            ))}
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              Suivant
+            </button>
+            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              »
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Modal Création / Modification */}
-      {modalOpen && (
-        <SupplierModal businessId={businessId} supplier={selected} onClose={() => setModalOpen(false)} />
-      )}
+      {modalOpen && <SupplierModal businessId={businessId} supplier={selected} onClose={() => setModalOpen(false)} />}
 
-      {/* Modal Détail */}
       {detailOpen && detailSupplier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-bold text-gray-900">{detailSupplier.name}</h2>
-                <SupplierScoreBadge
-                  businessId={businessId}
-                  supplierId={detailSupplier.id}
-                  onClick={() => { setDetailOpen(false); setScoreSupplier(detailSupplier); }}
-                />
+                <SupplierScoreBadge businessId={businessId} supplierId={detailSupplier.id}
+                  onClick={() => { setDetailOpen(false); setScoreSupplier(detailSupplier); }} />
               </div>
               <button onClick={() => setDetailOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
-
             <div className="space-y-3 text-sm">
-              {detailSupplier.matricule_fiscal && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Matricule fiscal</span>
-                  <span className="font-mono font-medium">{detailSupplier.matricule_fiscal}</span>
-                </div>
-              )}
-              {detailSupplier.email && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Email</span>
-                  <span>{detailSupplier.email}</span>
-                </div>
-              )}
-              {detailSupplier.phone && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Téléphone</span>
-                  <span>{detailSupplier.phone}</span>
-                </div>
-              )}
-              {detailSupplier.rib && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">RIB</span>
-                  <span className="font-mono">{detailSupplier.rib}</span>
-                </div>
-              )}
-              {detailSupplier.bank_name && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Banque</span>
-                  <span>{detailSupplier.bank_name}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-gray-500">Délai paiement</span>
-                <span className="font-medium">{detailSupplier.payment_terms} jours</span>
-              </div>
-              {detailSupplier.address?.city && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Ville</span>
-                  <span>{detailSupplier.address.city}</span>
-                </div>
-              )}
-              {detailSupplier.notes && (
-                <div className="pt-2 border-t border-gray-100">
-                  <p className="text-gray-500 mb-1">Notes</p>
-                  <p className="text-gray-700">{detailSupplier.notes}</p>
-                </div>
-              )}
-              <div className="flex justify-between pt-2 border-t border-gray-100">
-                <span className="text-gray-500">Créé le</span>
-                <span>{formatDate(detailSupplier.created_at)}</span>
-              </div>
+              {detailSupplier.matricule_fiscal && <div className="flex justify-between"><span className="text-gray-500">Matricule fiscal</span><span className="font-mono font-medium">{detailSupplier.matricule_fiscal}</span></div>}
+              {detailSupplier.email && <div className="flex justify-between"><span className="text-gray-500">Email</span><span>{detailSupplier.email}</span></div>}
+              {detailSupplier.phone && <div className="flex justify-between"><span className="text-gray-500">Téléphone</span><span>{detailSupplier.phone}</span></div>}
+              {detailSupplier.rib && <div className="flex justify-between"><span className="text-gray-500">RIB</span><span className="font-mono">{detailSupplier.rib}</span></div>}
+              {detailSupplier.bank_name && <div className="flex justify-between"><span className="text-gray-500">Banque</span><span>{detailSupplier.bank_name}</span></div>}
+              <div className="flex justify-between"><span className="text-gray-500">Délai paiement</span><span className="font-medium">{detailSupplier.payment_terms} jours</span></div>
+              {detailSupplier.address?.city && <div className="flex justify-between"><span className="text-gray-500">Ville</span><span>{detailSupplier.address.city}</span></div>}
+              {detailSupplier.notes && <div className="pt-2 border-t border-gray-100"><p className="text-gray-500 mb-1">Notes</p><p className="text-gray-700">{detailSupplier.notes}</p></div>}
+              <div className="flex justify-between pt-2 border-t border-gray-100"><span className="text-gray-500">Créé le</span><span>{formatDate(detailSupplier.created_at)}</span></div>
             </div>
-
             <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => { setDetailOpen(false); openEdit(detailSupplier); }}
-                className="flex-1 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
-              >
-                Modifier
-              </button>
-              <button
-                onClick={() => { setDetailOpen(false); setScoreSupplier(detailSupplier); }}
-                className="py-2 px-4 border border-purple-300 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-colors inline-flex items-center gap-2 text-sm"
-              >
+              <button onClick={() => { setDetailOpen(false); openEdit(detailSupplier); }}
+                className="flex-1 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors">Modifier</button>
+              <button onClick={() => { setDetailOpen(false); setScoreSupplier(detailSupplier); }}
+                className="py-2 px-4 border border-purple-300 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-colors inline-flex items-center gap-2 text-sm">
                 <Award className="h-4 w-4" /> Score
               </button>
-              <PDFButton
-                variant="ghost"
-                label="Relevé PDF"
-                loading={pdfLoading}
-                onClick={() => exportReleve(detailSupplier, posData?.data ?? [], invData?.data ?? [])}
-              />
-              <button
-                onClick={() => setDetailOpen(false)}
-                className="flex-1 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                Fermer
-              </button>
+              <PDFButton variant="ghost" label="Relevé PDF" loading={pdfLoading}
+                onClick={() => exportReleve(detailSupplier, posData?.data ?? [], invData?.data ?? [])} />
+              <button onClick={() => setDetailOpen(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">Fermer</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Score fournisseur */}
       {scoreSupplier && (
-        <SupplierScoreModal
-          businessId={businessId}
-          supplierId={scoreSupplier.id}
-          supplierName={scoreSupplier.name}
-          onClose={() => setScoreSupplier(null)}
-        />
+        <SupplierScoreModal businessId={businessId} supplierId={scoreSupplier.id}
+          supplierName={scoreSupplier.name} onClose={() => setScoreSupplier(null)} />
       )}
     </div>
   );

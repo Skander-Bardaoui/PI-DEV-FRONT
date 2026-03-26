@@ -1,7 +1,21 @@
 // src/pages/frontoffice/RegisterPage.tsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Mail, Lock, Eye, EyeOff, User, Phone, ArrowRight, CheckCircle, AlertCircle, Globe, DollarSign, MapPin, FileText, Briefcase } from 'lucide-react';
+import { 
+  Building2, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  User, 
+  Phone, 
+  ArrowRight, 
+  CheckCircle, 
+  AlertCircle, 
+  Globe, 
+  Briefcase, 
+  FileText 
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function RegisterPage() {
@@ -10,22 +24,20 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  
+
   const [formData, setFormData] = useState({
-    // User Info
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone_number: '',
     password: '',
     confirmPassword: '',
-    
-    // Tenant Info
+
     tenantName: '',
     domain: '',
     contactEmail: '',
     description: '',
-    
-    // Business Info
+
     businessName: '',
     logo: '',
     tax_id: '',
@@ -36,18 +48,23 @@ export default function RegisterPage() {
       postalCode: '',
       country: 'Tunisia'
     },
-    
-    // Tax Rate Info
+
     taxRateName: 'TVA Standard',
     taxRate: 19,
-    
+
     acceptTerms: false
   });
 
   const validateTaxId = (taxId: string): boolean => {
-    if (!taxId) return true; // Optional field
+    if (!taxId) return true;
     const taxIdRegex = /^[0-9]{7}\/[A-Z]\/[A-Z]\/[A-Z]\/[0-9]{3}$/;
     return taxIdRegex.test(taxId);
+  };
+
+  const validateTunisianPostalCode = (postalCode: string): boolean => {
+    if (!postalCode || postalCode.trim() === '') return true;
+    const trimmed = postalCode.trim();
+    return /^\d{4}$/.test(trimmed);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,48 +72,49 @@ export default function RegisterPage() {
     setError('');
 
     if (step === 1) {
-      // Validate step 1 fields (User Info)
-      if (!formData.name || formData.name.length < 2) {
+      if (!formData.firstName?.trim() || formData.firstName.trim().length < 2) {
+        setError('Le prénom doit contenir au moins 2 caractères');
+        return;
+      }
+      if (!formData.lastName?.trim() || formData.lastName.trim().length < 2) {
         setError('Le nom doit contenir au moins 2 caractères');
         return;
       }
-      
       if (formData.password !== formData.confirmPassword) {
         setError('Les mots de passe ne correspondent pas');
         return;
       }
-      
       if (formData.password.length < 8) {
         setError('Le mot de passe doit contenir au moins 8 caractères');
         return;
       }
-
       setStep(2);
-    } else if (step === 2) {
-      // Validate step 2 fields (Tenant Info)
-      if (!formData.tenantName || formData.tenantName.length < 2) {
+    } 
+    else if (step === 2) {
+      if (!formData.tenantName?.trim() || formData.tenantName.trim().length < 2) {
         setError('Le nom du tenant doit contenir au moins 2 caractères');
         return;
       }
-
       setStep(3);
-    } else {
-      // Step 3: Validate and Submit registration
-      if (!formData.businessName || formData.businessName.length < 2) {
+    } 
+    else {
+      // Final Step 3
+      if (!formData.businessName?.trim() || formData.businessName.trim().length < 2) {
         setError('Le nom de l\'entreprise doit contenir au moins 2 caractères');
         return;
       }
-
       if (formData.tax_id && !validateTaxId(formData.tax_id)) {
         setError('Le matricule fiscal doit suivre le format: NNNNNNN/X/A/E/NNN');
         return;
       }
-
+      if (!validateTunisianPostalCode(formData.address.postalCode)) {
+        setError('Le code postal doit contenir exactement 4 chiffres (ex: 4000 pour Sousse)');
+        return;
+      }
       if (formData.taxRate < 0 || formData.taxRate > 100) {
         setError('Le taux de TVA doit être entre 0 et 100');
         return;
       }
-
       if (!formData.acceptTerms) {
         setError('Vous devez accepter les conditions d\'utilisation');
         return;
@@ -105,35 +123,32 @@ export default function RegisterPage() {
       setIsLoading(true);
 
       const registrationData = {
-        // User Info
-        name: formData.name,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
         email: formData.email,
         password: formData.password,
-        phone_number: formData.phone_number || undefined,
-        
-        // Tenant Info
+        phone_number: formData.phone_number?.trim() || undefined,
+
         tenant: {
-          name: formData.tenantName,
-          domain: formData.domain || undefined,
-          contactEmail: formData.contactEmail || formData.email,
-          description: formData.description || undefined,
+          name: formData.tenantName.trim(),
+          domain: formData.domain?.trim() || undefined,
+          contactEmail: formData.contactEmail?.trim() || formData.email,
+          description: formData.description?.trim() || undefined,
         },
-        
-        // Business Info
+
         business: {
-          name: formData.businessName,
+          name: formData.businessName.trim(),
           logo: formData.logo || undefined,
-          tax_id: formData.tax_id || undefined,
+          tax_id: formData.tax_id?.trim() || undefined,
           currency: formData.currency,
           address: {
-            street: formData.address.street,
-            city: formData.address.city,
-            postalCode: formData.address.postalCode,
+            street: formData.address.street.trim(),
+            city: formData.address.city.trim(),
+            postalCode: formData.address.postalCode.trim(),
             country: formData.address.country,
           },
         },
-        
-        // Tax Rate Info
+
         taxRate: {
           name: formData.taxRateName,
           rate: formData.taxRate,
@@ -141,12 +156,8 @@ export default function RegisterPage() {
         },
       };
 
-      console.log('Sending registration data:', registrationData);
-
       try {
         await register(registrationData);
-        
-        // Navigation handled by AuthContext
       } catch (err: any) {
         setError(err.message || 'Une erreur est survenue lors de l\'inscription');
       } finally {
@@ -222,22 +233,41 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {step === 1 ? (
               <>
-                {/* Step 1: User Account Info */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom complet</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Jean Dupont"
-                      required
-                      minLength={2}
-                      maxLength={100}
-                      disabled={isLoading}
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Prénom</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Jean"
+                        required
+                        minLength={2}
+                        maxLength={50}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Nom</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Dupont"
+                        required
+                        minLength={2}
+                        maxLength={50}
+                        disabled={isLoading}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -284,7 +314,6 @@ export default function RegisterPage() {
                       placeholder="Minimum 8 caractères"
                       required
                       minLength={8}
-                      maxLength={100}
                       disabled={isLoading}
                     />
                     <button
@@ -316,7 +345,6 @@ export default function RegisterPage() {
               </>
             ) : step === 2 ? (
               <>
-                {/* Step 2: Tenant Info */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nom du Tenant</label>
                   <div className="relative">
@@ -380,7 +408,6 @@ export default function RegisterPage() {
               </>
             ) : (
               <>
-                {/* Step 3: Business Info */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nom de l'entreprise</label>
                   <div className="relative">
@@ -435,7 +462,7 @@ export default function RegisterPage() {
                     <input
                       type="number"
                       value={formData.taxRate}
-                      onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) || 0 })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="19"
                       min={0}
@@ -451,7 +478,10 @@ export default function RegisterPage() {
                   <input
                     type="text"
                     value={formData.address.street}
-                    onChange={(e) => setFormData({ ...formData, address: { ...formData.address, street: e.target.value } })}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      address: { ...formData.address, street: e.target.value } 
+                    })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mb-3"
                     placeholder="Rue et numéro"
                     disabled={isLoading}
@@ -460,20 +490,30 @@ export default function RegisterPage() {
                     <input
                       type="text"
                       value={formData.address.city}
-                      onChange={(e) => setFormData({ ...formData, address: { ...formData.address, city: e.target.value } })}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        address: { ...formData.address, city: e.target.value } 
+                      })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Ville"
+                      placeholder="Ville (ex: Sousse)"
                       disabled={isLoading}
                     />
                     <input
                       type="text"
                       value={formData.address.postalCode}
-                      onChange={(e) => setFormData({ ...formData, address: { ...formData.address, postalCode: e.target.value } })}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        address: { ...formData.address, postalCode: e.target.value } 
+                      })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Code postal"
+                      placeholder="Code postal (ex: 4000)"
+                      maxLength={4}
                       disabled={isLoading}
                     />
                   </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Le code postal tunisien doit contenir exactement 4 chiffres
+                  </p>
                 </div>
 
                 <div className="flex items-start gap-3">
