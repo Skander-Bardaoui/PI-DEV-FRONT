@@ -19,6 +19,29 @@ import {
   AlertType,
 } from '@/hooks/usePurchaseAlerts';
 
+// Style pour la scrollbar personnalisée
+const scrollbarStyles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    transition: background 0.2s;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+`;
+
 // ─── Config visuelle ─────────────────────────────────────────────────────────
 const SEVERITY_CONFIG: Record<AlertSeverity, {
   bg: string; border: string; icon: string; iconColor: string; badgeColor: string;
@@ -173,6 +196,7 @@ export default function AlertsPanel({ businessId, onNavigate }: AlertsPanelProps
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <style>{scrollbarStyles}</style>
 
       {/* Header */}
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -248,7 +272,7 @@ export default function AlertsPanel({ businessId, onNavigate }: AlertsPanelProps
       </div>
 
       {/* Liste */}
-      <div className="p-3 space-y-3 max-h-[600px] overflow-y-auto">
+      <div className="p-3 space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full" />

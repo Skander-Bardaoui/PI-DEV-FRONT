@@ -286,7 +286,7 @@ export default function SupplierPaymentsPage() {
     enabled: !!businessId,
   });
 
-  const totalAmount = data?.data.reduce((s: number, p: any) => s + Number(p.amount), 0) ?? 0;
+  const totalAmount = data?.data?.reduce((s: number, p: any) => s + Number(p.amount), 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -318,7 +318,7 @@ export default function SupplierPaymentsPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-xs text-gray-500 mb-1">Moyenne par règlement</p>
             <p className="text-xl font-bold text-gray-900">
-              {data.total > 0 ? formatAmount(totalAmount / data.data.length) : '—'}
+              {data.total > 0 && data.data?.length ? formatAmount(totalAmount / data.data.length) : '—'}
             </p>
           </div>
         </div>
