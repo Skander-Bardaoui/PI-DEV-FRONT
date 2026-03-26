@@ -18,6 +18,8 @@ import {
   Settings,
   Filter,
   Loader2,
+  Trash2,
+  Edit,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,66 +49,26 @@ interface Business {
   tenant_id: string;
 }
 
-// ─── Mock data for tasks ───────────────────────────────────────────────────────
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED';
+  assignedTo?: User[];
+  dueDate?: string;
+  businessId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const initialTasks = [
-  {
-    id: 1,
-    title: 'Design new landing page',
-    priority: 'high',
-    dueDate: '2024-01-20',
-    assignedTo: { name: 'Ahmed', avatar: 'A', color: 'bg-indigo-500' },
-    status: 'todo',
-  },
-  {
-    id: 2,
-    title: 'Update API documentation',
-    priority: 'medium',
-    dueDate: '2024-01-22',
-    assignedTo: { name: 'Salma', avatar: 'S', color: 'bg-pink-500' },
-    status: 'todo',
-  },
-  {
-    id: 3,
-    title: 'Fix authentication bug',
-    priority: 'high',
-    dueDate: '2024-01-18',
-    assignedTo: { name: 'Mohamed', avatar: 'M', color: 'bg-green-500' },
-    status: 'in-progress',
-  },
-  {
-    id: 4,
-    title: 'Implement payment gateway',
-    priority: 'high',
-    dueDate: '2024-01-25',
-    assignedTo: { name: 'Fatma', avatar: 'F', color: 'bg-purple-500' },
-    status: 'in-progress',
-  },
-  {
-    id: 5,
-    title: 'Write unit tests',
-    priority: 'medium',
-    dueDate: '2024-01-15',
-    assignedTo: { name: 'Karim', avatar: 'K', color: 'bg-orange-500' },
-    status: 'done',
-  },
-  {
-    id: 6,
-    title: 'Deploy to production',
-    priority: 'low',
-    dueDate: '2024-01-30',
-    assignedTo: { name: 'Nadia', avatar: 'N', color: 'bg-blue-500' },
-    status: 'done',
-  },
-  {
-    id: 7,
-    title: 'Database migration',
-    priority: 'high',
-    dueDate: '2024-01-19',
-    assignedTo: { name: 'Ahmed', avatar: 'A', color: 'bg-indigo-500' },
-    status: 'blocked',
-  },
-];
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
 
 // ─── Mock data for activity ───────────────────────────────────────────────────
 
@@ -134,15 +96,15 @@ const initialNotifications = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const priorityColors = {
-  high: 'bg-red-100 text-red-700 border-red-200',
-  medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  low: 'bg-green-100 text-green-700 border-green-200',
+  HIGH: 'bg-red-100 text-red-700 border-red-200',
+  MEDIUM: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  LOW: 'bg-green-100 text-green-700 border-green-200',
 };
 
 const priorityLabels = {
-  high: 'High',
-  medium: 'Medium',
-  low: 'Low',
+  HIGH: 'High',
+  MEDIUM: 'Medium',
+  LOW: 'Low',
 };
 
 // Avatar colors pool — assigned by index so each member gets a stable color
@@ -158,6 +120,12 @@ const avatarColors = [
   'bg-amber-500',
   'bg-cyan-500',
 ];
+
+function ensureArray<T>(data: any, key?: string): T[] {
+  if (Array.isArray(data)) return data;
+  if (key && Array.isArray(data[key])) return data[key];
+  return [];
+}
 
 function getMemberName(member: TeamMember): string {
   if (member.user.firstName || member.user.lastName) {
@@ -189,8 +157,7 @@ async function fetchMyBusinesses(): Promise<Business[]> {
   });
   if (!res.ok) throw new Error('Failed to fetch businesses');
   const data = await res.json();
-  // The endpoint may return an array directly or { businesses: [] }
-  return Array.isArray(data) ? data : data.businesses ?? [];
+  return ensureArray<Business>(data, 'businesses');
 }
 
 async function fetchBusinessMembers(businessId: string): Promise<TeamMember[]> {
@@ -199,17 +166,76 @@ async function fetchBusinessMembers(businessId: string): Promise<TeamMember[]> {
   });
   if (!res.ok) throw new Error('Failed to fetch members');
   const data = await res.json();
-  return Array.isArray(data) ? data : data.members ?? [];
+  return ensureArray<TeamMember>(data, 'members');
+}
+
+async function fetchTasks(businessId: string): Promise<Task[]> {
+  const res = await fetch(`${API_BASE}/tasks/business/${businessId}`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch tasks');
+  const data = await res.json();
+  return ensureArray<Task>(data, 'tasks');
+}
+
+async function createTask(taskData: Partial<Task>): Promise<Task> {
+  const payload = {
+    ...taskData,
+    assignedToIds: taskData.assignedTo?.map(u => u.id) || [],
+  };
+  delete (payload as any).assignedTo;
+  
+  const res = await fetch(`${API_BASE}/tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to create task');
+  return res.json();
+}
+
+async function updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
+  const payload = {
+    ...updates,
+    assignedToIds: updates.assignedTo?.map(u => u.id),
+  };
+  delete (payload as any).assignedTo;
+  
+  const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to update task');
+  return res.json();
+}
+
+async function deleteTask(taskId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to delete task');
+}
+
+async function fetchCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  return res.json();
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Collaboration() {
   const [activeTab, setActiveTab] = useState('tasks');
-  const [tasks] = useState(initialTasks);
   const [notifications, setNotifications] = useState(initialNotifications);
   const [showNewTask, setShowNewTask] = useState(false);
   const [showInviteMember, setShowInviteMember] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Team state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -218,9 +244,36 @@ export default function Collaboration() {
   const [membersError, setMembersError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // ── Load businesses then members on mount ─────────────────────────────────
+  // Tasks state
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [tasksError, setTasksError] = useState<string | null>(null);
+
+  // Current user state
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // New task form state
+  const [newTaskForm, setNewTaskForm] = useState({
+    title: '',
+    description: '',
+    priority: 'MEDIUM' as Task['priority'],
+    assignedToIds: [] as string[],
+    dueDate: '',
+  });
+
+  // Check if user can manage tasks
+  const canManageTasks = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
+
+  // ── Load current user, businesses, members, and tasks on mount ─────────────
   useEffect(() => {
-    async function loadTeam() {
+    async function loadData() {
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUser(user);
+      } catch (err: any) {
+        console.error('Failed to load user:', err);
+      }
+
       setLoadingMembers(true);
       setMembersError(null);
       try {
@@ -229,17 +282,29 @@ export default function Collaboration() {
           setMembersError('Aucun business trouvé pour votre compte.');
           return;
         }
-        const business = businesses[0]; // Use the first business
+        const business = businesses[0];
         setCurrentBusiness(business);
         const members = await fetchBusinessMembers(business.id);
         setTeamMembers(members);
+
+        // Load tasks
+        setLoadingTasks(true);
+        setTasksError(null);
+        try {
+          const fetchedTasks = await fetchTasks(business.id);
+          setTasks(fetchedTasks);
+        } catch (err: any) {
+          setTasksError(err.message ?? 'Failed to load tasks');
+        } finally {
+          setLoadingTasks(false);
+        }
       } catch (err: any) {
         setMembersError(err.message ?? 'Erreur lors du chargement des membres.');
       } finally {
         setLoadingMembers(false);
       }
     }
-    loadTeam();
+    loadData();
   }, []);
 
   // ── Filtered members by search ────────────────────────────────────────────
@@ -251,11 +316,12 @@ export default function Collaboration() {
     return name.includes(q) || email.includes(q) || role.includes(q);
   });
 
+  // ── Tasks by status ────────────────────────────────────────────────────────
   const tasksByStatus = {
-    todo: tasks.filter((t) => t.status === 'todo'),
-    'in-progress': tasks.filter((t) => t.status === 'in-progress'),
-    done: tasks.filter((t) => t.status === 'done'),
-    blocked: tasks.filter((t) => t.status === 'blocked'),
+    TODO: tasks.filter((t) => t.status === 'TODO'),
+    IN_PROGRESS: tasks.filter((t) => t.status === 'IN_PROGRESS'),
+    DONE: tasks.filter((t) => t.status === 'DONE'),
+    BLOCKED: tasks.filter((t) => t.status === 'BLOCKED'),
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -268,6 +334,139 @@ export default function Collaboration() {
     setNotifications(notifications.map((n) => ({ ...n, read: true })));
   };
 
+  // ── Handle create task ─────────────────────────────────────────────────────
+  const handleCreateTask = async () => {
+    if (!newTaskForm.title.trim()) {
+      alert('Please enter a task title');
+      return;
+    }
+    if (!currentBusiness) {
+      alert('No business selected');
+      return;
+    }
+
+    try {
+      const assignedUsers = newTaskForm.assignedToIds
+        .map(id => teamMembers.find(m => m.user_id === id)?.user)
+        .filter(Boolean) as User[];
+
+      const taskData: Partial<Task> = {
+        title: newTaskForm.title,
+        description: newTaskForm.description || undefined,
+        priority: newTaskForm.priority,
+        assignedTo: assignedUsers,
+        dueDate: newTaskForm.dueDate || undefined,
+        status: 'TODO',
+        businessId: currentBusiness.id,
+      };
+      const created = await createTask(taskData);
+      setTasks([...tasks, created]);
+      setShowNewTask(false);
+      setNewTaskForm({
+        title: '',
+        description: '',
+        priority: 'MEDIUM',
+        assignedToIds: [],
+        dueDate: '',
+      });
+    } catch (err: any) {
+      alert(err.message ?? 'Failed to create task');
+    }
+  };
+
+  // ── Handle update task status ──────────────────────────────────────────────
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
+    try {
+      const updated = await updateTask(taskId, { status: newStatus });
+      setTasks(tasks.map((t) => (t.id === taskId ? updated : t)));
+    } catch (err: any) {
+      alert(err.message ?? 'Failed to update task');
+    }
+  };
+
+  // ── Handle delete task ─────────────────────────────────────────────────────
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+    try {
+      await deleteTask(taskId);
+      setTasks(tasks.filter((t) => t.id !== taskId));
+    } catch (err: any) {
+      alert(err.message ?? 'Failed to delete task');
+    }
+  };
+
+  // ── Handle edit task ───────────────────────────────────────────────────────
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setNewTaskForm({
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority,
+      assignedToIds: task.assignedTo?.map(u => u.id) || [],
+      dueDate: task.dueDate || '',
+    });
+    setShowNewTask(true);
+  };
+
+  // ── Handle update task ─────────────────────────────────────────────────────
+  const handleUpdateTask = async () => {
+    if (!editingTask) return;
+    if (!newTaskForm.title.trim()) {
+      alert('Please enter a task title');
+      return;
+    }
+
+    try {
+      const assignedUsers = newTaskForm.assignedToIds
+        .map(id => teamMembers.find(m => m.user_id === id)?.user)
+        .filter(Boolean) as User[];
+
+      const updates: Partial<Task> = {
+        title: newTaskForm.title,
+        description: newTaskForm.description || undefined,
+        priority: newTaskForm.priority,
+        assignedTo: assignedUsers,
+        dueDate: newTaskForm.dueDate || undefined,
+      };
+      const updated = await updateTask(editingTask.id, updates);
+      setTasks(tasks.map((t) => (t.id === editingTask.id ? updated : t)));
+      setShowNewTask(false);
+      setEditingTask(null);
+      setNewTaskForm({
+        title: '',
+        description: '',
+        priority: 'MEDIUM',
+        assignedToIds: [],
+        dueDate: '',
+      });
+    } catch (err: any) {
+      alert(err.message ?? 'Failed to update task');
+    }
+  };
+
+  // ── Close modal ────────────────────────────────────────────────────────────
+  const handleCloseTaskModal = () => {
+    setShowNewTask(false);
+    setEditingTask(null);
+    setNewTaskForm({
+      title: '',
+      description: '',
+      priority: 'MEDIUM',
+      assignedToIds: [],
+      dueDate: '',
+    });
+  };
+
+  // ── Toggle assigned member ─────────────────────────────────────────────────
+  const toggleAssignedMember = (userId: string) => {
+    setNewTaskForm(prev => ({
+      ...prev,
+      assignedToIds: prev.assignedToIds.includes(userId)
+        ? prev.assignedToIds.filter(id => id !== userId)
+        : [...prev.assignedToIds, userId],
+    }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -278,13 +477,15 @@ export default function Collaboration() {
             {currentBusiness ? `Business : ${currentBusiness.name}` : 'Manage tasks, activity and teamwork'}
           </p>
         </div>
-        <button
-          onClick={() => setShowNewTask(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          Create Task
-        </button>
+        {canManageTasks && (
+          <button
+            onClick={() => setShowNewTask(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Create Task
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -318,32 +519,64 @@ export default function Collaboration() {
           {/* ── Tasks Tab ───────────────────────────────────────────────────── */}
           {activeTab === 'tasks' && (
             <div className="space-y-6">
-              <div className="grid lg:grid-cols-4 gap-4">
-                {/* TODO */}
-                <KanbanColumn
-                  label="TODO"
-                  icon={<Circle className="h-5 w-5 text-gray-400" />}
-                  tasks={tasksByStatus.todo}
-                />
-                {/* IN PROGRESS */}
-                <KanbanColumn
-                  label="IN PROGRESS"
-                  icon={<Clock className="h-5 w-5 text-blue-500" />}
-                  tasks={tasksByStatus['in-progress']}
-                />
-                {/* DONE */}
-                <KanbanColumn
-                  label="DONE"
-                  icon={<CheckCircle2 className="h-5 w-5 text-green-500" />}
-                  tasks={tasksByStatus.done}
-                />
-                {/* BLOCKED */}
-                <KanbanColumn
-                  label="BLOCKED"
-                  icon={<XCircle className="h-5 w-5 text-red-500" />}
-                  tasks={tasksByStatus.blocked}
-                />
-              </div>
+              {loadingTasks && (
+                <div className="flex items-center justify-center py-16 gap-3 text-gray-500">
+                  <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                  <span>Loading tasks...</span>
+                </div>
+              )}
+
+              {!loadingTasks && tasksError && (
+                <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                  <span>{tasksError}</span>
+                </div>
+              )}
+
+              {!loadingTasks && !tasksError && (
+                <div className="grid lg:grid-cols-4 gap-4">
+                  <KanbanColumn
+                    label="TODO"
+                    icon={<Circle className="h-5 w-5 text-gray-400" />}
+                    tasks={tasksByStatus.TODO}
+                    onUpdateStatus={handleUpdateTaskStatus}
+                    onDelete={handleDeleteTask}
+                    onEdit={handleEditTask}
+                    canManage={canManageTasks}
+                    teamMembers={teamMembers}
+                  />
+                  <KanbanColumn
+                    label="IN PROGRESS"
+                    icon={<Clock className="h-5 w-5 text-blue-500" />}
+                    tasks={tasksByStatus.IN_PROGRESS}
+                    onUpdateStatus={handleUpdateTaskStatus}
+                    onDelete={handleDeleteTask}
+                    onEdit={handleEditTask}
+                    canManage={canManageTasks}
+                    teamMembers={teamMembers}
+                  />
+                  <KanbanColumn
+                    label="DONE"
+                    icon={<CheckCircle2 className="h-5 w-5 text-green-500" />}
+                    tasks={tasksByStatus.DONE}
+                    onUpdateStatus={handleUpdateTaskStatus}
+                    onDelete={handleDeleteTask}
+                    onEdit={handleEditTask}
+                    canManage={canManageTasks}
+                    teamMembers={teamMembers}
+                  />
+                  <KanbanColumn
+                    label="BLOCKED"
+                    icon={<XCircle className="h-5 w-5 text-red-500" />}
+                    tasks={tasksByStatus.BLOCKED}
+                    onUpdateStatus={handleUpdateTaskStatus}
+                    onDelete={handleDeleteTask}
+                    onEdit={handleEditTask}
+                    canManage={canManageTasks}
+                    teamMembers={teamMembers}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -435,7 +668,6 @@ export default function Collaboration() {
 
                         return (
                           <tr key={member.id} className="hover:bg-gray-50 transition-colors">
-                            {/* Name + avatar */}
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div
@@ -446,20 +678,14 @@ export default function Collaboration() {
                                 <span className="font-medium text-gray-900">{name}</span>
                               </div>
                             </td>
-
-                            {/* Role */}
                             <td className="px-6 py-4">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
                                 {formatRole(member.role)}
                               </span>
                             </td>
-
-                            {/* Email */}
                             <td className="px-6 py-4 text-sm text-gray-600">
                               {member.user.email}
                             </td>
-
-                            {/* Status */}
                             <td className="px-6 py-4 text-center">
                               <span
                                 className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full ${
@@ -476,13 +702,9 @@ export default function Collaboration() {
                                 {member.is_active ? 'Actif' : 'Inactif'}
                               </span>
                             </td>
-
-                            {/* Joined date */}
                             <td className="px-6 py-4 text-sm text-gray-500">
                               {joinedDate}
                             </td>
-
-                            {/* Actions */}
                             <td className="px-6 py-4 text-right">
                               <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                                 <MoreHorizontal className="h-5 w-5" />
@@ -493,8 +715,6 @@ export default function Collaboration() {
                       })}
                     </tbody>
                   </table>
-
-                  {/* Footer — member count */}
                   <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-500">
                     {filteredMembers.length} membre{filteredMembers.length > 1 ? 's' : ''} au total
                   </div>
@@ -583,13 +803,15 @@ export default function Collaboration() {
         </div>
       </div>
 
-      {/* ── New Task Modal ─────────────────────────────────────────────────────── */}
+      {/* ── New/Edit Task Modal ─────────────────────────────────────────────────────── */}
       {showNewTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl max-w-lg w-full">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Create New Task</h2>
-              <button onClick={() => setShowNewTask(false)} className="text-gray-400 hover:text-gray-500">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingTask ? 'Edit Task' : 'Create New Task'}
+              </h2>
+              <button onClick={handleCloseTaskModal} className="text-gray-400 hover:text-gray-500">
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
@@ -598,6 +820,8 @@ export default function Collaboration() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Task Title</label>
                 <input
                   type="text"
+                  value={newTaskForm.title}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   placeholder="Enter task title"
                 />
@@ -606,6 +830,8 @@ export default function Collaboration() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea
                   rows={3}
+                  value={newTaskForm.description}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   placeholder="Task description"
                 />
@@ -613,41 +839,81 @@ export default function Collaboration() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                  <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
+                  <select
+                    value={newTaskForm.priority}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, priority: e.target.value as Task['priority'] })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
                   <input
                     type="date"
+                    value={newTaskForm.dueDate}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, dueDate: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Assign To</label>
-                <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                  <option value="">Select team member</option>
-                  {teamMembers.map((member) => (
-                    <option key={member.id} value={member.user_id}>
-                      {getMemberName(member)}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Assign To (Multiple)</label>
+                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3 space-y-2">
+                  {teamMembers.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-2">No team members available</p>
+                  ) : (
+                    teamMembers.map((member) => {
+                      const name = getMemberName(member);
+                      const initials = getInitials(name);
+                      const isChecked = newTaskForm.assignedToIds.includes(member.user_id);
+                      
+                      return (
+                        <label
+                          key={member.id}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                            isChecked ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleAssignedMember(member.user_id)}
+                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                          />
+                          <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                            {initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{name}</p>
+                            <p className="text-xs text-gray-500 truncate">{member.user.email}</p>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+                {newTaskForm.assignedToIds.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {newTaskForm.assignedToIds.length} member{newTaskForm.assignedToIds.length > 1 ? 's' : ''} selected
+                  </p>
+                )}
               </div>
             </div>
             <div className="p-6 border-t border-gray-200 flex gap-3">
               <button
-                onClick={() => setShowNewTask(false)}
+                onClick={handleCloseTaskModal}
                 className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
-              <button className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors">
-                Create Task
+              <button
+                onClick={editingTask ? handleUpdateTask : handleCreateTask}
+                className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+              >
+                {editingTask ? 'Update Task' : 'Create Task'}
               </button>
             </div>
           </div>
@@ -715,10 +981,20 @@ function KanbanColumn({
   label,
   icon,
   tasks,
+  onUpdateStatus,
+  onDelete,
+  onEdit,
+  canManage,
+  teamMembers,
 }: {
   label: string;
   icon: React.ReactNode;
-  tasks: typeof initialTasks;
+  tasks: Task[];
+  onUpdateStatus: (taskId: string, newStatus: Task['status']) => void;
+  onDelete: (taskId: string) => void;
+  onEdit: (task: Task) => void;
+  canManage: boolean;
+  teamMembers: TeamMember[];
 }) {
   return (
     <div className="space-y-3">
@@ -729,40 +1005,145 @@ function KanbanColumn({
       </div>
       <div className="space-y-3">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            onUpdateStatus={onUpdateStatus}
+            onDelete={onDelete}
+            onEdit={onEdit}
+            canManage={canManage}
+            teamMembers={teamMembers}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function TaskCard({ task }: { task: (typeof initialTasks)[0] }) {
+function TaskCard({
+  task,
+  onUpdateStatus,
+  onDelete,
+  onEdit,
+  canManage,
+  teamMembers,
+}: {
+  task: Task;
+  onUpdateStatus: (taskId: string, newStatus: Task['status']) => void;
+  onDelete: (taskId: string) => void;
+  onEdit: (task: Task) => void;
+  canManage: boolean;
+  teamMembers: TeamMember[];
+}) {
+  const [showMenu, setShowMenu] = useState(false);
+
+  const statusOptions: Task['status'][] = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'];
+
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-3">
-        <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
-        <button className="text-gray-400 hover:text-gray-600">
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
+        <h4 className="font-medium text-gray-900 text-sm flex-1">{task.title}</h4>
+        {canManage && (
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      onEdit(task);
+                      setShowMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit
+                  </button>
+                  <div className="border-t border-gray-100 my-1" />
+                  <div className="px-4 py-2 text-xs font-medium text-gray-500">Change Status</div>
+                  {statusOptions.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        onUpdateStatus(task.id, status);
+                        setShowMenu(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
+                        task.status === status ? 'text-indigo-600 font-medium' : 'text-gray-700'
+                      }`}
+                    >
+                      {status.replace('_', ' ')}
+                    </button>
+                  ))}
+                  <div className="border-t border-gray-100 my-1" />
+                  <button
+                    onClick={() => {
+                      onDelete(task.id);
+                      setShowMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+      {task.description && (
+        <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+      )}
       <div className="flex items-center justify-between">
         <span
           className={`px-2 py-1 text-xs font-medium rounded border ${
-            priorityColors[task.priority as keyof typeof priorityColors]
+            priorityColors[task.priority]
           }`}
         >
-          {priorityLabels[task.priority as keyof typeof priorityLabels]}
+          {priorityLabels[task.priority]}
         </span>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <Calendar className="h-3 w-3" />
-            {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </div>
-          <div
-            className={`h-7 w-7 rounded-full ${task.assignedTo.color} flex items-center justify-center text-white text-xs font-medium`}
-          >
-            {task.assignedTo.avatar}
-          </div>
+          {task.dueDate && (
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <Calendar className="h-3 w-3" />
+              {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </div>
+          )}
+          {task.assignedTo && task.assignedTo.length > 0 && (
+            <div className="flex -space-x-2">
+              {task.assignedTo.slice(0, 3).map((user, index) => {
+                const name = user.firstName && user.lastName 
+                  ? `${user.firstName} ${user.lastName}` 
+                  : user.email;
+                const initials = getInitials(name);
+                
+                return (
+                  <div
+                    key={user.id}
+                    className="h-7 w-7 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white"
+                    title={name}
+                    style={{ zIndex: task.assignedTo!.length - index }}
+                  >
+                    {initials}
+                  </div>
+                );
+              })}
+              {task.assignedTo.length > 3 && (
+                <div
+                  className="h-7 w-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium border-2 border-white"
+                  title={`+${task.assignedTo.length - 3} more`}
+                >
+                  +{task.assignedTo.length - 3}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
