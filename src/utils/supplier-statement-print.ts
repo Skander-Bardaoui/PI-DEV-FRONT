@@ -154,7 +154,7 @@ export const printSupplierStatement = (
 
     <div class="doc-footer">
       <div class="footer-accent"></div>
-      <span>BizManage — Relevé de compte fournisseur</span>
+      <span>NovaEntra — Relevé de compte fournisseur</span>
       <span>${supplier.name}</span>
       <span>Imprimé le ${now}</span>
     </div>

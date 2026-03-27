@@ -261,25 +261,85 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
           {/* Étape 2 — Vérification */}
           {step === 'review' && ocrData && (
             <>
-              {/* Score OCR */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: ocrData.ocr_confidence >= 60 ? '#F0FDF4' : '#FFFBEB', borderRadius: 10, marginBottom: 16, border: `1px solid ${ocrData.ocr_confidence >= 60 ? '#86EFAC' : '#FCD34D'}` }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: ocrData.ocr_confidence >= 60 ? '#16A34A' : '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
-                  {ocrData.ocr_confidence}%
+              {/* Score OCR + Validation IA */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                {/* Score OCR */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: ocrData.ocr_confidence >= 60 ? '#F0FDF4' : '#FFFBEB', borderRadius: 10, border: `1px solid ${ocrData.ocr_confidence >= 60 ? '#86EFAC' : '#FCD34D'}` }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: ocrData.ocr_confidence >= 60 ? '#16A34A' : '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                    {ocrData.ocr_confidence}%
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 500, fontSize: 13, color: ocrData.ocr_confidence >= 60 ? '#166534' : '#92400E' }}>
+                      {ocrData.ocr_confidence >= 80 ? 'Extraction excellente' : ocrData.ocr_confidence >= 60 ? 'Extraction correcte' : 'Extraction partielle — vérifiez les champs'}
+                    </p>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6B7280' }}>
+                      Traité en {ocrData.processing_time_ms}ms — {ocrData.file_name}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setStep('upload')}
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                  >
+                    <RefreshCw size={14} /> Nouveau scan
+                  </button>
                 </div>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 500, fontSize: 13, color: ocrData.ocr_confidence >= 60 ? '#166534' : '#92400E' }}>
-                    {ocrData.ocr_confidence >= 80 ? 'Extraction excellente' : ocrData.ocr_confidence >= 60 ? 'Extraction correcte' : 'Extraction partielle — vérifiez les champs'}
-                  </p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6B7280' }}>
-                    Traité en {ocrData.processing_time_ms}ms — {ocrData.file_name}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setStep('upload')}
-                  style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
-                >
-                  <RefreshCw size={14} /> Nouveau scan
-                </button>
+
+                {/* Validation IA */}
+                {ocrData.ai_validation && (
+                  <div style={{ 
+                    padding: '12px 14px', 
+                    background: ocrData.ai_validation.isValid ? '#EFF6FF' : '#FEF2F2', 
+                    borderRadius: 10, 
+                    border: `1px solid ${ocrData.ai_validation.isValid ? '#BFDBFE' : '#FCA5A5'}` 
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <div style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: '50%', 
+                        background: ocrData.ai_validation.isValid ? '#3B82F6' : '#EF4444', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        color: '#fff', 
+                        fontWeight: 700, 
+                        fontSize: 12 
+                      }}>
+                        {ocrData.ai_validation.confidence}%
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: 13, color: ocrData.ai_validation.isValid ? '#1E40AF' : '#991B1B' }}>
+                          🤖 Validation IA {ocrData.ai_validation.isValid ? 'réussie' : 'avec erreurs'}
+                        </p>
+                        {ocrData.ai_validation.hasCorrections && (
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#059669', fontWeight: 500 }}>
+                            ✓ Corrections automatiques appliquées
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Erreurs */}
+                    {ocrData.ai_validation.errors.length > 0 && (
+                      <div style={{ marginTop: 8, padding: '8px 10px', background: '#FEE2E2', borderRadius: 6 }}>
+                        <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 600, color: '#991B1B' }}>❌ Erreurs détectées:</p>
+                        {ocrData.ai_validation.errors.map((err, i) => (
+                          <p key={i} style={{ margin: '2px 0', fontSize: 11, color: '#7F1D1D' }}>• {err}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Avertissements */}
+                    {ocrData.ai_validation.warnings.length > 0 && (
+                      <div style={{ marginTop: 8, padding: '8px 10px', background: '#FEF9C3', borderRadius: 6 }}>
+                        <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 600, color: '#92400E' }}>⚠️ Avertissements:</p>
+                        {ocrData.ai_validation.warnings.map((warn, i) => (
+                          <p key={i} style={{ margin: '2px 0', fontSize: 11, color: '#78350F' }}>• {warn}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {error && (

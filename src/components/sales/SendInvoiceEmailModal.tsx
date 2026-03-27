@@ -126,9 +126,9 @@ export default function SendInvoiceEmailModal({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
           },
-          credentials: 'include',
+          credentials: 'include', // Send cookies automatically
+
           body: JSON.stringify({ 
             email,
             subject: subject || undefined,  // Send custom subject if available

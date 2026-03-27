@@ -39,6 +39,7 @@ export default function RegisterPage() {
     description: '',
 
     businessName: '',
+    businessEmail: '',
     logo: '',
     tax_id: '',
     currency: 'TND',
@@ -425,7 +426,25 @@ export default function RegisterPage() {
                     />
                   </div>
                 </div>
-
+                  <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email de l'entreprise (optionnel)
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={formData.businessEmail}
+                    onChange={(e) => setFormData({ ...formData, businessEmail: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    placeholder="contact@mon-entreprise.tn"
+                    disabled={isLoading}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Affiché dans les bons de commande envoyés aux fournisseurs
+                </p>
+              </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Matricule Fiscal (optionnel)</label>
                   <div className="relative">
