@@ -155,6 +155,9 @@ function AppContent() {
           {/*treasury*/}
           <Route path="/app/treasury/accounts" element={<AccountsPage />} />
 
+          {/*treasury*/}
+          <Route path="/app/treasury/accounts" element={<AccountsPage />} />
+
           {/* ── Module Ventes ──────────────────────────────────────── */}
           <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />
           <Route path="sales/quotes"             element={<QuotesPage />}             />

@@ -388,6 +388,7 @@ export default function GoodsReceiptsPage() {
               >
                 Suivant
               </button>
+
             </div>
           </div>
         )}
