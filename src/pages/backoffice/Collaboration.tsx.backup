@@ -1125,10 +1125,8 @@ function TaskCard({
                   </div>
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
-        
       </div>
       {task.description && (
         <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
