@@ -7,6 +7,7 @@ import {
   TrendingUp, Box, ShoppingCart, ShoppingBag, FileCheck,
   Truck, ClipboardList, Award, RefreshCw, User,
   Wallet,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
@@ -98,6 +99,7 @@ export default function BackOfficeLayout() {
         { name: 'Accounts', href: '/app/treasury/accounts', icon: Building2 },
         { name: 'Invoices', href: '/app/treasury/invoices', icon: FileText },
         { name: 'Expenses to Pay', href: '/app/treasury/expenses', icon: Receipt },
+        { name: 'Transactions', href: '/app/treasury/transactions', icon: ArrowRightLeft },
       ],
     },
     // Hide Team section for TEAM_MEMBER role

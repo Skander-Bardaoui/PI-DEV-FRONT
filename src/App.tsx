@@ -58,6 +58,7 @@ import SupplierRankingPage from './pages/backoffice/purchases/SupplierRankingPag
 import AccountsPage from './pages/backoffice/treasury/AccountsPage';
 import TreasuryInvoicesPage from './components/treasury/TreasuryInvoicesPage';
 import ExpensesToPayPage from './components/treasury/ExpensesToPayPage';
+import Transactions from './components/treasury/Transactions';
 
 
 // Inner component to access accessibility context
@@ -153,6 +154,7 @@ function AppContent() {
           <Route path="treasury/accounts" element={<AccountsPage />} />
           <Route path="treasury/invoices" element={<TreasuryInvoicesPage />} />
           <Route path="treasury/expenses" element={<ExpensesToPayPage />} />
+          <Route path="treasury/transactions" element={<Transactions />} />
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
           <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />
