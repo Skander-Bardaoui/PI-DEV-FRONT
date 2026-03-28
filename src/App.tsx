@@ -56,9 +56,10 @@ import RecurringInvoicesPage  from './pages/backoffice/sales/RecurringInvoicesPa
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
 import SupplierPortalPage from './pages/backoffice/purchases/SupplierPortalPage';
+import SupplierRankingPage from './pages/backoffice/purchases/SupplierRankingPage';
+import AccountsPage from './pages/backoffice/treasury/AccountsPage';
 import SupplierIntelligencePage from './pages/backoffice/purchases/SupplierIntelligencePage';
 import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingPage';
-import AccountsPage from './pages/backoffice/treasury/AccountsPage';
 import SupplierRegisterPage from './pages/frontoffice/SupplierRegisterPage';
 
 // Inner component to access accessibility context
@@ -70,6 +71,7 @@ function AppContent() {
     <>
       {/* Sonner Toast Notifications */}
       <Toaster position="bottom-right" richColors closeButton />
+      
       
       {/* Accessibility Components - Available on all pages */}
       <AccessibilityButton />
@@ -151,6 +153,7 @@ function AppContent() {
           <Route path="purchases/goods-receipts"  element={<GoodsReceiptsPage />}      />
           <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
           <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
+          <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
           <Route path="purchases/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="purchases/three-way-matching" element={<ThreeWayMatchingPage />} />
           <Route path="purchases/three-way-matching/:invoiceId" element={<ThreeWayMatchingPage />} />

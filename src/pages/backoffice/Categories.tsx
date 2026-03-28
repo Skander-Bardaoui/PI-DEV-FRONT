@@ -1,151 +1,276 @@
-// src/pages/backoffice/Categories.tsx
-import { useState } from 'react';
-import { Plus, Search } from 'lucide-react';
-import CategoryTable from '../../components/stock/CategoryTable';
-import { Category } from '../../types/category';
-
-// Mock data
-const mockCategories: Category[] = [
-  {
-    id: 'cat-1',
-    name: 'Ordinateurs Portables',
-    description: 'Laptops et notebooks de toutes marques',
-    isActive: true,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-15')
-  },
-  {
-    id: 'cat-2',
-    name: 'Accessoires',
-    description: 'Souris, claviers, casques et autres accessoires',
-    isActive: true,
-    createdAt: new Date('2024-01-02'),
-    updatedAt: new Date('2024-01-14')
-  },
-  {
-    id: 'cat-3',
-    name: 'Moniteurs',
-    description: 'Écrans et moniteurs professionnels',
-    isActive: true,
-    createdAt: new Date('2024-01-03'),
-    updatedAt: new Date('2024-01-13')
-  },
-  {
-    id: 'cat-4',
-    name: 'Imprimantes',
-    description: 'Imprimantes laser et jet d\'encre',
-    isActive: false,
-    createdAt: new Date('2024-01-04'),
-    updatedAt: new Date('2024-01-12')
-  },
-  {
-    id: 'cat-5',
-    name: 'Composants',
-    description: 'RAM, SSD, disques durs et autres composants',
-    isActive: true,
-    createdAt: new Date('2024-01-05'),
-    updatedAt: new Date('2024-01-11')
-  },
-  {
-    id: 'cat-6',
-    name: 'Réseaux',
-    description: 'Routeurs, switches et équipements réseau',
-    isActive: true,
-    createdAt: new Date('2024-01-06'),
-    updatedAt: new Date('2024-01-10')
-  },
-  {
-    id: 'cat-7',
-    name: 'Logiciels',
-    description: 'Licences et logiciels professionnels',
-    isActive: true,
-    createdAt: new Date('2024-01-07'),
-    updatedAt: new Date('2024-01-09')
-  },
-  {
-    id: 'cat-8',
-    name: 'Mobilier',
-    description: 'Bureaux, chaises et mobilier de bureau',
-    isActive: false,
-    createdAt: new Date('2024-01-08'),
-    updatedAt: new Date('2024-01-08')
-  }
-];
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { categoriesApi } from '../../api/categories.api';
+import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../types/category';
+import { Plus, Edit, Trash2, Search } from 'lucide-react';
 
 export default function Categories() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-
-  const filteredCategories = mockCategories.filter(category => {
-    const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (category.description?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
-    const matchesStatus = statusFilter === 'all' || 
-                          (statusFilter === 'active' && category.isActive) ||
-                          (statusFilter === 'inactive' && !category.isActive);
-    return matchesSearch && matchesStatus;
+  const { user } = useAuth();
+  const businessId = user?.business_id;
+  const navigate = useNavigate();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [formData, setFormData] = useState<CreateCategoryDto>({
+    name: '',
+    description: '',
   });
 
-  const totalCategories = mockCategories.length;
-  const activeCategories = mockCategories.filter(c => c.isActive).length;
+  useEffect(() => {
+    if (businessId) {
+      loadCategories();
+    }
+  }, [businessId, searchTerm, showActiveOnly]);
+
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      const data = await categoriesApi.getAll(businessId!, {
+        search: searchTerm || undefined,
+        is_active: showActiveOnly ? true : undefined,
+      });
+      setCategories(data);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingCategory) {
+        await categoriesApi.update(businessId!, editingCategory.id, formData);
+      } else {
+        await categoriesApi.create(businessId!, formData);
+      }
+      setShowModal(false);
+      setEditingCategory(null);
+      setFormData({ name: '', description: '' });
+      await loadCategories();
+    } catch (error) {
+      console.error('Error saving category:', error);
+    }
+  };
+
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      description: category.description || '',
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this category?')) {
+      try {
+        await categoriesApi.delete(businessId!, id);
+        loadCategories();
+      } catch (error: any) {
+        alert(error.response?.data?.message || 'Error deleting category');
+      }
+    }
+  };
+
+  const handleToggleActive = async (category: Category) => {
+    try {
+      await categoriesApi.update(businessId!, category.id, {
+        is_active: !category.is_active,
+      });
+      loadCategories();
+    } catch (error) {
+      console.error('Error toggling category status:', error);
+    }
+  };
+
+  if (!businessId) {
+    return (
+      <div className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800">
+            No business associated with your account. Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Catégories</h1>
-          <p className="text-gray-500">Organisez vos produits par catégories</p>
-        </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-          <Plus className="h-5 w-5" />
-          Nouvelle catégorie
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Categories</h1>
+        <button
+          onClick={() => {
+            setEditingCategory(null);
+            setFormData({ name: '', description: '' });
+            setShowModal(true);
+          }}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+        >
+          <Plus size={20} />
+          New Category
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-1">Total catégories</p>
-          <p className="text-2xl font-bold text-gray-900">{totalCategories}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-1">Catégories actives</p>
-          <p className="text-2xl font-bold text-green-600">{activeCategories}</p>
-        </div>
-      </div>
-
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher une catégorie..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Search categories..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border rounded-lg"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="active">Actives</option>
-            <option value="inactive">Inactives</option>
-          </select>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showActiveOnly}
+              onChange={(e) => setShowActiveOnly(e.target.checked)}
+              className="rounded"
+            />
+            <span>Active only</span>
+          </label>
         </div>
       </div>
 
       {/* Categories Table */}
-      <CategoryTable categories={filteredCategories} />
-
-      {/* Results count */}
-      <div className="text-center text-sm text-gray-500">
-        Affichage de {filteredCategories.length} sur {totalCategories} catégories
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Description
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {loading ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-4 text-center">
+                  Loading...
+                </td>
+              </tr>
+            ) : categories.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                  No categories found
+                </td>
+              </tr>
+            ) : (
+              categories.map((category) => (
+                <tr key={category.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{category.name}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-500">{category.description || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => handleToggleActive(category)}
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        category.is_active
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {category.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => handleEdit(category)}
+                      className="text-blue-600 hover:text-blue-900 mr-4"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(category.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">
+              {editingCategory ? 'Edit Category' : 'New Category'}
+            </h2>
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  rows={3}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    setEditingCategory(null);
+                    setFormData({ name: '', description: '' });
+                  }}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  {editingCategory ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

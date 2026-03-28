@@ -4,7 +4,9 @@ import { useForm, useWatch } from 'react-hook-form';
 import { X, PackageCheck } from 'lucide-react';
 import { useCreateDeliveryNoteFromSalesOrder } from '@/hooks/useDeliveryNotes';
 import { useToast } from '@/components/ui/Toast';
-import { CreateDeliveryNoteItemDto, SalesOrder } from '@/types';
+import { CreateDeliveryNoteItemDto } from '@/types/delivery-note';
+import { SalesOrder } from '@/types/sales-order';
+
 
 interface DeliveryNoteFormValues {
   deliveryDate: string;
