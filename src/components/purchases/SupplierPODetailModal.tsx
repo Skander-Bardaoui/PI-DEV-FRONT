@@ -1,13 +1,7 @@
-// src/components/purchases/SupplierPODetailModal.tsx
-// CORRECTIONS :
-// - Données manquantes dans le détail (items chargés depuis useSupplierPO)
-// - Modal se ferme après confirmation
-// - Amélioration affichage BR
-
 import { useState } from 'react';
 import {
   X, Package, FileText, Plus, ChevronDown, ChevronUp,
-  AlertCircle, Send, Check, Loader2,
+  AlertCircle, Send, Check, Loader2, ExternalLink,
 } from 'lucide-react';
 import { useGoodsReceiptsByPO }  from '@/hooks/useGoodsReceipts';
 import {
@@ -16,16 +10,19 @@ import {
   useConfirmSupplierPO,
   useCancelSupplierPO,
 } from '@/hooks/useSupplierPOs';
+import { usePurchaseInvoicesByPO } from '@/hooks/usePurchaseInvoices';
 import { usePDFExport }              from '@/hooks/usePDFExport';
 import { useToast }                  from '@/components/ui/Toast';
 import EditSupplierPOModal           from '@/components/purchases/EditSupplierPOModal';
 import GoodsReceiptModal             from '@/components/purchases/GoodsReceiptModal';
 import CreateInvoiceFromPOModal      from '@/components/purchases/CreateInvoiceFromPOModal';
+import InvoiceDetailModal            from '@/components/purchases/Invoicedetailmodal ';
 import PDFButton                     from '@/components/purchases/PDFButton';
 import {
   formatAmount, formatDate,
   PO_STATUS_COLORS, PO_STATUS_LABELS,
-  POStatus, SupplierPO,
+  POStatus, SupplierPO, INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS,
+  PurchaseInvoice, round3,
 } from '@/types';
 
 interface Props {
@@ -40,6 +37,8 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [showItems,   setShowItems]   = useState(true);
   const [showReceipts,setShowReceipts]= useState(true);
+  const [showInvoices,setShowInvoices]= useState(true);
+  const [selectedInvoice, setSelectedInvoice] = useState<PurchaseInvoice | null>(null);
 
   const toast = useToast();
 
@@ -49,6 +48,7 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
   const po = fullPO ?? initialPO;
 
   const { data: receipts } = useGoodsReceiptsByPO(businessId, po.id);
+  const { data: existingInvoices } = usePurchaseInvoicesByPO(businessId, po.id);
 
   const send    = useSendSupplierPO(businessId);
   const confirm = useConfirmSupplierPO(businessId);
@@ -60,8 +60,71 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
   const canConfirm = po.status === POStatus.SENT;
   const canCancel  = [POStatus.DRAFT, POStatus.SENT].includes(po.status);
   const canReceive = [POStatus.CONFIRMED, POStatus.PARTIALLY_RECEIVED].includes(po.status);
-  const canInvoice = [POStatus.PARTIALLY_RECEIVED, POStatus.FULLY_RECEIVED].includes(po.status);
+  
+  // LOGIQUE FINALE CORRECTE
+  const hasReceipts = receipts && receipts.length > 0;
+  const hasInvoices = existingInvoices && existingInvoices.length > 0;
+  const isFullyReceived = po.status === POStatus.FULLY_RECEIVED;
+  const isPartiallyReceived = po.status === POStatus.PARTIALLY_RECEIVED;
   const isConfirmedNoReceipt = po.status === POStatus.CONFIRMED;
+  
+  // 1. Montant total du BC
+  const totalBC = Number(po.net_amount);
+  
+  // 2. Montant total réceptionné (HT + TVA SANS timbre)
+  // Le timbre fiscal n'est PAS proportionnel - il est de 1.000 TND par FACTURE, pas par réception
+  const totalReceivedHT = po.items?.reduce((sum, item) => {
+    const qtyReceived = Number(item.quantity_received) || 0;
+    const unitPrice = Number(item.unit_price_ht) || 0;
+    return sum + (qtyReceived * unitPrice);
+  }, 0) || 0;
+  
+  const totalReceivedTax = po.items?.reduce((sum, item) => {
+    const qtyReceived = Number(item.quantity_received) || 0;
+    const unitPrice = Number(item.unit_price_ht) || 0;
+    const taxRate = Number(item.tax_rate_value) || 0;
+    const lineHT = qtyReceived * unitPrice;
+    return sum + (lineHT * taxRate / 100);
+  }, 0) || 0;
+  
+  // Total réceptionné SANS timbre (le timbre est ajouté à chaque facture, pas à chaque réception)
+  const totalReceived = round3(totalReceivedHT + totalReceivedTax);
+  // 3. Montant total facturé
+  const totalInvoiced = existingInvoices?.reduce((sum, inv) => sum + Number(inv.net_amount), 0) || 0;
+  
+  // 4. Calculer le montant total qui DEVRAIT être facturé pour toutes les réceptions
+  // Chaque réception génère : HT + TVA + 1 Timbre
+  let totalShouldBeInvoiced = 0;
+  receipts?.forEach(gr => {
+    let grHT = 0;
+    let grTVA = 0;
+    gr.items?.forEach(grItem => {
+      const poItem = po.items?.find(pi => pi.id === grItem.supplier_po_item_id);
+      if (poItem) {
+        const lineHT = Number(grItem.quantity_received) * Number(poItem.unit_price_ht);
+        const lineTVA = lineHT * (Number(poItem.tax_rate_value) / 100);
+        grHT += lineHT;
+        grTVA += lineTVA;
+      }
+    });
+    totalShouldBeInvoiced += round3(grHT + grTVA + 1.000); // +1 timbre par réception
+  });
+  
+  // 5. Montant réceptionné mais pas encore facturé
+  const receivedNotInvoiced = round3(totalShouldBeInvoiced - totalInvoiced);
+  
+  // 6. Montant restant à facturer (par rapport au BC total)
+  const remainingToInvoice = round3(totalBC - totalInvoiced);
+  
+  // RÈGLE : On peut créer une facture si :
+  // - Il y a des réceptions ET
+  // - Le montant qui devrait être facturé > montant déjà facturé
+  const canCreateInvoice = hasReceipts && receivedNotInvoiced > 0.001;
+  
+  const shouldShowInvoiceButton = canCreateInvoice;
+  const shouldBlockInvoice = !hasReceipts && isConfirmedNoReceipt;
+  const isFullyInvoiced = totalInvoiced >= totalBC - 0.001;
+  const needsMoreReceipts = hasInvoices && !canCreateInvoice && !isFullyReceived;
 
   // FIX : fermer le modal après confirmation
   const handleConfirm = async () => {
@@ -277,6 +340,86 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
                 )}
               </div>
 
+              {/* Factures existantes */}
+              {hasInvoices && (
+                <div>
+                  <button
+                    onClick={() => setShowInvoices(v => !v)}
+                    className="flex items-center gap-2 font-semibold text-gray-900 mb-3 w-full text-left hover:text-indigo-600 transition-colors"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Factures créées ({existingInvoices?.length ?? 0})
+                    {showInvoices ? <ChevronUp className="h-4 w-4 ml-auto" /> : <ChevronDown className="h-4 w-4 ml-auto" />}
+                  </button>
+
+                  {showInvoices && (
+                    <div className="space-y-2">
+                      {existingInvoices?.map(inv => (
+                        <div 
+                          key={inv.id} 
+                          onClick={() => setSelectedInvoice(inv)}
+                          className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm hover:bg-blue-100 transition-colors cursor-pointer"
+                        >
+                          <div>
+                            <p className="font-mono font-medium text-blue-800">{inv.invoice_number_supplier}</p>
+                            <p className="text-blue-600 text-xs">{formatDate(inv.invoice_date)}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${INVOICE_STATUS_COLORS[inv.status]}`}>
+                              {INVOICE_STATUS_LABELS[inv.status]}
+                            </span>
+                            <p className="text-blue-700 text-xs mt-1">{formatAmount(inv.net_amount)}</p>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Résumé facturation CORRECT */}
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm">
+                        <div className="flex justify-between text-indigo-700 mb-1">
+                          <span>Total BC :</span>
+                          <span className="font-medium">{formatAmount(totalBC)}</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-700 mb-1">
+                          <span>Réceptions ({receipts?.length || 0}) :</span>
+                          <span className="font-medium">{formatAmount(totalShouldBeInvoiced)}</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-700 mb-1">
+                          <span>Total facturé :</span>
+                          <span className="font-medium">{formatAmount(totalInvoiced)}</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-900 font-bold border-t border-indigo-300 pt-1 mt-1">
+                          <span>Réceptionné non facturé :</span>
+                          <span className={receivedNotInvoiced > 0.001 ? 'text-orange-600' : 'text-green-600'}>
+                            {formatAmount(receivedNotInvoiced)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-gray-600 text-xs mt-1 pt-1 border-t border-indigo-200">
+                          <span>Reste à facturer (BC) :</span>
+                          <span>{formatAmount(remainingToInvoice)}</span>
+                        </div>
+                        <p className="text-xs text-indigo-600 mt-2 italic">
+                          Note : Chaque réception génère une facture avec 1 timbre fiscal (1.000 TND)
+                        </p>
+                      </div>
+
+                      {needsMoreReceipts && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                          <AlertCircle className="h-4 w-4 inline mr-1" />
+                          Toutes les réceptions ont été facturées. Créez un nouveau bon de réception pour pouvoir facturer le reste.
+                        </div>
+                      )}
+                      
+                      {canCreateInvoice && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-700">
+                          <Check className="h-4 w-4 inline mr-1" />
+                          Vous pouvez créer une facture pour les réceptions non facturées ({formatAmount(receivedNotInvoiced)}).
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Notes */}
               {po.notes && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -329,12 +472,32 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
                 </button>
               )}
 
-              {canInvoice ? (
+              {/* LOGIQUE SIMPLIFIÉE : Bouton "Créer facture" */}
+              {shouldShowInvoiceButton ? (
                 <button onClick={() => setInvoiceOpen(true)}
                   className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 flex items-center gap-1 transition-colors">
-                  <FileText className="h-4 w-4" /> Créer une facture
+                  <FileText className="h-4 w-4" /> 
+                  {hasInvoices 
+                    ? `Créer facture supplémentaire` 
+                    : 'Créer facture'}
                 </button>
-              ) : isConfirmedNoReceipt ? (
+              ) : isFullyInvoiced ? (
+                <div
+                  title="Le montant total du BC a été entièrement facturé"
+                  className="flex items-center gap-2 px-4 py-2 border border-green-300 rounded-lg text-sm text-green-600 bg-green-50 cursor-not-allowed"
+                >
+                  <Check className="h-4 w-4" />
+                  BC entièrement facturé
+                </div>
+              ) : needsMoreReceipts ? (
+                <div
+                  title="Créez d'abord un bon de réception pour le reste de la commande"
+                  className="flex items-center gap-2 px-4 py-2 border border-amber-300 rounded-lg text-sm text-amber-600 bg-amber-50 cursor-not-allowed"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  Réception supplémentaire requise
+                </div>
+              ) : shouldBlockInvoice ? (
                 <div
                   title="Créez d'abord un bon de réception avant de facturer"
                   className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-400 bg-gray-50 cursor-not-allowed"
@@ -366,6 +529,13 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
       {editOpen    && <EditSupplierPOModal po={po} businessId={businessId} onClose={() => setEditOpen(false)} />}
       {grOpen      && <GoodsReceiptModal  po={po} businessId={businessId} onClose={() => setGrOpen(false)} />}
       {invoiceOpen && <CreateInvoiceFromPOModal po={po} businessId={businessId} onClose={() => setInvoiceOpen(false)} />}
+      {selectedInvoice && (
+        <InvoiceDetailModal 
+          invoice={selectedInvoice} 
+          businessId={businessId} 
+          onClose={() => setSelectedInvoice(null)} 
+        />
+      )}
     </>
   );
 }

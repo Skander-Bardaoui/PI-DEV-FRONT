@@ -34,6 +34,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
   const [error, setError] = useState('');
   const [generated, setGenerated] = useState<GeneratedPO | null>(null);
   const [creating, setCreating] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -59,6 +60,8 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
         { text: text.trim() },
       );
       setGenerated(data);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Erreur lors de la génération');
     } finally {
@@ -106,21 +109,24 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
   const totalTTC = totalHT + totalTVA;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300">
         
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-4 flex items-center justify-between rounded-t-2xl">
+        <div className="sticky top-0 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-[length:200%_100%] animate-gradient text-white px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-lg">
-              <Sparkles className="h-5 w-5" />
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <Sparkles className="h-5 w-5 animate-pulse" />
             </div>
             <div>
               <h2 className="text-lg font-bold">Génération de BC par IA</h2>
               <p className="text-xs text-purple-100">Décrivez votre commande en langage naturel</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white transition-colors">
+          <button 
+            onClick={onClose} 
+            className="text-white/80 hover:text-white transition-all hover:rotate-90 duration-300"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -173,12 +179,12 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
             <button
               onClick={handleGenerate}
               disabled={loading || !text.trim()}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30"
+              className="w-full py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-[length:200%_100%] hover:bg-[position:100%_0] text-white rounded-xl transition-all duration-500 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98]"
             >
               {loading ? (
                 <>
                   <Loader className="h-5 w-5 animate-spin" />
-                  Génération en cours...
+                  <span className="animate-pulse">Génération en cours...</span>
                 </>
               ) : (
                 <>
@@ -191,16 +197,16 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
 
           {/* Résultat généré */}
           {generated && (
-            <div className="space-y-4">
+            <div className="space-y-4 animate-in slide-in-from-bottom duration-500">
               
               {/* Score de confiance */}
-              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
-                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl animate-in fade-in slide-in-from-top duration-700">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-lg animate-in zoom-in duration-500 delay-200">
                   {generated.confidence}%
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-green-900 flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4" />
+                    <CheckCircle className="h-4 w-4 animate-in zoom-in duration-300 delay-300" />
                     BC généré avec succès !
                   </p>
                   <p className="text-xs text-green-700 mt-0.5">
@@ -273,14 +279,14 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
               <div className="flex gap-3">
                 <button
                   onClick={() => setGenerated(null)}
-                  className="flex-1 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Modifier
                 </button>
                 <button
                   onClick={handleCreate}
                   disabled={creating}
-                  className="flex-2 py-3 px-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30"
+                  className="flex-2 py-3 px-6 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-[length:200%_100%] hover:bg-[position:100%_0] text-white rounded-xl transition-all duration-500 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   {creating ? (
                     <>

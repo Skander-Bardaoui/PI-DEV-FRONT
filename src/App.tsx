@@ -57,6 +57,7 @@ import RecurringInvoicesPage  from './pages/backoffice/sales/RecurringInvoicesPa
 import BackOfficeLayout from './layouts/BackOfficeLayout';
 import SupplierPortalPage from './pages/backoffice/purchases/SupplierPortalPage';
 import SupplierIntelligencePage from './pages/backoffice/purchases/SupplierIntelligencePage';
+import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingPage';
 import AccountsPage from './pages/backoffice/treasury/AccountsPage';
 import SupplierRegisterPage from './pages/frontoffice/SupplierRegisterPage';
 
@@ -151,6 +152,8 @@ function AppContent() {
           <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
           <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
           <Route path="purchases/supplier-intelligence" element={<SupplierIntelligencePage />} />
+          <Route path="purchases/three-way-matching" element={<ThreeWayMatchingPage />} />
+          <Route path="purchases/three-way-matching/:invoiceId" element={<ThreeWayMatchingPage />} />
 
           {/*treasury*/}
           <Route path="/app/treasury/accounts" element={<AccountsPage />} />

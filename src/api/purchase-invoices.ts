@@ -22,6 +22,14 @@ export const getPurchaseInvoice = async (
   return data;
 };
 
+export const getPurchaseInvoicesByPO = async (
+  businessId: string,
+  poId: string,
+): Promise<PurchaseInvoice[]> => {
+  const { data } = await axiosInstance.get(`${base(businessId)}/by-po/${poId}`);
+  return data;
+};
+
 export const createPurchaseInvoice = async (
   businessId: string,
   dto: CreatePurchaseInvoiceDto,

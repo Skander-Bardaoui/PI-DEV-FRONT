@@ -293,7 +293,6 @@ export default function SuppliersPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => openDetail(s)} title="Voir" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Eye className="h-4 w-4" /></button>
-                        <button onClick={() => setScoreSupplier(s)} title="Score" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"><Award className="h-4 w-4" /></button>
                         <button onClick={() => setAiInsightsSupplier(s)} title="Analyse IA" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Sparkles className="h-4 w-4" /></button>
                         <button onClick={() => openEdit(s)} title="Modifier" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit className="h-4 w-4" /></button>
                         {s.is_active ? (
