@@ -1,10 +1,12 @@
 // src/components/purchases/CreateInvoiceFromPOModal.tsx
 // Création d'une facture directement depuis un BC — pré-remplit tout
+// FIX: Calcul automatique depuis les BRs si disponibles
 
-import { useState } from 'react';
-import { X, FileText, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, FileText, Zap, PackageCheck } from 'lucide-react';
 import { useCreatePurchaseInvoice } from '@/hooks/usePurchaseInvoices';
 import { usePurchaseInvoices }      from '@/hooks/usePurchaseInvoices';
+import { useGoodsReceiptsByPO }     from '@/hooks/useGoodsReceipts';
 import { useToast }                 from '@/components/ui/Toast';
 import { formatAmount, round3, SupplierPO, TIMBRE_FISCAL } from '@/types';
 import { useApiError } from '../ui/ConfirmModal';
@@ -22,6 +24,9 @@ export default function CreateInvoiceFromPOModal({ businessId, po, onClose }: Pr
   const toast         = useToast();
   const { handleError } = useApiError();
 
+  // Charger les BRs pour calculer le montant réellement reçu
+  const { data: receipts } = useGoodsReceiptsByPO(businessId, po.id);
+
   // Vérification doublon
   const { data: existingInvoices } = usePurchaseInvoices(businessId, {
     supplier_id: po.supplier_id,
@@ -38,9 +43,74 @@ export default function CreateInvoiceFromPOModal({ businessId, po, onClose }: Pr
     receipt_url:   '',
   });
 
+  // Sélection du BR à facturer
+  const [selectedGRId, setSelectedGRId] = useState<string>('');
+
+  // FIX: Calculer automatiquement les montants depuis le BR SÉLECTIONNÉ
+  useEffect(() => {
+    if (!receipts || receipts.length === 0) return;
+
+    // Si aucun BR sélectionné, sélectionner automatiquement le premier BR non facturé
+    if (!selectedGRId && receipts.length > 0) {
+      // Trouver les BRs déjà facturés en comparant les montants
+      const invoicedAmounts = new Set(
+        (existingInvoices?.data ?? []).map(inv => 
+          `${Number(inv.subtotal_ht).toFixed(3)}-${Number(inv.tax_amount).toFixed(3)}`
+        )
+      );
+
+      // Trouver le premier BR non facturé
+      const unfactoredGR = receipts.find(gr => {
+        let grHT = 0;
+        let grTVA = 0;
+        gr.items?.forEach(grItem => {
+          const poItem = po.items?.find(pi => pi.id === grItem.supplier_po_item_id);
+          if (poItem) {
+            const lineHT = Number(grItem.quantity_received) * Number(poItem.unit_price_ht);
+            const lineTVA = lineHT * (Number(poItem.tax_rate_value) / 100);
+            grHT += lineHT;
+            grTVA += lineTVA;
+          }
+        });
+        const key = `${round3(grHT).toFixed(3)}-${round3(grTVA).toFixed(3)}`;
+        return !invoicedAmounts.has(key);
+      });
+
+      if (unfactoredGR) {
+        setSelectedGRId(unfactoredGR.id);
+      }
+    }
+
+    // Calculer les montants du BR sélectionné
+    if (selectedGRId) {
+      const selectedGR = receipts.find(gr => gr.id === selectedGRId);
+      if (selectedGR) {
+        let grHT = 0;
+        let grTVA = 0;
+
+        selectedGR.items?.forEach(grItem => {
+          const poItem = po.items?.find(pi => pi.id === grItem.supplier_po_item_id);
+          if (poItem) {
+            const lineHT = Number(grItem.quantity_received) * Number(poItem.unit_price_ht);
+            const lineTVA = lineHT * (Number(poItem.tax_rate_value) / 100);
+            grHT += lineHT;
+            grTVA += lineTVA;
+          }
+        });
+
+        setForm(f => ({
+          ...f,
+          subtotal_ht: round3(grHT),
+          tax_amount: round3(grTVA),
+        }));
+      }
+    }
+  }, [receipts, po.items, existingInvoices, selectedGRId]);
+
   const net_amount = round3(form.subtotal_ht + form.tax_amount + form.timbre_fiscal);
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
-const [ocrOpen, setOcrOpen] = useState(false);
+  const [ocrOpen, setOcrOpen] = useState(false);
+
   // ── Détection doublon ─────────────────────────────────────────────────────
   const isDuplicate = (existingInvoices?.data ?? []).some(
     inv => inv.invoice_number_supplier.toLowerCase().trim() === form.invoice_number_supplier.toLowerCase().trim()
@@ -88,10 +158,59 @@ const [ocrOpen, setOcrOpen] = useState(false);
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Info BC source */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm">
+          {/* Info BC source + Sélection du BR */}
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm space-y-2">
             <p className="font-medium text-indigo-800">BC source : {po.po_number}</p>
-            <p className="text-indigo-600">Fournisseur : {po.supplier?.name} · Net TTC : {formatAmount(po.net_amount)}</p>
+            <p className="text-indigo-600">Fournisseur : {po.supplier?.name} · Net TTC BC : {formatAmount(po.net_amount)}</p>
+            
+            {receipts && receipts.length > 0 && (
+              <div className="mt-3">
+                <label className="block text-xs font-medium text-indigo-700 mb-1">
+                  Bon de réception à facturer *
+                </label>
+                <select
+                  value={selectedGRId}
+                  onChange={(e) => setSelectedGRId(e.target.value)}
+                  className="w-full px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                >
+                  <option value="">Sélectionner un BR</option>
+                  {receipts.map(gr => {
+                    // Calculer le montant du BR
+                    let grHT = 0;
+                    let grTVA = 0;
+                    gr.items?.forEach(grItem => {
+                      const poItem = po.items?.find(pi => pi.id === grItem.supplier_po_item_id);
+                      if (poItem) {
+                        const lineHT = Number(grItem.quantity_received) * Number(poItem.unit_price_ht);
+                        const lineTVA = lineHT * (Number(poItem.tax_rate_value) / 100);
+                        grHT += lineHT;
+                        grTVA += lineTVA;
+                      }
+                    });
+                    const grTotal = round3(grHT + grTVA + 1.000);
+                    
+                    // Vérifier si déjà facturé
+                    const isInvoiced = (existingInvoices?.data ?? []).some(inv => 
+                      Math.abs(Number(inv.subtotal_ht) - grHT) < 0.01 && 
+                      Math.abs(Number(inv.tax_amount) - grTVA) < 0.01
+                    );
+
+                    return (
+                      <option key={gr.id} value={gr.id}>
+                        {gr.gr_number} - {new Date(gr.receipt_date).toLocaleDateString('fr-FR')} - {formatAmount(grTotal)}
+                        {isInvoiced ? ' (déjà facturé)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                <div className="flex items-center gap-1.5 mt-2 text-green-700">
+                  <PackageCheck className="h-4 w-4" />
+                  <span className="text-xs font-medium">
+                    Montants calculés automatiquement depuis le BR sélectionné
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -124,9 +243,18 @@ const [ocrOpen, setOcrOpen] = useState(false);
             </div>
           </div>
 
-          {/* Montants pré-remplis depuis le BC */}
+          {/* Montants pré-remplis depuis les BRs ou le BC */}
           <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-            <p className="text-xs font-medium text-gray-500 uppercase">Montants (pré-remplis depuis le BC)</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-gray-500 uppercase">
+                Montants {selectedGRId ? `(depuis BR ${receipts?.find(g => g.id === selectedGRId)?.gr_number})` : '(depuis le BC)'}
+              </p>
+              {selectedGRId && (
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                  Auto-calculé
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Sous-total HT</label>
@@ -149,13 +277,35 @@ const [ocrOpen, setOcrOpen] = useState(false);
             </div>
 
             {/* Alerte si montants différents du BC */}
-            {Math.abs(net_amount - Number(po.net_amount)) > Number(po.net_amount) * 0.05 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
-                <p className="text-orange-700 font-medium">⚠ Écart important détecté</p>
-                <p className="text-orange-600 text-xs mt-0.5">
-                  Facture : {formatAmount(net_amount)} vs BC : {formatAmount(po.net_amount)} —
-                  écart de {Math.abs(((net_amount - Number(po.net_amount)) / Number(po.net_amount)) * 100).toFixed(1)}%
-                </p>
+            {Math.abs(net_amount - Number(po.net_amount)) > 1.000 && (
+              <div className={`border rounded-lg p-3 text-sm ${
+                receipts && receipts.length > 0 && net_amount < Number(po.net_amount)
+                  ? 'bg-blue-50 border-blue-200'
+                  : 'bg-orange-50 border-orange-200'
+              }`}>
+                {receipts && receipts.length > 0 && net_amount < Number(po.net_amount) ? (
+                  <>
+                    <p className="text-blue-700 font-medium">ℹ Facture partielle</p>
+                    <p className="text-blue-600 text-xs mt-0.5">
+                      Facture : {formatAmount(net_amount)} vs BC : {formatAmount(po.net_amount)} —
+                      écart de {Math.abs(((net_amount - Number(po.net_amount)) / Number(po.net_amount)) * 100).toFixed(1)}%
+                    </p>
+                    <p className="text-blue-600 text-xs mt-1">
+                      ✓ Normal : vous facturez uniquement ce qui a été réceptionné
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-orange-700 font-medium">⚠ Écart important détecté</p>
+                    <p className="text-orange-600 text-xs mt-0.5">
+                      Facture : {formatAmount(net_amount)} vs BC : {formatAmount(po.net_amount)} —
+                      écart de {Math.abs(((net_amount - Number(po.net_amount)) / Number(po.net_amount)) * 100).toFixed(1)}%
+                    </p>
+                    <p className="text-orange-600 text-xs mt-1">
+                      Vérifiez que les montants correspondent à la facture papier du fournisseur
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
@@ -164,37 +314,26 @@ const [ocrOpen, setOcrOpen] = useState(false);
               <span>{formatAmount(net_amount)}</span>
             </div>
           </div>
-<div>
-  <div className="flex items-center justify-between mb-2">
-    <label className="text-sm font-medium text-gray-700">Scan de la facture</label>
-    <button
-      type="button"
-      onClick={() => setOcrOpen(true)}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white 
-                 rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors"
-    >
-      <Zap className="h-3.5 w-3.5" />
-      Import OCR
-    </button>
-  </div>
-  <UploadInvoiceScan
-    businessId={businessId}
-    value={form.receipt_url}
-    onChange={(url) => set('receipt_url', url)}
-  />
-</div>
 
-// À la fin, avant la fermeture du fragment :
-{ocrOpen && (
-  <OcrInvoiceModal
-    businessId={businessId}
-    onClose={() => setOcrOpen(false)}
-    onCreated={() => {
-      setOcrOpen(false);
-      onClose(); // fermer aussi le modal parent
-    }}
-  />
-)}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">Scan de la facture</label>
+              <button
+                type="button"
+                onClick={() => setOcrOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white 
+                           rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Import OCR
+              </button>
+            </div>
+            <UploadInvoiceScan
+              businessId={businessId}
+              value={form.receipt_url}
+              onChange={(url) => set('receipt_url', url)}
+            />
+          </div>
 
           <div className="flex gap-3">
             <button type="button" onClick={onClose}
@@ -208,6 +347,17 @@ const [ocrOpen, setOcrOpen] = useState(false);
           </div>
         </form>
       </div>
+
+      {ocrOpen && (
+        <OcrInvoiceModal
+          businessId={businessId}
+          onClose={() => setOcrOpen(false)}
+          onCreated={() => {
+            setOcrOpen(false);
+            onClose(); // fermer aussi le modal parent
+          }}
+        />
+      )}
     </div>
   );
 }

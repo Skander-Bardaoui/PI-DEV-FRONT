@@ -28,7 +28,6 @@ import { usePDFExport } from '@/hooks/usePDFExport';
 import PurchaseInvoiceModal from '@/components/purchases/PurchaseInvoiceModal';
 import CorrectInvoiceModal from '@/components/purchases/CorrectInvoiceModal';
 import PDFButton from '@/components/purchases/PDFButton';
-import ThreeWayMatchModal from '@/components/purchases/ThreeWayMatchModal';
 import OcrInvoiceModal from '@/components/purchases/OcrInvoiceModal';
 
 import {
@@ -53,7 +52,6 @@ export default function PurchaseInvoicesPage() {
   const [paymentInvoice, setPaymentInvoice] = useState<PurchaseInvoice | null>(null);
   const [disputeInvoice, setDisputeInvoice] = useState<PurchaseInvoice | null>(null);
   const [correctInvoice, setCorrectInvoice] = useState<PurchaseInvoice | null>(null);
-  const [matchInvoice, setMatchInvoice] = useState<PurchaseInvoice | null>(null);
 
   const { data, isLoading } = usePurchaseInvoices(businessId, {
     page: 1,
@@ -79,6 +77,14 @@ export default function PurchaseInvoicesPage() {
           </div>
 
           <div className="flex gap-2">
+            <button
+              onClick={() => window.location.href = '/app/purchases/three-way-matching'}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex gap-2 items-center transition-colors shadow-sm"
+            >
+              <Scale className="h-4 w-4" />
+              Rapprochement 3 Voies IA
+            </button>
+
             <button
               onClick={() => setOcrOpen(true)}
               className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex gap-2 items-center transition-colors shadow-sm"
@@ -214,9 +220,9 @@ export default function PurchaseInvoicesPage() {
                             {/* RAPPROCHEMENT 3 VOIES - Visible si BC existe */}
                             {inv.supplier_po_id && (
                               <button
-                                onClick={() => setMatchInvoice(inv)}
-                                className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                title="Rapprochement 3 voies"
+                                onClick={() => window.location.href = `/app/purchases/three-way-matching/${inv.id}`}
+                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Rapprochement 3 voies avec IA"
                               >
                                 <Scale className="h-4 w-4" />
                               </button>
@@ -344,14 +350,6 @@ export default function PurchaseInvoicesPage() {
           businessId={businessId}
           invoice={correctInvoice}
           onClose={() => setCorrectInvoice(null)}
-        />
-      )}
-
-      {matchInvoice && (
-        <ThreeWayMatchModal
-          businessId={businessId}
-          invoiceId={matchInvoice.id}
-          onClose={() => setMatchInvoice(null)}
         />
       )}
     </div>
