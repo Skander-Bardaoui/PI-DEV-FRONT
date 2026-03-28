@@ -241,7 +241,6 @@ export default function Collaboration() {
   // Team state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [currentBusiness, setCurrentBusiness] = useState<Business | null>(null);
-  const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -282,13 +281,12 @@ export default function Collaboration() {
       setLoadingMembers(true);
       setMembersError(null);
       try {
-        const fetchedBusinesses = await fetchMyBusinesses();
-        if (fetchedBusinesses.length === 0) {
+        const businesses = await fetchMyBusinesses();
+        if (businesses.length === 0) {
           setMembersError('Aucun business trouvé pour votre compte.');
           return;
         }
-        setBusinesses(fetchedBusinesses);
-        const business = fetchedBusinesses[0];
+        const business = businesses[0];
         setCurrentBusiness(business);
         const members = await fetchBusinessMembers(business.id);
         setTeamMembers(members);
@@ -473,73 +471,25 @@ export default function Collaboration() {
     }));
   };
 
-  // ── Handle business change ─────────────────────────────────────────────────
-  const handleBusinessChange = async (businessId: string) => {
-    const business = businesses.find(b => b.id === businessId);
-    if (!business) return;
-
-    setCurrentBusiness(business);
-    setLoadingMembers(true);
-    setLoadingTasks(true);
-    setMembersError(null);
-    setTasksError(null);
-
-    try {
-      const members = await fetchBusinessMembers(businessId);
-      setTeamMembers(members);
-    } catch (err: any) {
-      setMembersError(err.message ?? 'Failed to load members');
-    } finally {
-      setLoadingMembers(false);
-    }
-
-    try {
-      const fetchedTasks = await fetchTasks(businessId);
-      setTasks(fetchedTasks);
-    } catch (err: any) {
-      setTasksError(err.message ?? 'Failed to load tasks');
-    } finally {
-      setLoadingTasks(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex-1">
+        <div>
           <h1 className="text-2xl font-bold text-gray-900">Team Collaboration</h1>
           <p className="text-gray-500">
             {currentBusiness ? `Business : ${currentBusiness.name}` : 'Manage tasks, activity and teamwork'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {businesses.length > 1 && (
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
-              <select
-                value={currentBusiness?.id || ''}
-                onChange={(e) => handleBusinessChange(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm font-medium text-gray-700 appearance-none cursor-pointer min-w-[200px]"
-              >
-                {businesses.map((business) => (
-                  <option key={business.id} value={business.id}>
-                    {business.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {canManageTasks && (
-            <button
-              onClick={() => setShowNewTask(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap"
-            >
-              <Plus className="h-5 w-5" />
-              Create Task
-            </button>
-          )}
-        </div>
+        {canManageTasks && (
+          <button
+            onClick={() => setShowNewTask(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Create Task
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -1175,10 +1125,8 @@ function TaskCard({
                   </div>
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
-        
       </div>
       {task.description && (
         <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
