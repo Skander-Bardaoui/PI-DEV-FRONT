@@ -24,6 +24,14 @@ export interface OcrResult {
   file_url:                string;
   file_name:               string;
   file_size:               number;
+  // Validation IA
+  ai_validation?: {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+    confidence: number;
+    hasCorrections: boolean;
+  };
 }
 
 export function useOcrExtract(businessId: string) {

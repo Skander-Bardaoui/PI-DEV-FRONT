@@ -98,7 +98,7 @@ export default function PricingPage() {
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2">
               <Building2 className="h-8 w-8 text-indigo-600" />
-              <span className="text-xl font-bold text-gray-900">BizManage</span>
+              <span className="text-xl font-bold text-gray-900">NovaEntra</span>
             </Link>
             <div className="hidden md:flex items-center gap-8">
               <Link to="/" className="text-gray-600 hover:text-gray-900">Accueil</Link>
@@ -293,7 +293,7 @@ export default function PricingPage() {
             Prêt à démarrer ?
           </h2>
           <p className="text-xl text-indigo-200 mb-8">
-            Essayez BizManage gratuitement pendant 14 jours. Sans engagement.
+            Essayez NovaEntra gratuitement pendant 14 jours. Sans engagement.
           </p>
           <Link
             to="/register"
@@ -310,9 +310,9 @@ export default function PricingPage() {
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Building2 className="h-8 w-8 text-indigo-400" />
-            <span className="text-xl font-bold text-white">BizManage</span>
+            <span className="text-xl font-bold text-white">NovaEntra</span>
           </div>
-          <p className="text-sm">&copy; 2024 BizManage. Tous droits réservés.</p>
+          <p className="text-sm">&copy; 2024 NovaEntra. Tous droits réservés.</p>
         </div>
       </footer>
     </div>

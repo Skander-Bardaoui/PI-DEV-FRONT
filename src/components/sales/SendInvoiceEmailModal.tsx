@@ -84,6 +84,7 @@ export default function SendInvoiceEmailModal({
             'Content-Type': 'application/json',
             Authorization: `Bearer ${localStorage.getItem('access_token')}`,
           },
+          credentials: 'include',
           body: JSON.stringify({ 
             email,
             subject: draft.subject,

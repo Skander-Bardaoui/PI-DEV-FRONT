@@ -2,12 +2,14 @@
 // Création d'une facture directement depuis un BC — pré-remplit tout
 
 import { useState } from 'react';
-import { X, FileText } from 'lucide-react';
+import { X, FileText, Zap } from 'lucide-react';
 import { useCreatePurchaseInvoice } from '@/hooks/usePurchaseInvoices';
 import { usePurchaseInvoices }      from '@/hooks/usePurchaseInvoices';
 import { useToast }                 from '@/components/ui/Toast';
 import { formatAmount, round3, SupplierPO, TIMBRE_FISCAL } from '@/types';
 import { useApiError } from '../ui/ConfirmModal';
+import OcrInvoiceModal from './OcrInvoiceModal';
+import UploadInvoiceScan from './UploadInvoiceScan';
 
 interface Props {
   businessId: string;
@@ -38,7 +40,7 @@ export default function CreateInvoiceFromPOModal({ businessId, po, onClose }: Pr
 
   const net_amount = round3(form.subtotal_ht + form.tax_amount + form.timbre_fiscal);
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
-
+const [ocrOpen, setOcrOpen] = useState(false);
   // ── Détection doublon ─────────────────────────────────────────────────────
   const isDuplicate = (existingInvoices?.data ?? []).some(
     inv => inv.invoice_number_supplier.toLowerCase().trim() === form.invoice_number_supplier.toLowerCase().trim()
@@ -162,14 +164,37 @@ export default function CreateInvoiceFromPOModal({ businessId, po, onClose }: Pr
               <span>{formatAmount(net_amount)}</span>
             </div>
           </div>
+<div>
+  <div className="flex items-center justify-between mb-2">
+    <label className="text-sm font-medium text-gray-700">Scan de la facture</label>
+    <button
+      type="button"
+      onClick={() => setOcrOpen(true)}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white 
+                 rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors"
+    >
+      <Zap className="h-3.5 w-3.5" />
+      Import OCR
+    </button>
+  </div>
+  <UploadInvoiceScan
+    businessId={businessId}
+    value={form.receipt_url}
+    onChange={(url) => set('receipt_url', url)}
+  />
+</div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">URL scan facture</label>
-            <input type="url" value={form.receipt_url}
-              onChange={e => set('receipt_url', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              placeholder="https://..." />
-          </div>
+// À la fin, avant la fermeture du fragment :
+{ocrOpen && (
+  <OcrInvoiceModal
+    businessId={businessId}
+    onClose={() => setOcrOpen(false)}
+    onCreated={() => {
+      setOcrOpen(false);
+      onClose(); // fermer aussi le modal parent
+    }}
+  />
+)}
 
           <div className="flex gap-3">
             <button type="button" onClick={onClose}

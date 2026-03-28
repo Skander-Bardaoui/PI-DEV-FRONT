@@ -13,6 +13,8 @@ import {
   markDelivered,
   cancelDeliveryNote,
   deleteDeliveryNote,
+  getDeliveryNotesBySalesOrder,
+  cleanDuplicates,
 } from '@/api/delivery-notes';
 
 export const DELIVERY_NOTES_KEY = 'delivery-notes';
@@ -72,5 +74,34 @@ export const useDeleteDeliveryNote = (businessId: string) => {
   return useMutation({
     mutationFn: (id: string) => deleteDeliveryNote(businessId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: [DELIVERY_NOTES_KEY, businessId] }),
+  });
+};
+
+export const useCleanDuplicates = (businessId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => cleanDuplicates(businessId, id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [DELIVERY_NOTES_KEY, businessId] });
+    },
+  });
+};
+
+export const useDeliveryNotesBySalesOrder = (businessId: string, salesOrderId: string) =>
+  useQuery({
+    queryKey: [DELIVERY_NOTES_KEY, businessId, 'by-sales-order', salesOrderId],
+    queryFn: () => getDeliveryNotesBySalesOrder(businessId, salesOrderId),
+    enabled: !!businessId && !!salesOrderId,
+  });
+
+export const useCreateDeliveryNoteFromSalesOrder = (businessId: string, salesOrderId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: CreateDeliveryNoteDto) => createDeliveryNote(businessId, { ...dto, salesOrderId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [DELIVERY_NOTES_KEY, businessId] });
+      qc.invalidateQueries({ queryKey: ['sales-orders', businessId] });
+      qc.invalidateQueries({ queryKey: ['sales-order', businessId, salesOrderId] });
+    },
   });
 };

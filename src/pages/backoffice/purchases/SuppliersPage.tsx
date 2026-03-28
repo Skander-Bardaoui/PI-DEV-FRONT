@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Edit, Trash2, RotateCcw, Eye,
   Phone, Mail, Building2, ChevronUp, ChevronDown,
-  Filter, Award,
+  Filter, Award, UserPlus, Sparkles,
+  Brain,
 } from 'lucide-react';
 import { useAuth }             from '../../../hooks/useAuth';
 import {
@@ -16,7 +17,9 @@ import { useSupplierPOs }      from '@/hooks/useSupplierPOs';
 import { usePurchaseInvoices } from '@/hooks/usePurchaseInvoices';
 import { usePDFExport }        from '@/hooks/usePDFExport';
 import SupplierModal           from '@/components/purchases/SupplierModal';
+import SupplierInviteModal     from '@/components/purchases/SupplierInviteModal';
 import SupplierScoreModal      from '@/components/purchases/SupplierScoreModal';
+import SupplierAIInsightsModal from '@/components/purchases/SupplierAIInsightsModal';
 import PDFButton               from '@/components/purchases/PDFButton';
 import { formatDate, Supplier } from '@/types';
 import SupplierScoreBadge from './SupplierScoreBadge';
@@ -48,10 +51,12 @@ export default function SuppliersPage() {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir,   setSortDir]   = useState<SortDir>('asc');
   const [modalOpen,      setModalOpen]      = useState(false);
+  const [inviteOpen,     setInviteOpen]     = useState(false);
   const [selected,       setSelected]       = useState<Supplier | null>(null);
   const [detailOpen,     setDetailOpen]     = useState(false);
   const [detailSupplier, setDetailSupplier] = useState<Supplier | null>(null);
   const [scoreSupplier,  setScoreSupplier]  = useState<Supplier | null>(null);
+  const [aiInsightsSupplier, setAiInsightsSupplier] = useState<Supplier | null>(null);
 
   const { data, isLoading } = useSuppliers(businessId, {
     search:   search || undefined,
@@ -114,9 +119,9 @@ export default function SuppliersPage() {
           <p className="text-gray-500 text-sm">{total} fournisseur(s) au total</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => navigate('/app/purchases/supplier-ranking')}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-indigo-300 bg-indigo-50 text-indigo-700 rounded-lg text-sm hover:bg-indigo-100 transition-colors">
-            <Award className="h-4 w-4" /> Classement
+        <button onClick={() => navigate('/app/purchases/supplier-intelligence')}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-purple-300 bg-purple-50 text-purple-700 rounded-lg text-sm hover:bg-purple-100">
+            <Brain className="h-4 w-4" /> Intelligence IA
           </button>
           <button onClick={() => setShowFilters(f => !f)}
             className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors ${
@@ -124,6 +129,10 @@ export default function SuppliersPage() {
             }`}>
             <Filter className="h-4 w-4" />
             Filtres {hasActiveFilters && '(actifs)'}
+          </button>
+          <button onClick={() => setInviteOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 rounded-lg text-sm hover:bg-green-100 transition-colors">
+            <UserPlus className="h-4 w-4" /> Inviter par email
           </button>
           <button onClick={openCreate}
             className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
@@ -285,6 +294,7 @@ export default function SuppliersPage() {
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => openDetail(s)} title="Voir" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Eye className="h-4 w-4" /></button>
                         <button onClick={() => setScoreSupplier(s)} title="Score" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"><Award className="h-4 w-4" /></button>
+                        <button onClick={() => setAiInsightsSupplier(s)} title="Analyse IA" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Sparkles className="h-4 w-4" /></button>
                         <button onClick={() => openEdit(s)} title="Modifier" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit className="h-4 w-4" /></button>
                         {s.is_active ? (
                           <button onClick={() => archive.mutate(s.id)} disabled={archive.isPending} title="Archiver" className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="h-4 w-4" /></button>
@@ -338,6 +348,7 @@ export default function SuppliersPage() {
       </div>
 
       {modalOpen && <SupplierModal businessId={businessId} supplier={selected} onClose={() => setModalOpen(false)} />}
+      {inviteOpen && <SupplierInviteModal businessId={businessId} onClose={() => setInviteOpen(false)} />}
 
       {detailOpen && detailSupplier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -380,6 +391,15 @@ export default function SuppliersPage() {
       {scoreSupplier && (
         <SupplierScoreModal businessId={businessId} supplierId={scoreSupplier.id}
           supplierName={scoreSupplier.name} onClose={() => setScoreSupplier(null)} />
+      )}
+
+      {aiInsightsSupplier && (
+        <SupplierAIInsightsModal 
+          businessId={businessId} 
+          supplierId={aiInsightsSupplier.id}
+          supplierName={aiInsightsSupplier.name} 
+          onClose={() => setAiInsightsSupplier(null)} 
+        />
       )}
     </div>
   );
