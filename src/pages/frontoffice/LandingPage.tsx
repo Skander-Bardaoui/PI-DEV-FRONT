@@ -62,7 +62,7 @@ const features = [
 
 const testimonials = [
   {
-    quote: "BizManage a transformé notre gestion financière. Nous économisons 10 heures par semaine.",
+    quote: "NovaEntra a transformé notre gestion financière. Nous économisons 10 heures par semaine.",
     author: "Ahmed Ben Ali",
     role: "Directeur Financier",
     company: "Tech Solutions Tunisia",

@@ -91,7 +91,7 @@ export default function ThreeWayMatchModal({ businessId, invoiceId, onClose }: P
           <FileText size={20} color="#4F46E5" />
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Rapprochement 3 voies</h2>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#6B7280' }}>BC ↔ Bon de réception ↔ Facture</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#6B7280' }}>Vérification automatique : BC ↔ Réception ↔ Facture</p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}>
             <X size={20} />
@@ -99,6 +99,35 @@ export default function ThreeWayMatchModal({ businessId, invoiceId, onClose }: P
         </div>
 
         <div style={{ padding: '20px' }}>
+          {/* Explication du processus */}
+          <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#0369A1', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText size={16} />
+              Qu'est-ce que le rapprochement 3 voies ?
+            </p>
+            <p style={{ fontSize: 12, color: '#075985', margin: '0 0 8px', lineHeight: 1.5 }}>
+              Le système compare automatiquement 3 documents pour détecter les écarts :
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#075985' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ background: '#0EA5E9', color: '#fff', width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>1</span>
+                <span><strong>Bon de commande (BC)</strong> : Ce que vous avez commandé</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ background: '#0EA5E9', color: '#fff', width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>2</span>
+                <span><strong>Bon de réception (BR)</strong> : Ce que vous avez reçu</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ background: '#0EA5E9', color: '#fff', width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>3</span>
+                <span><strong>Facture fournisseur</strong> : Ce que le fournisseur vous facture</span>
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: '#0C4A6E', margin: '8px 0 0', fontStyle: 'italic' }}>
+              ✓ Si tout correspond : approbation automatique possible<br/>
+              ⚠ Si des écarts sont détectés : vérification manuelle recommandée
+            </p>
+          </div>
+
           {isLoading ? (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <div style={{ width: 32, height: 32, border: '3px solid #E5E7EB', borderTopColor: '#4F46E5', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />

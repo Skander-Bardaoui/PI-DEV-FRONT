@@ -25,6 +25,8 @@ export interface DeliveryNoteItem {
   description: string;
   quantity: number;
   deliveredQuantity: number;
+  salesOrderItemId?: string;
+  salesOrderItem?: any;
 }
 
 export interface DeliveryNote {
@@ -35,6 +37,7 @@ export interface DeliveryNote {
   clientId: string;
   client: any;
   salesOrderId: string | null;
+  salesOrder?: any;
   deliveryDate: string;
   notes: string | null;
   createdAt: string;
@@ -47,6 +50,7 @@ export interface CreateDeliveryNoteItemDto {
   description: string;
   quantity: number;
   deliveredQuantity: number;
+  salesOrderItemId?: string;
 }
 
 export interface CreateDeliveryNoteDto {

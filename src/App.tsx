@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AccessibilityButton from './components/AccessibilityButton';
 import AccessibilityPanel from './components/AccessibilityPanel';
 import FingerScrollControl from './components/FingerScrollControl';
+import TextToSpeechReader from './components/TextToSpeechReader';
+import FocusModeManager from './components/FocusModeManager';
 import { useAccessibility } from './context/AccessibilityContext';
 import { Role } from './types/auth.types';
 import { useTranslation } from 'react-i18next';
@@ -54,8 +56,10 @@ import RecurringInvoicesPage  from './pages/backoffice/sales/RecurringInvoicesPa
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
 import SupplierPortalPage from './pages/backoffice/purchases/SupplierPortalPage';
-import SupplierRankingPage from './pages/backoffice/purchases/SupplierRankingPage';
+import SupplierIntelligencePage from './pages/backoffice/purchases/SupplierIntelligencePage';
+import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingPage';
 import AccountsPage from './pages/backoffice/treasury/AccountsPage';
+import SupplierRegisterPage from './pages/frontoffice/SupplierRegisterPage';
 
 // Inner component to access accessibility context
 function AppContent() {
@@ -70,6 +74,8 @@ function AppContent() {
       {/* Accessibility Components - Available on all pages */}
       <AccessibilityButton />
       <AccessibilityPanel />
+      <TextToSpeechReader />
+      <FocusModeManager />
 
       {/* Finger Scroll Control - Rendered at app level, independent of panel */}
       <FingerScrollControl
@@ -91,6 +97,7 @@ function AppContent() {
         <Route path="/supplier-portal" element={<SupplierPortalPage />} />
         <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
         <Route path="/client-portal" element={<SalesOrderClientPortal />} />
+        <Route path="/supplier-register" element={<SupplierRegisterPage />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
         <Route
@@ -144,7 +151,12 @@ function AppContent() {
           <Route path="purchases/goods-receipts"  element={<GoodsReceiptsPage />}      />
           <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
           <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
-          <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
+          <Route path="purchases/supplier-intelligence" element={<SupplierIntelligencePage />} />
+          <Route path="purchases/three-way-matching" element={<ThreeWayMatchingPage />} />
+          <Route path="purchases/three-way-matching/:invoiceId" element={<ThreeWayMatchingPage />} />
+
+          {/*treasury*/}
+          <Route path="/app/treasury/accounts" element={<AccountsPage />} />
 
           {/*treasury*/}
           <Route path="/app/treasury/accounts" element={<AccountsPage />} />

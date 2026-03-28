@@ -1,5 +1,5 @@
 // src/components/sales/SalesOrderDetailModal.tsx
-import { X, Package, ChevronDown, ChevronUp, Edit, Trash2, Play, Truck, FileText, XCircle, Mail } from 'lucide-react';
+import { X, Package, ChevronDown, ChevronUp, Edit, Trash2, Play, Truck, FileText, XCircle, Mail, PackageCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SalesOrder, SALES_ORDER_STATUS_COLORS, SALES_ORDER_STATUS_LABELS, SalesOrderStatus } from '@/types/sales-order';
@@ -12,6 +12,7 @@ import {
   useSalesOrder,
   useSendSalesOrderEmail,
 } from '@/hooks/useSalesOrders';
+import { useDeliveryNotesBySalesOrder } from '@/hooks/useDeliveryNotes';
 import SalesOrderModal from './SalesOrderModal';
 import ConfirmModal from '../ui/ConfirmModal';
 import PDFButton from '../purchases/PDFButton';
@@ -28,6 +29,7 @@ interface Props {
 
 export default function SalesOrderDetailModal({ order: initialOrder, businessId, onClose, onDelete }: Props) {
   const [showItems, setShowItems] = useState(true);
+  const [showDeliveryNotes, setShowDeliveryNotes] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const { user } = useAuth();
@@ -37,6 +39,9 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
   // Fetch full order details with items
   const { data: fullOrder, isLoading } = useSalesOrder(businessId, initialOrder.id);
   const order = fullOrder || initialOrder;
+
+  // Fetch delivery notes for this sales order
+  const { data: deliveryNotes = [] } = useDeliveryNotesBySalesOrder(businessId, order.id);
 
   const startProgress = useStartProgressSalesOrder(businessId);
   const markDelivered = useMarkDeliveredSalesOrder(businessId);
@@ -159,6 +164,48 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
               )}
             </div>
 
+            {/* Bons de livraison */}
+            {deliveryNotes.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setShowDeliveryNotes(v => !v)}
+                  className="flex items-center gap-2 font-semibold text-gray-900 mb-3 w-full text-left"
+                >
+                  <PackageCheck className="h-4 w-4" />
+                  Bons de livraison ({deliveryNotes.length})
+                  {showDeliveryNotes ? <ChevronUp className="h-4 w-4 ml-auto" /> : <ChevronDown className="h-4 w-4 ml-auto" />}
+                </button>
+                {showDeliveryNotes && (
+                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left px-4 py-2 text-gray-500">N° BL</th>
+                          <th className="text-center px-4 py-2 text-gray-500">Date</th>
+                          <th className="text-center px-4 py-2 text-gray-500">Statut</th>
+                          <th className="text-center px-4 py-2 text-gray-500">Articles</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {deliveryNotes.map(dn => (
+                          <tr key={dn.id}>
+                            <td className="px-4 py-2 text-gray-900 font-medium">{dn.deliveryNoteNumber}</td>
+                            <td className="px-4 py-2 text-center">{formatDate(dn.deliveryDate)}</td>
+                            <td className="px-4 py-2 text-center">
+                              <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
+                                {dn.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-center">{dn.items?.length ?? 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Totaux */}
             <div className="bg-gray-50 rounded-xl p-4 ml-auto max-w-xs space-y-1.5 text-sm">
               <div className="flex justify-between text-gray-600">
@@ -186,97 +233,199 @@ export default function SalesOrderDetailModal({ order: initialOrder, businessId,
           )}
 
           {/* Footer - Actions */}
-          <div className="p-6 border-t border-gray-200 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <PDFButton
-                onClick={() => printSalesOrder(order, (user as any)?.business?.name || 'Entreprise', (user as any)?.business?.matricule_fiscal, (user as any)?.business?.address)}
-                label="Télécharger PDF"
-                variant="ghost"
-              />
-              <button
-                onClick={() => sendEmail.mutate(order.id)}
-                disabled={sendEmail.isPending || !order.client?.email}
-                className="px-4 py-2 border border-green-300 text-green-600 rounded-lg text-sm hover:bg-green-50 flex items-center gap-1 disabled:opacity-50"
-                title={!order.client?.email ? 'Le client n\'a pas d\'email' : 'Envoyer par email'}
-              >
-                <Mail className="h-4 w-4" />
-                {sendEmail.isPending ? 'Envoi...' : 'Envoyer au client'}
-              </button>
-              {canEdit && (
-                <button
-                  onClick={() => setEditOpen(true)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-1"
-                >
-                  <Edit className="h-4 w-4" />
-                  Modifier
-                </button>
+          <div className="p-6 border-t border-gray-200 bg-gray-50">
+            {/* Actions principales groupées par contexte */}
+            <div className="space-y-4">
+              
+              {/* Section: Actions de document */}
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Documents & Communication
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => printSalesOrder(order, (user as any)?.business?.name || 'Entreprise', (user as any)?.business?.matricule_fiscal, (user as any)?.business?.address)}
+                    className="group relative overflow-hidden bg-gradient-to-br from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 border border-red-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <FileText className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-semibold text-red-900 text-sm">Télécharger PDF</div>
+                        <div className="text-xs text-red-600">Générer le document</div>
+                      </div>
+                    </div>
+                  </button>
+
+                  {order.client?.email && (
+                    <button
+                      onClick={() => sendEmail.mutate(order.id)}
+                      disabled={sendEmail.isPending}
+                      className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 border border-green-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Mail className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-semibold text-green-900 text-sm">
+                            {sendEmail.isPending ? 'Envoi...' : 'Envoyer au client'}
+                          </div>
+                          <div className="text-xs text-green-600">{order.client.email}</div>
+                        </div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Section: Actions de workflow */}
+              {(canEdit || canStartProgress || canMarkDelivered || canMarkInvoiced) && (
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                    Gestion de la commande
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {canEdit && (
+                      <button
+                        onClick={() => setEditOpen(true)}
+                        className="group relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 border border-gray-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Edit className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold text-gray-900 text-sm">Modifier</div>
+                            <div className="text-xs text-gray-600">Éditer les détails</div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+
+                    {canStartProgress && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await startProgress.mutateAsync(order.id);
+                            toast.success('Commande démarrée', 'Un bon de livraison a été créé automatiquement');
+                            onClose();
+                          } catch (error: any) {
+                            toast.error('Erreur', error?.response?.data?.message || 'Erreur lors du démarrage');
+                          }
+                        }}
+                        disabled={startProgress.isPending}
+                        className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border border-blue-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Play className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold text-blue-900 text-sm">
+                              {startProgress.isPending ? 'Démarrage...' : 'Démarrer'}
+                            </div>
+                            <div className="text-xs text-blue-600">Lancer la préparation</div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+
+                    {canMarkDelivered && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await markDelivered.mutateAsync(order.id);
+                            toast.success('Commande livrée', 'La commande a été marquée comme livrée');
+                            onClose();
+                          } catch (error: any) {
+                            toast.error('Erreur', error?.response?.data?.message || 'Erreur lors de la mise à jour');
+                          }
+                        }}
+                        disabled={markDelivered.isPending}
+                        className="group relative overflow-hidden bg-gradient-to-br from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 border border-emerald-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Truck className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold text-emerald-900 text-sm">
+                              {markDelivered.isPending ? 'Mise à jour...' : 'Marquer livré'}
+                            </div>
+                            <div className="text-xs text-emerald-600">Confirmer la livraison</div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+
+                    {canMarkInvoiced && (
+                      <button
+                        onClick={handleConvertToInvoice}
+                        disabled={convertToInvoice.isPending}
+                        className="group relative overflow-hidden bg-gradient-to-br from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 border border-indigo-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <FileText className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold text-indigo-900 text-sm">
+                              {convertToInvoice.isPending ? 'Conversion...' : 'Convertir en facture'}
+                            </div>
+                            <div className="text-xs text-indigo-600">Créer la facture</div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
-              {canStartProgress && (
-                <button
-                  onClick={async () => {
-                    try {
-                      await startProgress.mutateAsync(order.id);
-                      toast.success('Commande démarrée', 'Un bon de livraison a été créé automatiquement');
-                      onClose();
-                      // Optionally navigate to delivery notes page
-                      // navigate('/app/sales/delivery-notes');
-                    } catch (error: any) {
-                      toast.error('Erreur', error?.response?.data?.message || 'Erreur lors du démarrage');
-                    }
-                  }}
-                  disabled={startProgress.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
-                >
-                  <Play className="h-4 w-4" />
-                  {startProgress.isPending ? 'Démarrage...' : 'Démarrer'}
-                </button>
-              )}
-              {canMarkDelivered && (
-                <button
-                  onClick={async () => {
-                    try {
-                      await markDelivered.mutateAsync(order.id);
-                      toast.success('Commande livrée', 'La commande a été marquée comme livrée');
-                      onClose();
-                    } catch (error: any) {
-                      toast.error('Erreur', error?.response?.data?.message || 'Erreur lors de la mise à jour');
-                    }
-                  }}
-                  disabled={markDelivered.isPending}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
-                >
-                  <Truck className="h-4 w-4" />
-                  {markDelivered.isPending ? 'Mise à jour...' : 'Marquer livré'}
-                </button>
-              )}
-              {canMarkInvoiced && (
-                <button
-                  onClick={handleConvertToInvoice}
-                  disabled={convertToInvoice.isPending}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1"
-                >
-                  <FileText className="h-4 w-4" />
-                  {convertToInvoice.isPending ? 'Conversion...' : 'Convertir en facture'}
-                </button>
-              )}
-              {canCancel && (
-                <button
-                  onClick={() => cancel.mutate(order.id)}
-                  disabled={cancel.isPending}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
-                >
-                  <XCircle className="h-4 w-4" />
-                  Annuler
-                </button>
-              )}
-              {canDelete && (
-                <button
-                  onClick={() => setDeleteConfirm(true)}
-                  className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 flex items-center gap-1 ml-auto"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Supprimer
-                </button>
+
+              {/* Section: Actions critiques */}
+              {(canCancel || canDelete) && (
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-red-100">
+                  <div className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-3">
+                    Actions critiques
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {canCancel && (
+                      <button
+                        onClick={() => cancel.mutate(order.id)}
+                        disabled={cancel.isPending}
+                        className="group relative overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 border border-orange-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <XCircle className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold text-orange-900 text-sm">Annuler</div>
+                            <div className="text-xs text-orange-600">Annuler la commande</div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+
+                    {canDelete && (
+                      <button
+                        onClick={() => setDeleteConfirm(true)}
+                        className="group relative overflow-hidden bg-gradient-to-br from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 border border-red-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Trash2 className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold text-red-900 text-sm">Supprimer</div>
+                            <div className="text-xs text-red-600">Supprimer définitivement</div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>

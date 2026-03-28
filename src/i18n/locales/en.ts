@@ -24,7 +24,7 @@ export default {
     goodsReceipts:    'Goods Receipts',
     supplierInvoices: 'Supplier Invoices',
     supplierPayments: 'Supplier Payments',
-    supplierRanking:  'Supplier Scoring',
+    supplierIntelligence:  'Supplier Intelligence',
     // Stock
     overview:    'Overview',
     products:    'Products',

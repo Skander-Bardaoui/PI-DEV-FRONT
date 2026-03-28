@@ -177,7 +177,7 @@ export const printSalesOrder = (
     <!-- PIED DE PAGE -->
     <div class="doc-footer">
       <div class="footer-accent"></div>
-      <span>BizManage — Gestion Commerciale</span>
+      <span>NovaEntra — Gestion Commerciale</span>
       <span>${order.orderNumber}</span>
       <span>Imprimé le ${now}</span>
     </div>

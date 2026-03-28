@@ -53,3 +53,15 @@ export const restoreSupplier = async (
   const { data } = await axiosInstance.patch(`${base(businessId)}/${id}/restore`);
   return data;
 };
+
+// Invitation de fournisseur
+export const inviteSupplier = async (
+  businessId: string,
+  dto: { email: string; name?: string },
+): Promise<{ message: string; token: string }> => {
+  const { data } = await axiosInstance.post(
+    `/businesses/${businessId}/supplier-onboarding/invite`,
+    dto,
+  );
+  return data;
+};
