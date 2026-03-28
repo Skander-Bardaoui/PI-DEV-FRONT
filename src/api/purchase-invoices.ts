@@ -80,3 +80,19 @@ export const updatePaymentAmount = async (
   );
   return data;
 };
+
+
+
+////////treasury////////
+// GET only APPROVED and PARTIALLY_PAID invoices
+export const getApprovedOrPartialInvoices = async (
+  businessId: string,
+  params?: PurchaseInvoicesQueryParams,
+): Promise<PaginatedPurchaseInvoices> => {
+  const { data } = await axiosInstance.get(
+    `${base(businessId)}/approved-partial`,
+    { params }
+  );
+  return data;
+};
+////////treasury////////

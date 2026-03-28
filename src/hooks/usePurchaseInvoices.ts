@@ -2,6 +2,7 @@
 // FIX: isValidUUID défini localement (même pattern que useGoodsReceipts.ts)
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getApprovedOrPartialInvoices } from '@/api/purchase-invoices';
 
 import {
   CreatePurchaseInvoiceDto,
@@ -120,3 +121,18 @@ export function useUpdatePayment(businessId: string) {
     },
   });
 }
+
+
+
+////////////////treasury/////////////
+// Add this hook
+export const useApprovedOrPartialInvoices = (
+  businessId: string,
+  params?: PurchaseInvoicesQueryParams,
+) =>
+  useQuery({
+    queryKey: ['purchase-invoices', 'approved-partial', businessId, params],
+    queryFn: () => getApprovedOrPartialInvoices(businessId, params),
+    enabled: !!businessId,
+  });
+////////treasury////////

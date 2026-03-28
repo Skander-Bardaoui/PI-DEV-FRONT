@@ -6,6 +6,7 @@ import {
   Building2, ChevronDown, MessageSquare, Package, Tag,
   TrendingUp, Box, ShoppingCart, ShoppingBag, FileCheck,
   Truck, ClipboardList, Award, RefreshCw, User,
+  Wallet,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
@@ -23,6 +24,9 @@ export default function BackOfficeLayout() {
   const [purchasesMenuOpen, setPurchasesMenuOpen]  = useState(false);
   const [alertsPanelOpen,   setAlertsPanelOpen]    = useState(false);
   const [userMenuOpen,      setUserMenuOpen]       = useState(false);
+  ////treasury////////
+  const [treasuryMenuOpen, setTreasuryMenuOpen] = useState(false);
+  ////treasury////////
 
   const location   = useLocation();
   const { user, logout } = useAuth();
@@ -86,6 +90,16 @@ export default function BackOfficeLayout() {
         { name: t('nav.movements'),   href: '/app/stock/movements',  icon: TrendingUp      },
       ],
     },
+    {
+      name: t('treasury'),
+      href: '/app/treasury',
+      icon: Wallet,
+      subItems: [
+        { name: 'Accounts', href: '/app/treasury/accounts', icon: Building2 },
+        { name: 'Invoices', href: '/app/treasury/invoices', icon: FileText },
+        { name: 'Expenses to Pay', href: '/app/treasury/expenses', icon: Receipt },
+      ],
+    },
     // Hide Team section for TEAM_MEMBER role
     ...(user?.role !== 'TEAM_MEMBER' ? [{ name: t('nav.team'), href: '/app/team', icon: UserCircle }] : []),
     { name: t('nav.collaboration'), href: '/app/collaboration', icon: MessageSquare },
@@ -96,6 +110,9 @@ export default function BackOfficeLayout() {
   const isStockActive     = location.pathname.startsWith('/app/stock');
   const isSalesActive     = location.pathname.startsWith('/app/sales');
   const isPurchasesActive = location.pathname.startsWith('/app/purchases');
+  //////////////treasury////////////////
+  const isTreasuryActive = location.pathname.startsWith('/app/treasury');
+  ///////////////treasury////////////////
 
   const getUserInitials = () => {
     if (user?.firstName && user?.lastName) {
@@ -185,6 +202,20 @@ export default function BackOfficeLayout() {
           return <SubMenu key={item.href} item={item} isActive={isStockActive}
             isOpen={stockMenuOpen} onToggle={() => setStockMenuOpen(o => !o)} mobile={mobile} />;
         }
+        ///////////////treasury////////////////
+        if (hasSubItems && item.href === '/app/treasury') {
+          return (
+            <SubMenu
+              key={item.href}
+              item={item}
+              isActive={isTreasuryActive}
+              isOpen={treasuryMenuOpen}
+              onToggle={() => setTreasuryMenuOpen(o => !o)}
+              mobile={mobile}
+            />
+          );
+        }
+        ///////////////treasury////////////////
 
         return (
           <Link key={item.href} to={item.href!}
@@ -219,7 +250,7 @@ export default function BackOfficeLayout() {
               <X className="h-6 w-6 text-gray-500" />
             </button>
           </div>
-          
+
           {/* User Card in Mobile Sidebar */}
           <div className="p-4 flex-shrink-0 border-b border-gray-200">
             <div className="sidebar-user-card flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -259,9 +290,9 @@ export default function BackOfficeLayout() {
         <div className="sidebar-container flex flex-col h-full bg-white border-r border-gray-200">
           <div className="sidebar-header flex h-16 items-center gap-2 px-6 border-b border-gray-200 flex-shrink-0">
             <Building2 className="h-8 w-8 text-indigo-600" />
-            <span className="text-xl font-bold text-gray-900">BizManage</span>
+            <span className="text-xl font-bold text-gray-900">Noventra</span>
           </div>
-          
+
           {/* User Card in Desktop Sidebar */}
           <div className="p-4 flex-shrink-0 border-b border-gray-200">
             <div className="sidebar-user-card flex items-center gap-3 p-3 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl">
