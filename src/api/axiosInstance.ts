@@ -10,6 +10,18 @@ const axiosInstance = axios.create({
   withCredentials: true, // Enable sending cookies with requests
 });
 
+// ─── Request Interceptor: No longer needed for token attachment ──────────
+// Cookies are sent automatically with withCredentials: true
+axiosInstance.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    // Cookies are automatically sent, no manual token attachment needed
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // ─── Response Interceptor: Auto Refresh on 401 ───────────────────────────
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -17,12 +29,12 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: Error | null, token: string | null = null) => {
+const processQueue = (error: Error | null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve();
     }
   });
 
@@ -38,11 +50,12 @@ axiosInstance.interceptors.response.use(
 
     // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Don't retry login/register/refresh endpoints
+      // Don't retry login/register/refresh/me endpoints during initial auth
       if (
         originalRequest.url?.includes('/auth/login') ||
         originalRequest.url?.includes('/auth/register') ||
-        originalRequest.url?.includes('/auth/refresh')
+        originalRequest.url?.includes('/auth/refresh') ||
+        originalRequest.url?.includes('/auth/me')
       ) {
         return Promise.reject(error);
       }
@@ -64,22 +77,26 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Call refresh endpoint (cookies are sent automatically)
+        // Call refresh endpoint - cookies are sent automatically
         await axios.post(
           'http://localhost:3001/auth/refresh',
           {},
           { withCredentials: true }
         );
 
-        processQueue(null, null);
+        // Refresh succeeded, process queued requests
+        processQueue(null);
 
         // Retry original request
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError as Error, null);
+        processQueue(refreshError as Error);
         
-        // Refresh failed → Don't redirect here, let the app handle it
-        // The AuthContext will handle the redirect based on the route
+        // Refresh failed → redirect to login only if not already on auth pages
+        if (!window.location.pathname.includes('/login') && 
+            !window.location.pathname.includes('/register')) {
+          window.location.href = '/login';
+        }
         
         return Promise.reject(refreshError);
       } finally {

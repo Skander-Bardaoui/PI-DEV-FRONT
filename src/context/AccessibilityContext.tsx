@@ -11,6 +11,9 @@ interface AccessibilitySettings {
   reduceAnimations: boolean;
   highlightLinks: boolean;
   dyslexiaFont: boolean;
+  fingerScroll: boolean;
+  handScrollMode: boolean;
+  cameraGestureControl: boolean;
 }
 
 interface AccessibilityContextType {
@@ -22,6 +25,8 @@ interface AccessibilityContextType {
   resetSettings: () => void;
   isAccessibilityPanelOpen: boolean;
   toggleAccessibilityPanel: () => void;
+  isFingerScrollActive: boolean;
+  toggleFingerScroll: () => void;
 }
 
 const defaultSettings: AccessibilitySettings = {
@@ -35,6 +40,9 @@ const defaultSettings: AccessibilitySettings = {
   reduceAnimations: false,
   highlightLinks: false,
   dyslexiaFont: false,
+  fingerScroll: false,
+  handScrollMode: false,
+  cameraGestureControl: false,
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
@@ -42,9 +50,23 @@ const AccessibilityContext = createContext<AccessibilityContextType | undefined>
 export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AccessibilitySettings>(() => {
     const saved = localStorage.getItem('accessibility-settings');
-    return saved ? JSON.parse(saved) : defaultSettings;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          ...defaultSettings,
+          ...parsed,
+          handScrollMode: parsed.handScrollMode ?? false,
+          cameraGestureControl: parsed.cameraGestureControl ?? false,
+        };
+      } catch (e) {
+        return defaultSettings;
+      }
+    }
+    return defaultSettings;
   });
   const [isAccessibilityPanelOpen, setIsAccessibilityPanelOpen] = useState(false);
+  const [isFingerScrollActive, setIsFingerScrollActive] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('accessibility-settings', JSON.stringify(settings));
@@ -68,6 +90,9 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
 
     // Cursor size
     root.setAttribute('data-cursor', settings.cursorSize);
+
+    // Hand Scroll Mode
+    root.setAttribute('data-hand-scroll', (settings.handScrollMode ?? false).toString());
 
     // Reduce animations
     if (settings.reduceAnimations) {
@@ -102,6 +127,10 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     setIsAccessibilityPanelOpen((prev) => !prev);
   };
 
+  const toggleFingerScroll = () => {
+    setIsFingerScrollActive((prev) => !prev);
+  };
+
   return (
     <AccessibilityContext.Provider
       value={{
@@ -110,6 +139,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         resetSettings,
         isAccessibilityPanelOpen,
         toggleAccessibilityPanel,
+        isFingerScrollActive,
+        toggleFingerScroll,
       }}
     >
       {children}

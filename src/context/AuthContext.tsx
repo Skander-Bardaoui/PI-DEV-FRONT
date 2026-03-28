@@ -27,22 +27,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Only try to fetch user if we're not on a public page
-        // This prevents unnecessary API calls on landing/login/register pages
-        const publicPaths = ['/', '/login', '/register', '/pricing', '/forgot-password', '/reset-password'];
-        const currentPath = window.location.pathname;
-        
-        if (publicPaths.includes(currentPath)) {
-          setIsLoading(false);
-          return;
-        }
-        
-        // Try to fetch user data from /auth/me (cookie-based)
+        // Try to fetch user data from /auth/me
+        // If there's a valid cookie, this will succeed
         const userData = await getCurrentUser();
         setUser(userData);
       } catch (error) {
-        console.error('Failed to fetch user:', error);
-        // No valid session, user stays null
+        // No valid session, user is not logged in
+        console.log('No active session');
       } finally {
         setIsLoading(false);
       }
@@ -54,13 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Login Function ──────────────────────────────────────────────────
   const login = async (email: string, password: string) => {
     try {
-      const response = await loginUser({ email, password });
+      await loginUser({ email, password });
       
-      // Set user from response (cookies are set by backend)
-      setUser(response.user);
+      // Fetch user data after successful login
+      const userData = await getCurrentUser();
+      setUser(userData);
       
       // Redirect based on role
-      if (response.user.role === Role.CLIENT) {
+      if (userData.role === Role.CLIENT) {
         navigate('/portal');
       } else {
         navigate('/app');
@@ -76,10 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Register Function ───────────────────────────────────────────────
   const register = async (data: RegisterRequest) => {
     try {
-      const response = await registerUser(data);
+      await registerUser(data);
       
-      // Set user from response (cookies are set by backend)
-      setUser(response.user);
+      // Fetch user data after successful registration
+      const userData = await getCurrentUser();
+      setUser(userData);
       
       // Redirect to dashboard
       navigate('/app');

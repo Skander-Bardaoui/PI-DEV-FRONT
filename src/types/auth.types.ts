@@ -14,11 +14,17 @@ export enum Role {
 export interface User {
   id: string;
   email: string;
-  name: string;
-  phone_number?: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
   role: Role;
   is_verified: boolean;
+  business_id: string | null;
   is_suspended: boolean;
+  avatarUrl?: string;
+  jobTitle?: string;
+  preferredLanguage?: string;
+  timezone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -30,12 +36,13 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  // User Info
+  // User Info - Updated to firstName + lastName
+  firstName: string;
+  lastName: string;
   email: string;
-  name: string;
   password: string;
   phone_number?: string;
-  
+
   // Tenant Info
   tenant: {
     name: string;
@@ -65,12 +72,27 @@ export interface RegisterRequest {
     is_default: boolean;
   };
 }
+export interface RefreshTokenRequest {
+  refresh_token: string;
+}
 
 export interface UpdateProfileRequest {
   name?: string;
   email?: string;
   password?: string;
 }
+
+// ─── API Response Types ──────────────────────────────────────────────────
+export interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+}
+
+export interface LoginResponse extends AuthResponse {}
+
+export interface RegisterResponse extends AuthResponse {}
+
+export interface RefreshResponse extends AuthResponse {}
 
 // ─── Auth Context State ──────────────────────────────────────────────────
 export interface AuthContextType {
