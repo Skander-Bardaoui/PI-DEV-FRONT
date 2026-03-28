@@ -1,5 +1,5 @@
 // src/hooks/usePurchaseInvoices.ts
-// FIX: isValidUUID défini localement (même pattern que useGoodsReceipts.ts)
+// ANOMALIE 9 FIX: Ajout de la validation UUID et support des options enabled
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -10,9 +10,9 @@ import {
   UpdatePaymentAmountDto,
   PurchaseInvoicesQueryParams,
 } from '@/types';
-import { approvePurchaseInvoice, createPurchaseInvoice, disputePurchaseInvoice, getPurchaseInvoice, getPurchaseInvoices, resolveDisputePurchaseInvoice, updatePaymentAmount, updatePurchaseInvoice } from '@/api/purchase-invoices';
+import { approvePurchaseInvoice, createPurchaseInvoice, disputePurchaseInvoice, getPurchaseInvoice, getPurchaseInvoices, getPurchaseInvoicesByPO, resolveDisputePurchaseInvoice, updatePaymentAmount, updatePurchaseInvoice } from '@/api/purchase-invoices';
 
-// FIX: déclaré localement — pas besoin d'import externe
+// Validation UUID v4 stricte
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isValidUUID = (v: string | undefined | null): v is string =>
   !!v && UUID_REGEX.test(v);
@@ -35,7 +35,6 @@ export function usePurchaseInvoices(
   return useQuery({
     queryKey: invoiceKeys.list(businessId, params),
     queryFn:  () => getPurchaseInvoices(businessId, params),
-    // FIX: isValidUUID maintenant disponible + options.enabled supporté
     enabled:  (options?.enabled ?? true) && isValidUUID(businessId),
     staleTime: 30_000,
   });
@@ -48,6 +47,20 @@ export function usePurchaseInvoice(businessId: string, id: string) {
     queryFn:  () => getPurchaseInvoice(businessId, id),
     enabled:  isValidUUID(businessId) && isValidUUID(id),
     staleTime: 60_000,
+  });
+}
+
+// ─── Par BC (vérifier si des factures existent pour un BC) ───────────────────
+export function usePurchaseInvoicesByPO(
+  businessId: string,
+  poId: string,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: [PURCHASE_INVOICES_KEY, businessId, 'by-po', poId] as const,
+    queryFn:  () => getPurchaseInvoicesByPO(businessId, poId),
+    enabled:  (options?.enabled ?? true) && isValidUUID(businessId) && isValidUUID(poId),
+    staleTime: 30_000,
   });
 }
 

@@ -1,6 +1,12 @@
 import { Category } from './category';
 
 export interface StockProduct {
+  sku: string;
+  price: any;
+  cost: import("react/jsx-runtime").JSX.Element;
+  quantity: any;
+  minQuantity: any;
+  isActive: any;
   id: string;
   business_id: string;
   name: string;

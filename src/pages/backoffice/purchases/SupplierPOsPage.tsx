@@ -2,7 +2,7 @@
 // VERSION MISE À JOUR — filtres avancés + tri colonnes + ConfirmModal + Toast
 
 import { useState } from 'react';
-import { Plus, Eye, Send, Check, X, ChevronUp, ChevronDown, Filter } from 'lucide-react';
+import { Plus, Eye, Send, Check, X, ChevronUp, ChevronDown, Filter, Sparkles } from 'lucide-react';
 import { useAuth }            from '../../../hooks/useAuth';
 import {
   useSupplierPOs, useSendSupplierPO,
@@ -14,6 +14,7 @@ import { useToast }          from '@/components/ui/Toast';
 import ConfirmModal, { useApiError }          from '@/components/ui/ConfirmModal';
 import SupplierPOModal       from '@/components/purchases/SupplierPOModal';
 import SupplierPODetailModal from '@/components/purchases/SupplierPODetailModal';
+import AiPOGeneratorModal    from '@/components/purchases/AiPOGeneratorModal';
 import PDFButton             from '@/components/purchases/PDFButton';
 import { usePDFExport }      from '@/hooks/usePDFExport';
 import { formatAmount, formatDate, PO_STATUS_COLORS, PO_STATUS_LABELS, POStatus, SupplierPO } from '@/types';
@@ -52,6 +53,7 @@ export default function SupplierPOsPage() {
 
   // ── Modals ────────────────────────────────────────────────────────────────
   const [modalOpen,   setModalOpen]   = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [detailPO,    setDetailPO]    = useState<SupplierPO | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<SupplierPO | null>(null);
 
@@ -144,6 +146,13 @@ export default function SupplierPOsPage() {
           >
             <Filter className="h-4 w-4" />
             Filtres {hasActiveFilters && `(actifs)`}
+          </button>
+          <button
+            onClick={() => setAiModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/30"
+          >
+            <Sparkles className="h-5 w-5" />
+            Générer par IA
           </button>
           <button
             onClick={() => setModalOpen(true)}
@@ -339,6 +348,7 @@ export default function SupplierPOsPage() {
 
       {/* Modals */}
       {modalOpen && <SupplierPOModal businessId={businessId} onClose={() => setModalOpen(false)} />}
+      {aiModalOpen && <AiPOGeneratorModal businessId={businessId} onClose={() => setAiModalOpen(false)} onSuccess={() => toast.success('BC créé', 'Le bon de commande a été généré avec succès')} />}
       {detailPO  && <SupplierPODetailModal businessId={businessId} po={detailPO} onClose={() => setDetailPO(null)} />}
       {confirmCancel && (
         <ConfirmModal

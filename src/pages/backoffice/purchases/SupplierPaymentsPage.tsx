@@ -67,14 +67,13 @@ function CreatePaymentModal({
 
   const [selectedSupplier, setSelectedSupplier] = useState('');
 
-  // Charger les factures du fournisseur sélectionné (APPROVED / PARTIALLY_PAID / OVERDUE)
   const { data: invoicesData } = usePurchaseInvoices(
     businessId,
     { supplier_id: selectedSupplier || undefined, limit: 100 },
     { enabled: !!selectedSupplier },
   );
 
-  const payableInvoices = invoicesData?.data.filter(i =>
+  const payableInvoices = invoicesData?.data?.filter(i =>
     [InvoiceStatus.APPROVED, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE].includes(i.status),
   ) ?? [];
 
@@ -102,7 +101,6 @@ function CreatePaymentModal({
   const selectedInvoiceId = watch('purchase_invoice_id');
   const selectedInvoice = payableInvoices.find(i => i.id === selectedInvoiceId);
 
-  // Auto-remplir le montant restant quand une facture est sélectionnée
   const handleInvoiceChange = (invoiceId: string) => {
     setValue('purchase_invoice_id', invoiceId);
     const inv = payableInvoices.find(i => i.id === invoiceId);
@@ -143,7 +141,7 @@ function CreatePaymentModal({
               className={inputCls(errors.supplier_id?.message)}
             >
               <option value="">Sélectionner un fournisseur</option>
-              {suppliersData?.data.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {suppliersData?.data?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             {errors.supplier_id && <p className="text-red-500 text-xs mt-1">{errors.supplier_id.message}</p>}
           </div>
@@ -286,7 +284,8 @@ export default function SupplierPaymentsPage() {
     enabled: !!businessId,
   });
 
-  const totalAmount = data?.data.reduce((s: number, p: any) => s + Number(p.amount), 0) ?? 0;
+  // ✅ Fix : data?.data peut être undefined pendant le chargement
+  const totalAmount = data?.data?.reduce((s: number, p: any) => s + Number(p.amount), 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -305,7 +304,7 @@ export default function SupplierPaymentsPage() {
       </div>
 
       {/* KPI total */}
-      {data && data.total > 0 && (
+      {data && (data.total ?? 0) > 0 && (
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-xs text-gray-500 mb-1">Total payé (page)</p>
@@ -318,7 +317,10 @@ export default function SupplierPaymentsPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-xs text-gray-500 mb-1">Moyenne par règlement</p>
             <p className="text-xl font-bold text-gray-900">
-              {data.total > 0 ? formatAmount(totalAmount / data.data.length) : '—'}
+              {/* ✅ Fix : data.data?.length au lieu de data.data.length */}
+              {(data.total ?? 0) > 0 && data.data?.length
+                ? formatAmount(totalAmount / data.data.length)
+                : '—'}
             </p>
           </div>
         </div>
@@ -332,7 +334,7 @@ export default function SupplierPaymentsPage() {
             <select value={supplierFilter} onChange={e => { setSupplierFilter(e.target.value); setPage(1); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
               <option value="">Tous</option>
-              {suppliersData?.data.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {suppliersData?.data?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
@@ -373,7 +375,8 @@ export default function SupplierPaymentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {!data?.data.length ? (
+                {/* ✅ Fix principal : data?.data?.length au lieu de data?.data.length */}
+                {!data?.data?.length ? (
                   <tr><td colSpan={7} className="text-center py-12 text-gray-500">Aucun paiement trouvé</td></tr>
                 ) : data.data.map((p: any) => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
