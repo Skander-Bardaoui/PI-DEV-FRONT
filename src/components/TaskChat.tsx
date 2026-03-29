@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Loader2, MessageCircle, Paperclip, File as FileIcon, Image as ImageIcon, Download } from 'lucide-react';
+import { X, Send, Loader2, MessageCircle, Paperclip, File as FileIcon, Image as ImageIcon, Download, AtSign } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 
 interface Message {
@@ -11,8 +11,20 @@ interface Message {
   fileName?: string;
   fileType?: string;
   fileSize?: number;
+  mentions?: string[];
   createdAt: string;
   sender: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+}
+
+interface TeamMember {
+  id: string;
+  user_id: string;
+  user: {
     id: string;
     email: string;
     firstName?: string;
@@ -25,6 +37,7 @@ interface TaskChatProps {
   taskTitle: string;
   currentUserId: string;
   onClose: () => void;
+  businessId?: string;
 }
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
@@ -99,7 +112,7 @@ function formatFileSize(bytes: number): string {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: TaskChatProps) {
+export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, businessId }: TaskChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -107,8 +120,14 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionPosition, setMentionPosition] = useState(0);
+  const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -119,7 +138,7 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
     scrollToBottom();
   }, [messages]);
 
-  // Fetch messages
+  // Fetch messages and team members
   useEffect(() => {
     async function fetchMessages() {
       try {
@@ -137,7 +156,25 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
       }
     }
     fetchMessages();
-  }, [taskId]);
+
+    // Fetch team members if businessId is provided
+    if (businessId) {
+      async function fetchTeamMembers() {
+        try {
+          const res = await fetch(`${API_BASE}/businesses/${businessId}/members`, {
+            credentials: 'include',
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setTeamMembers(Array.isArray(data) ? data : data.members || []);
+          }
+        } catch (error) {
+          console.error('Failed to fetch team members:', error);
+        }
+      }
+      fetchTeamMembers();
+    }
+  }, [taskId, businessId]);
 
   // Socket.io connection
   useEffect(() => {
@@ -185,6 +222,11 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
         formData.append('file', fileToUpload);
       }
 
+      // Add mentions if any
+      if (selectedMentions.length > 0) {
+        formData.append('mentions', JSON.stringify(selectedMentions));
+      }
+
       const res = await fetch(`${API_BASE}/messages`, {
         method: 'POST',
         credentials: 'include',
@@ -196,6 +238,8 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
         setNewMessage('');
         setSelectedFile(null);
         setUploadProgress(0);
+        setSelectedMentions([]);
+        setShowMentions(false);
       } else {
         throw new Error('Failed to send message');
       }
@@ -227,11 +271,69 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !showMentions) {
       e.preventDefault();
       handleSendMessage();
     }
   };
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPosition = e.target.selectionStart;
+    
+    setNewMessage(value);
+
+    // Check for @ symbol to trigger mentions
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+      // Check if there's no space after @
+      if (!textAfterAt.includes(' ')) {
+        setMentionSearch(textAfterAt.toLowerCase());
+        setMentionPosition(lastAtIndex);
+        setShowMentions(true);
+      } else {
+        setShowMentions(false);
+      }
+    } else {
+      setShowMentions(false);
+    }
+  };
+
+  const insertMention = (member: TeamMember) => {
+    const memberName = getMemberName(member);
+    const beforeMention = newMessage.substring(0, mentionPosition);
+    const afterMention = newMessage.substring(textareaRef.current?.selectionStart || newMessage.length);
+    const newText = `${beforeMention}@${memberName} ${afterMention}`;
+    
+    setNewMessage(newText);
+    setShowMentions(false);
+    setMentionSearch('');
+    
+    // Add to selected mentions
+    if (!selectedMentions.includes(member.user_id)) {
+      setSelectedMentions([...selectedMentions, member.user_id]);
+    }
+    
+    // Focus back on textarea
+    textareaRef.current?.focus();
+  };
+
+  const getMemberName = (member: TeamMember) => {
+    if (member.user.firstName || member.user.lastName) {
+      return `${member.user.firstName || ''} ${member.user.lastName || ''}`.trim();
+    }
+    return member.user.email.split('@')[0];
+  };
+
+  const filteredMembers = teamMembers.filter((member) => {
+    if (!mentionSearch) return true;
+    const name = getMemberName(member).toLowerCase();
+    const email = member.user.email.toLowerCase();
+    return name.includes(mentionSearch) || email.includes(mentionSearch);
+  });
 
   const getSenderName = (sender: Message['sender']) => {
     if (sender.firstName || sender.lastName) {
@@ -255,6 +357,27 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+    });
+  };
+
+  const renderMessageWithMentions = (content: string, isOwn: boolean) => {
+    // Highlight @mentions in the message
+    const mentionRegex = /@(\w+(?:\s+\w+)*)/g;
+    const parts = content.split(mentionRegex);
+    
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        // This is a mention
+        return (
+          <span
+            key={index}
+            className={`font-semibold ${isOwn ? 'text-indigo-100' : 'text-indigo-600'}`}
+          >
+            @{part}
+          </span>
+        );
+      }
+      return part;
     });
   };
 
@@ -317,8 +440,14 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
                     >
                       {message.content && (
                         <p className="text-sm whitespace-pre-wrap break-words">
-                          {message.content}
+                          {renderMessageWithMentions(message.content, isOwn)}
                         </p>
+                      )}
+                      {message.mentions && message.mentions.length > 0 && (
+                        <div className={`flex items-center gap-1 mt-2 text-xs ${isOwn ? 'text-indigo-200' : 'text-gray-500'}`}>
+                          <AtSign className="h-3 w-3" />
+                          <span>{message.mentions.length} mentioned</span>
+                        </div>
                       )}
                       
                       {message.fileUrl && (
@@ -380,7 +509,7 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 relative">
           {selectedFile && (
             <div className="mb-3 p-3 bg-gray-50 rounded-lg flex items-center gap-3">
               {selectedFile.type.startsWith('image/') ? (
@@ -404,6 +533,34 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
               </button>
             </div>
           )}
+
+          {/* Mentions dropdown */}
+          {showMentions && filteredMembers.length > 0 && (
+            <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+              <div className="p-2">
+                <p className="text-xs font-medium text-gray-500 px-2 py-1">Mention team member</p>
+                {filteredMembers.slice(0, 5).map((member) => (
+                  <button
+                    key={member.id}
+                    onClick={() => insertMention(member)}
+                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors text-left"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                      {getMemberName(member).substring(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {getMemberName(member)}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {member.user.email}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           
           <div className="flex gap-2">
             <input
@@ -421,11 +578,27 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
             >
               <Paperclip className="h-5 w-5" />
             </button>
+            <button
+              onClick={() => {
+                const cursorPos = textareaRef.current?.selectionStart || newMessage.length;
+                const newText = newMessage.substring(0, cursorPos) + '@' + newMessage.substring(cursorPos);
+                setNewMessage(newText);
+                setMentionPosition(cursorPos);
+                setShowMentions(true);
+                textareaRef.current?.focus();
+              }}
+              disabled={sending}
+              className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Mention someone"
+            >
+              <AtSign className="h-5 w-5" />
+            </button>
             <textarea
+              ref={textareaRef}
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={handleMessageChange}
               onKeyPress={handleKeyPress}
-              placeholder="Type a message..."
+              placeholder="Type a message... (use @ to mention)"
               rows={1}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
               style={{ minHeight: '42px', maxHeight: '120px' }}
@@ -452,3 +625,4 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose }: 
     </div>
   );
 }
+

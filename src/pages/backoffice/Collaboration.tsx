@@ -1031,11 +1031,12 @@ export default function Collaboration() {
       )}
 
       {/* ── Task Chat Modal ────────────────────────────────────────────────────── */}
-      {chatTask && currentUser && (
+      {chatTask && currentUser && currentBusiness && (
         <TaskChat
           taskId={chatTask.id}
           taskTitle={chatTask.title}
           currentUserId={currentUser.id}
+          businessId={currentBusiness.id}
           onClose={() => setChatTask(null)}
         />
       )}
