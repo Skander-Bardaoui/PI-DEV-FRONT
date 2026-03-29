@@ -334,11 +334,16 @@ export default function DeliveryNotesPage() {
       </div>
 
       {modalOpen && (
-        <DeliveryNoteModal businessId={businessId} onClose={() => setModalOpen(false)} />
+        <DeliveryNoteModal 
+          key="new-delivery-note"
+          businessId={businessId} 
+          onClose={() => setModalOpen(false)} 
+        />
       )}
 
       {selectedNote && (
         <DeliveryNoteDetailModal
+          key={selectedNote.id}
           note={selectedNote}
           businessId={businessId}
           onClose={() => setSelectedNote(null)}

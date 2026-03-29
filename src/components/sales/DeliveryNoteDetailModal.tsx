@@ -396,7 +396,7 @@ export default function DeliveryNoteDetailModal({ note: initialNote, businessId,
 
       {editOpen && (
         <DeliveryNoteModal
-          key={`edit-${note.id}-${Date.now()}`}
+          key={`edit-${note.id}-items-${note.items?.length || 0}`}
           businessId={businessId}
           note={note}
           onClose={() => {
