@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Loader2, MessageCircle, Paperclip, File as FileIcon, Image as ImageIcon, Download, AtSign } from 'lucide-react';
+import { X, Send, Loader2, MessageCircle, Paperclip, File as FileIcon, Image as ImageIcon, Download, AtSign, Palette } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 
 interface Message {
@@ -12,12 +12,14 @@ interface Message {
   fileType?: string;
   fileSize?: number;
   mentions?: string[];
+  messageColor?: string; // Deprecated - now using sender.messageColor
   createdAt: string;
   sender: {
     id: string;
     email: string;
     firstName?: string;
     lastName?: string;
+    messageColor?: string; // User's global message color preference
   };
 }
 
@@ -29,6 +31,7 @@ interface TeamMember {
     email: string;
     firstName?: string;
     lastName?: string;
+    messageColor?: string;
   };
 }
 
@@ -125,9 +128,12 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionPosition, setMentionPosition] = useState(0);
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
+  const [messageColor, setMessageColor] = useState<string>('#4F46E5'); // Default indigo
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -137,6 +143,40 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Load chat color preference for this task
+  useEffect(() => {
+    async function loadChatColor() {
+      try {
+        const res = await fetch(`${API_BASE}/messages/chat-color/${taskId}`, {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.color) {
+            setMessageColor(data.color);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load chat color:', error);
+      }
+    }
+    loadChatColor();
+  }, [taskId]);
+
+  // Close color picker when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
+      }
+    }
+    
+    if (showColorPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showColorPicker]);
 
   // Fetch messages and team members
   useEffect(() => {
@@ -226,6 +266,8 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       if (selectedMentions.length > 0) {
         formData.append('mentions', JSON.stringify(selectedMentions));
       }
+
+      // Note: messageColor is now saved in user profile, not per message
 
       const res = await fetch(`${API_BASE}/messages`, {
         method: 'POST',
@@ -360,7 +402,7 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
     });
   };
 
-  const renderMessageWithMentions = (content: string, isOwn: boolean) => {
+  const renderMessageWithMentions = (content: string) => {
     // Highlight @mentions in the message
     const mentionRegex = /@(\w+(?:\s+\w+)*)/g;
     const parts = content.split(mentionRegex);
@@ -371,7 +413,12 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
         return (
           <span
             key={index}
-            className={`font-semibold ${isOwn ? 'text-indigo-100' : 'text-indigo-600'}`}
+            className="font-semibold"
+            style={{
+              color: 'rgba(255, 255, 255, 0.9)',
+              textDecoration: 'underline',
+              textDecorationStyle: 'dotted'
+            }}
           >
             @{part}
           </span>
@@ -380,6 +427,49 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       return part;
     });
   };
+
+  const handleColorChange = (color: string) => {
+    setMessageColor(color);
+    setShowColorPicker(false);
+    // Save to backend for this specific task
+    updateChatColor(color);
+  };
+
+  const updateChatColor = async (color: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/messages/chat-color/${taskId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ color }),
+      });
+      
+      if (!res.ok) {
+        console.error('Failed to update chat color');
+      }
+    } catch (error) {
+      console.error('Error updating chat color:', error);
+    }
+  };
+
+  const predefinedColors = [
+    { name: 'Indigo', value: '#4F46E5' },
+    { name: 'Blue', value: '#3B82F6' },
+    { name: 'Purple', value: '#9333EA' },
+    { name: 'Pink', value: '#EC4899' },
+    { name: 'Red', value: '#EF4444' },
+    { name: 'Orange', value: '#F97316' },
+    { name: 'Amber', value: '#F59E0B' },
+    { name: 'Green', value: '#10B981' },
+    { name: 'Teal', value: '#14B8A6' },
+    { name: 'Cyan', value: '#06B6D4' },
+    { name: 'Sky', value: '#0EA5E9' },
+    { name: 'Violet', value: '#8B5CF6' },
+    { name: 'Fuchsia', value: '#D946EF' },
+    { name: 'Rose', value: '#F43F5E' },
+    { name: 'Emerald', value: '#059669' },
+    { name: 'Slate', value: '#64748B' },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -432,19 +522,22 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
                       </p>
                     )}
                     <div
-                      className={`rounded-2xl px-4 py-2 ${
-                        isOwn
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}
+                      className="rounded-2xl px-4 py-2"
+                      style={{
+                        backgroundColor: messageColor || '#4F46E5',
+                        color: '#FFFFFF'
+                      }}
                     >
                       {message.content && (
                         <p className="text-sm whitespace-pre-wrap break-words">
-                          {renderMessageWithMentions(message.content, isOwn)}
+                          {renderMessageWithMentions(message.content)}
                         </p>
                       )}
                       {message.mentions && message.mentions.length > 0 && (
-                        <div className={`flex items-center gap-1 mt-2 text-xs ${isOwn ? 'text-indigo-200' : 'text-gray-500'}`}>
+                        <div 
+                          className="flex items-center gap-1 mt-2 text-xs"
+                          style={{ color: 'rgba(255, 255, 255, 0.7)' }}
+                        >
                           <AtSign className="h-3 w-3" />
                           <span>{message.mentions.length} mentioned</span>
                         </div>
@@ -470,11 +563,16 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
                             <a
                               href={`${API_BASE}${message.fileUrl}`}
                               download={message.fileName}
-                              className={`flex items-center gap-2 p-2 rounded-lg ${
-                                isOwn
-                                  ? 'bg-indigo-700 hover:bg-indigo-800'
-                                  : 'bg-gray-200 hover:bg-gray-300'
-                              } transition-colors`}
+                              className="flex items-center gap-2 p-2 rounded-lg transition-colors"
+                              style={{
+                                backgroundColor: `${messageColor || '#4F46E5'}dd`,
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = `${messageColor || '#4F46E5'}ee`;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = `${messageColor || '#4F46E5'}dd`;
+                              }}
                             >
                               <FileIcon className="h-5 w-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -510,6 +608,88 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
 
         {/* Input */}
         <div className="p-4 border-t border-gray-200 relative">
+          {/* Color Picker */}
+          {showColorPicker && (
+            <div 
+              ref={colorPickerRef}
+              className="absolute bottom-full left-4 mb-2 bg-white border border-gray-200 rounded-lg shadow-xl p-4 z-20"
+              style={{ width: '280px' }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900">Choose chat color</h3>
+                <button
+                  onClick={() => setShowColorPicker(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                This color will apply to all messages in this chat (only for you)
+              </p>
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {predefinedColors.map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={() => handleColorChange(color.value)}
+                    className="group relative"
+                    title={color.name}
+                  >
+                    <div
+                      className="h-10 w-10 rounded-lg transition-transform hover:scale-110 border-2"
+                      style={{
+                        backgroundColor: color.value,
+                        borderColor: messageColor === color.value ? '#1F2937' : 'transparent'
+                      }}
+                    />
+                    {messageColor === color.value && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-gray-200 pt-3">
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Custom color
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={messageColor}
+                    onChange={(e) => handleColorChange(e.target.value)}
+                    className="h-10 w-full rounded cursor-pointer"
+                  />
+                  <div
+                    className="h-10 w-20 rounded border border-gray-300 flex items-center justify-center text-xs font-mono text-gray-600"
+                  >
+                    {messageColor.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                <div className="flex items-center justify-between mb-1">
+                  <span>Preview:</span>
+                  <span className="text-gray-500">All messages in this chat</span>
+                </div>
+                <div className="flex gap-2">
+                  <div 
+                    className="flex-1 px-3 py-2 rounded-lg text-white text-xs"
+                    style={{ backgroundColor: messageColor }}
+                  >
+                    Your message
+                  </div>
+                  <div 
+                    className="flex-1 px-3 py-2 rounded-lg text-white text-xs"
+                    style={{ backgroundColor: messageColor }}
+                  >
+                    Other's message
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {selectedFile && (
             <div className="mb-3 p-3 bg-gray-50 rounded-lg flex items-center gap-3">
               {selectedFile.type.startsWith('image/') ? (
@@ -592,6 +772,18 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
               title="Mention someone"
             >
               <AtSign className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              disabled={sending}
+              className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
+              title="Change message color"
+            >
+              <Palette className="h-5 w-5" />
+              <div
+                className="absolute bottom-1 right-1 h-2 w-2 rounded-full border border-white"
+                style={{ backgroundColor: messageColor }}
+              />
             </button>
             <textarea
               ref={textareaRef}
