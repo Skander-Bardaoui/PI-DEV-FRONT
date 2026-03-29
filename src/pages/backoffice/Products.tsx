@@ -284,7 +284,7 @@ export default function Products() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {product.sale_price_ht.toFixed(3)} DT
+                      {(product.sale_price_ht || 0).toFixed(3)} DT
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -408,7 +408,7 @@ export default function Products() {
                     step="0.001"
                     value={formData.sale_price_ht}
                     onChange={(e) =>
-                      setFormData({ ...formData, sale_price_ht: parseFloat(e.target.value) })
+                      setFormData({ ...formData, sale_price_ht: parseFloat(e.target.value) || 0 })
                     }
                     className="w-full px-3 py-2 border rounded-lg"
                   />
@@ -422,7 +422,7 @@ export default function Products() {
                     step="0.001"
                     value={formData.purchase_price_ht}
                     onChange={(e) =>
-                      setFormData({ ...formData, purchase_price_ht: parseFloat(e.target.value) })
+                      setFormData({ ...formData, purchase_price_ht: parseFloat(e.target.value) || 0 })
                     }
                     className="w-full px-3 py-2 border rounded-lg"
                   />
@@ -454,7 +454,7 @@ export default function Products() {
                       step="0.001"
                       value={formData.current_stock}
                       onChange={(e) =>
-                        setFormData({ ...formData, current_stock: parseFloat(e.target.value) })
+                        setFormData({ ...formData, current_stock: parseFloat(e.target.value) || 0 })
                       }
                       className="w-full px-3 py-2 border rounded-lg"
                     />
@@ -470,7 +470,7 @@ export default function Products() {
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          min_stock_threshold: parseFloat(e.target.value),
+                          min_stock_threshold: parseFloat(e.target.value) || 0,
                         })
                       }
                       className="w-full px-3 py-2 border rounded-lg"

@@ -38,7 +38,7 @@ export const categoriesApi = {
     id: string,
     data: UpdateCategoryDto
   ): Promise<Category> => {
-    const response = await axios.patch(
+    const response = await axios.put(
       `${API_URL}/businesses/${businessId}/categories/${id}`,
       data,
       { withCredentials: true }

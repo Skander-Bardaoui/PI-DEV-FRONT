@@ -6,6 +6,8 @@ import { useClients } from '@/hooks/useClients';
 import { useSalesOrders } from '@/hooks/useSalesOrders';
 import { CreateDeliveryNoteItemDto } from '@/types/delivery-note';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import ProductSelector from './ProductSelector';
+import { Product } from '@/types/product';
 
 interface DeliveryNoteFormValues {
   clientId: string;
@@ -33,6 +35,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
   const { data: clientsData } = useClients(businessId, { limit: 100 });
   const { data: ordersData } = useSalesOrders(businessId, { limit: 100 });
   const [error, setError] = useState<string | null>(null);
+  const [itemStocks, setItemStocks] = useState<{ [key: number]: { stock: number; isStockable: boolean } }>({});
 
   const isEdit = !!note;
 
@@ -108,6 +111,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
   });
 
   const watchedSalesOrderId = watch('salesOrderId');
+  const watchedItems = watch('items') || [];
 
   // ─── KEY FIX ────────────────────────────────────────────────────────────────
   // Only populate items from order in CREATE mode, and only once per order
@@ -143,10 +147,49 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
     }
   }, [watchedSalesOrderId, isEdit]);
 
+  const handleProductSelect = (index: number, product: Product | null) => {
+    if (product) {
+      setValue(`items.${index}.productId`, product.id);
+      setValue(`items.${index}.description`, product.name);
+      setItemStocks(prev => ({
+        ...prev,
+        [index]: { stock: product.current_stock || 0, isStockable: product.is_stockable }
+      }));
+    } else {
+      setValue(`items.${index}.productId`, undefined);
+      setValue(`items.${index}.description`, '');
+      setItemStocks(prev => {
+        const newStocks = { ...prev };
+        delete newStocks[index];
+        return newStocks;
+      });
+    }
+  };
+
+  const getStockWarning = (index: number) => {
+    const itemStock = itemStocks[index];
+    if (!itemStock || !itemStock.isStockable) return null;
+    
+    const quantity = Number(watchedItems[index]?.deliveredQuantity) || 0;
+    if (quantity > itemStock.stock) {
+      return `Stock insuffisant ! Disponible: ${itemStock.stock}`;
+    }
+    return null;
+  };
+
   const onSubmit = async (values: DeliveryNoteFormValues) => {
     try {
       setError(null);
-
+      
+      // Validate stock for all items
+      for (let i = 0; i < values.items.length; i++) {
+        const warning = getStockWarning(i);
+        if (warning) {
+          setError(`Ligne ${i + 1}: ${warning}`);
+          return;
+        }
+      }
+      
       const items = values.items.map((item) => ({
         description: item.description,
         quantity: Number(item.quantity) || 0,
@@ -312,7 +355,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">
-                      Description *
+                      Produit *
                     </th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-32">
                       Qté commandée
@@ -327,16 +370,20 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {fields.map((field, i) => (
-                    <tr key={field.fieldId}>
+                  {fields.map((field, i) => {
+                    const stockWarning = getStockWarning(i);
+                    return (
+                    <tr key={field.fieldId} className={stockWarning ? 'bg-red-50' : ''}>
                       <td className="px-4 py-2">
-                        <input
-                          {...register(`items.${i}.description`, { required: true })}
-                          placeholder="Description de l'article"
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                        <ProductSelector
+                          value={watchedItems[i]?.productId}
+                          onChange={(product) => handleProductSelect(i, product)}
                           disabled={!!watchedSalesOrderId}
-                          readOnly={!!watchedSalesOrderId}
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
                         />
+                        <input type="hidden" {...register(`items.${i}.productId`)} />
+                        <input type="hidden" {...register(`items.${i}.description`, { required: true })} />
+                        <input type="hidden" {...register(`items.${i}.salesOrderItemId`)} />
                       </td>
                       <td className="px-4 py-2">
                         <input
@@ -358,9 +405,16 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
                             required: 'Quantité livrée requise',
                             setValueAs: (v) => (v === '' ? 0 : parseFloat(v)),
                           })}
-                          className="w-full px-2 py-1.5 border-2 border-green-300 rounded text-sm text-center font-semibold text-green-700 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                          className={`w-full px-2 py-1.5 border-2 rounded text-sm text-center font-semibold focus:ring-2 ${
+                            stockWarning 
+                              ? 'border-red-500 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-200' 
+                              : 'border-green-300 text-green-700 focus:border-green-500 focus:ring-green-200'
+                          }`}
                           placeholder="0.000"
                         />
+                        {stockWarning && (
+                          <div className="text-xs text-red-600 mt-1 font-semibold">{stockWarning}</div>
+                        )}
                         {errors.items?.[i]?.deliveredQuantity && (
                           <p className="text-red-500 text-[10px] mt-0.5">Requis</p>
                         )}
@@ -377,7 +431,8 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
                         )}
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
