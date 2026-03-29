@@ -1,7 +1,14 @@
 // src/api/purchase-invoices.api.ts
-import { CreatePurchaseInvoiceDto, DisputeInvoiceDto, PaginatedPurchaseInvoices, PurchaseInvoice, PurchaseInvoicesQueryParams, UpdatePaymentAmountDto, UpdatePurchaseInvoiceDto } from '@/types';
+import {
+  CreatePurchaseInvoiceDto,
+  DisputeInvoiceDto,
+  PaginatedPurchaseInvoices,
+  PurchaseInvoice,
+  PurchaseInvoicesQueryParams,
+  UpdatePaymentAmountDto,
+  UpdatePurchaseInvoiceDto
+} from '@/types';
 import axiosInstance from './axiosInstance';
-
 
 const base = (businessId: string) =>
   `/businesses/${businessId}/purchase-invoices`;
@@ -22,6 +29,7 @@ export const getPurchaseInvoice = async (
   return data;
 };
 
+// ✅ FROM main (keep it)
 export const getPurchaseInvoicesByPO = async (
   businessId: string,
   poId: string,
@@ -85,6 +93,19 @@ export const updatePaymentAmount = async (
   const { data } = await axiosInstance.patch(
     `${base(businessId)}/${id}/payment`,
     dto,
+  );
+  return data;
+};
+
+//////// treasury ////////
+// ✅ FROM Achraf branch (keep it)
+export const getApprovedOrPartialInvoices = async (
+  businessId: string,
+  params?: PurchaseInvoicesQueryParams,
+): Promise<PaginatedPurchaseInvoices> => {
+  const { data } = await axiosInstance.get(
+    `${base(businessId)}/approved-partial`,
+    { params }
   );
   return data;
 };

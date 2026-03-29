@@ -72,3 +72,26 @@ export const getTransactionById = async (id: string): Promise<Transaction> => {
   const response = await axiosInstance.get<Transaction>(`/transactions/${id}`);
   return response.data;
 };
+
+// ===================== SUPPLIER PAYMENTS =====================
+export interface CreateSupplierPaymentDto {
+  supplier_id:          string;
+  purchase_invoice_id?: string;
+  account_id:           string;
+  amount:               number;
+  payment_date:         string;   // ISO date string "YYYY-MM-DD"
+  payment_method:       string;   // PaymentMethod enum value
+  reference?:           string;
+  notes?:               string;
+}
+
+export const createSupplierPayment = async (
+  businessId: string,
+  dto: CreateSupplierPaymentDto,
+): Promise<any> => {
+  const response = await axiosInstance.post(
+    `/businesses/${businessId}/supplier-payments`,
+    dto,
+  );
+  return response.data;
+};

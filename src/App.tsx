@@ -1,5 +1,5 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AccessibilityButton from './components/AccessibilityButton';
@@ -58,6 +58,10 @@ import BackOfficeLayout from './layouts/BackOfficeLayout';
 import SupplierPortalPage from './pages/backoffice/purchases/SupplierPortalPage';
 import SupplierRankingPage from './pages/backoffice/purchases/SupplierRankingPage';
 import AccountsPage from './pages/backoffice/treasury/AccountsPage';
+import TreasuryInvoicesPage from './components/treasury/TreasuryInvoicesPage';
+import ExpensesToPayPage from './components/treasury/ExpensesToPayPage';
+import Transactions from './components/treasury/Transactions';
+
 import SupplierIntelligencePage from './pages/backoffice/purchases/SupplierIntelligencePage';
 import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingPage';
 import SupplierRegisterPage from './pages/frontoffice/SupplierRegisterPage';
@@ -162,7 +166,10 @@ function AppContent() {
           <Route path="/app/treasury/accounts" element={<AccountsPage />} />
 
           {/*treasury*/}
-          <Route path="/app/treasury/accounts" element={<AccountsPage />} />
+          <Route path="treasury/accounts" element={<AccountsPage />} />
+          <Route path="treasury/invoices" element={<TreasuryInvoicesPage />} />
+          <Route path="treasury/expenses" element={<ExpensesToPayPage />} />
+          <Route path="treasury/transactions" element={<Transactions />} />
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
           <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />

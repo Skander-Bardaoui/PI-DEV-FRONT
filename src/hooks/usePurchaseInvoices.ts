@@ -1,7 +1,7 @@
 // src/hooks/usePurchaseInvoices.ts
-// ANOMALIE 9 FIX: Ajout de la validation UUID et support des options enabled
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getApprovedOrPartialInvoices } from '@/api/purchase-invoices';
 
 import {
   CreatePurchaseInvoiceDto,
@@ -10,9 +10,20 @@ import {
   UpdatePaymentAmountDto,
   PurchaseInvoicesQueryParams,
 } from '@/types';
-import { approvePurchaseInvoice, createPurchaseInvoice, disputePurchaseInvoice, getPurchaseInvoice, getPurchaseInvoices, getPurchaseInvoicesByPO, resolveDisputePurchaseInvoice, updatePaymentAmount, updatePurchaseInvoice } from '@/api/purchase-invoices';
 
-// Validation UUID v4 stricte
+import {
+  approvePurchaseInvoice,
+  createPurchaseInvoice,
+  disputePurchaseInvoice,
+  getPurchaseInvoice,
+  getPurchaseInvoices,
+  getPurchaseInvoicesByPO,
+  resolveDisputePurchaseInvoice,
+  updatePaymentAmount,
+  updatePurchaseInvoice
+} from '@/api/purchase-invoices';
+
+// FIX: déclaré localement
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isValidUUID = (v: string | undefined | null): v is string =>
   !!v && UUID_REGEX.test(v);
@@ -26,7 +37,7 @@ const invoiceKeys = {
     [PURCHASE_INVOICES_KEY, businessId, id] as const,
 };
 
-// ─── Lister ──────────────────────────────────────────────────────────────────
+// ─── Lister ─────────────────────────────────────────
 export function usePurchaseInvoices(
   businessId: string,
   params: PurchaseInvoicesQueryParams = {},
@@ -34,23 +45,23 @@ export function usePurchaseInvoices(
 ) {
   return useQuery({
     queryKey: invoiceKeys.list(businessId, params),
-    queryFn:  () => getPurchaseInvoices(businessId, params),
-    enabled:  (options?.enabled ?? true) && isValidUUID(businessId),
+    queryFn: () => getPurchaseInvoices(businessId, params),
+    enabled: (options?.enabled ?? true) && isValidUUID(businessId),
     staleTime: 30_000,
   });
 }
 
-// ─── Détail ───────────────────────────────────────────────────────────────────
+// ─── Détail ─────────────────────────────────────────
 export function usePurchaseInvoice(businessId: string, id: string) {
   return useQuery({
     queryKey: invoiceKeys.one(businessId, id),
-    queryFn:  () => getPurchaseInvoice(businessId, id),
-    enabled:  isValidUUID(businessId) && isValidUUID(id),
+    queryFn: () => getPurchaseInvoice(businessId, id),
+    enabled: isValidUUID(businessId) && isValidUUID(id),
     staleTime: 60_000,
   });
 }
 
-// ─── Par BC (vérifier si des factures existent pour un BC) ───────────────────
+// ─── Par BC (main)
 export function usePurchaseInvoicesByPO(
   businessId: string,
   poId: string,
@@ -58,13 +69,13 @@ export function usePurchaseInvoicesByPO(
 ) {
   return useQuery({
     queryKey: [PURCHASE_INVOICES_KEY, businessId, 'by-po', poId] as const,
-    queryFn:  () => getPurchaseInvoicesByPO(businessId, poId),
-    enabled:  (options?.enabled ?? true) && isValidUUID(businessId) && isValidUUID(poId),
+    queryFn: () => getPurchaseInvoicesByPO(businessId, poId),
+    enabled: (options?.enabled ?? true) && isValidUUID(businessId) && isValidUUID(poId),
     staleTime: 30_000,
   });
 }
 
-// ─── Créer ────────────────────────────────────────────────────────────────────
+// ─── Créer ─────────────────────────────────────────
 export function useCreatePurchaseInvoice(businessId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -76,7 +87,7 @@ export function useCreatePurchaseInvoice(businessId: string) {
   });
 }
 
-// ─── Modifier ─────────────────────────────────────────────────────────────────
+// ─── Modifier ───────────────────────────────────────
 export function useUpdatePurchaseInvoice(businessId: string, id: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -88,7 +99,7 @@ export function useUpdatePurchaseInvoice(businessId: string, id: string) {
   });
 }
 
-// ─── Approuver ────────────────────────────────────────────────────────────────
+// ─── Approuver ──────────────────────────────────────
 export function useApprovePurchaseInvoice(businessId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -99,7 +110,7 @@ export function useApprovePurchaseInvoice(businessId: string) {
   });
 }
 
-// ─── Mettre en litige ─────────────────────────────────────────────────────────
+// ─── Litige ─────────────────────────────────────────
 export function useDisputePurchaseInvoice(businessId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -111,7 +122,7 @@ export function useDisputePurchaseInvoice(businessId: string) {
   });
 }
 
-// ─── Résoudre litige ──────────────────────────────────────────────────────────
+// ─── Résoudre litige ────────────────────────────────
 export function useResolveDispute(businessId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -122,7 +133,7 @@ export function useResolveDispute(businessId: string) {
   });
 }
 
-// ─── Mettre à jour le paiement ────────────────────────────────────────────────
+// ─── Paiement ───────────────────────────────────────
 export function useUpdatePayment(businessId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -133,3 +144,14 @@ export function useUpdatePayment(businessId: string) {
     },
   });
 }
+
+//////////////// treasury (Achraf) //////////////////
+export const useApprovedOrPartialInvoices = (
+  businessId: string,
+  params?: PurchaseInvoicesQueryParams,
+) =>
+  useQuery({
+    queryKey: ['purchase-invoices', 'approved-partial', businessId, params],
+    queryFn: () => getApprovedOrPartialInvoices(businessId, params),
+    enabled: !!businessId,
+  });
