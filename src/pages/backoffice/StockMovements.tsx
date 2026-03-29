@@ -107,7 +107,6 @@ export default function StockMovements() {
   const getMovementIcon = (type: StockMovementType) => {
     if (
       type === StockMovementType.ENTREE_ACHAT ||
-      type === StockMovementType.ENTREE_RETOUR_CLIENT ||
       type === StockMovementType.AJUSTEMENT_POSITIF
     ) {
       return <TrendingUp className="text-green-600" size={20} />;
@@ -402,9 +401,6 @@ export default function StockMovements() {
                   </option>
                   <option value={StockMovementType.ENTREE_ACHAT}>
                     {STOCK_MOVEMENT_TYPE_LABELS[StockMovementType.ENTREE_ACHAT]}
-                  </option>
-                  <option value={StockMovementType.ENTREE_RETOUR_CLIENT}>
-                    {STOCK_MOVEMENT_TYPE_LABELS[StockMovementType.ENTREE_RETOUR_CLIENT]}
                   </option>
                 </select>
               </div>
