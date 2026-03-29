@@ -130,10 +130,12 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const [messageColor, setMessageColor] = useState<string>('#4F46E5'); // Default indigo
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<{ userId: string; userName: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -177,6 +179,15 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showColorPicker]);
+
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch messages and team members
   useEffect(() => {
@@ -231,19 +242,47 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       setMessages((prev) => [...prev, message]);
     });
 
+    newSocket.on('userTyping', (data: { userId: string; userName: string; isTyping: boolean }) => {
+      if (data.userId !== currentUserId) {
+        setTypingUsers((prev) => {
+          if (data.isTyping) {
+            // Ajouter l'utilisateur s'il n'est pas déjà dans la liste
+            if (!prev.find(u => u.userId === data.userId)) {
+              return [...prev, { userId: data.userId, userName: data.userName }];
+            }
+            return prev;
+          } else {
+            // Retirer l'utilisateur de la liste
+            return prev.filter(u => u.userId !== data.userId);
+          }
+        });
+      }
+    });
+
     setSocket(newSocket);
 
     return () => {
       newSocket.emit('leaveTask', taskId);
       newSocket.disconnect();
     };
-  }, [taskId]);
+  }, [taskId, currentUserId]);
 
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && !selectedFile) || sending) return;
 
     setSending(true);
     setUploadProgress(0);
+
+    // Arrêter l'indicateur de typing
+    if (socket && typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      socket.emit('userTyping', {
+        taskId,
+        userId: currentUserId,
+        userName: '',
+        isTyping: false,
+      });
+    }
 
     try {
       const formData = new FormData();
@@ -325,6 +364,9 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
     
     setNewMessage(value);
 
+    // Émettre l'événement typing avec debounce
+    emitTypingEvent(true);
+
     // Check for @ symbol to trigger mentions
     const textBeforeCursor = value.substring(0, cursorPosition);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
@@ -342,6 +384,40 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
     } else {
       setShowMentions(false);
     }
+  };
+
+  const emitTypingEvent = (isTyping: boolean) => {
+    if (!socket) return;
+
+    // Annuler le timeout précédent
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Émettre l'événement typing
+    const userName = getSenderName({ 
+      id: currentUserId, 
+      email: '', 
+      firstName: '', 
+      lastName: '' 
+    });
+    
+    socket.emit('userTyping', {
+      taskId,
+      userId: currentUserId,
+      userName: userName || 'Someone',
+      isTyping: true,
+    });
+
+    // Arrêter le typing après 2 secondes d'inactivité
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('userTyping', {
+        taskId,
+        userId: currentUserId,
+        userName: userName || 'Someone',
+        isTyping: false,
+      });
+    }, 2000);
   };
 
   const insertMention = (member: TeamMember) => {
@@ -605,6 +681,26 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Typing indicator */}
+        {typingUsers.length > 0 && (
+          <div className="px-4 py-2 border-t border-gray-100">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+              <span>
+                {typingUsers.length === 1
+                  ? `${typingUsers[0].userName} est en train d'écrire...`
+                  : typingUsers.length === 2
+                  ? `${typingUsers[0].userName} et ${typingUsers[1].userName} sont en train d'écrire...`
+                  : `${typingUsers.length} personnes sont en train d'écrire...`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Input */}
         <div className="p-4 border-t border-gray-200 relative">
