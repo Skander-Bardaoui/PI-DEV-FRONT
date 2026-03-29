@@ -5,6 +5,8 @@ import { useCreateSalesOrder, useUpdateSalesOrder } from '@/hooks/useSalesOrders
 import { useClients } from '@/hooks/useClients';
 import { CreateSalesOrderItemDto } from '@/types/sales-order';
 import { useState } from 'react';
+import ProductSelector from './ProductSelector';
+import { Product } from '@/types/product';
 
 const TIMBRE_FISCAL = 1.000;
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -35,6 +37,7 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
   const update = useUpdateSalesOrder(businessId, order?.id || '');
   const { data: clientsData } = useClients(businessId, { limit: 100 });
   const [error, setError] = useState<string | null>(null);
+  const [itemStocks, setItemStocks] = useState<{ [key: number]: { stock: number; isStockable: boolean } }>({});
 
   const isEdit = !!order;
 
@@ -43,6 +46,7 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SalesOrderFormValues>({
     defaultValues: isEdit ? {
@@ -79,9 +83,51 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
   const taxAmount = round3(computed.reduce((s, c) => s + (c?.tax || 0), 0));
   const netAmount = round3(subtotal + taxAmount + TIMBRE_FISCAL);
 
+  const handleProductSelect = (index: number, product: Product | null) => {
+    if (product) {
+      setValue(`items.${index}.productId`, product.id);
+      setValue(`items.${index}.description`, product.name);
+      setValue(`items.${index}.unitPrice`, product.sale_price_ht);
+      setItemStocks(prev => ({
+        ...prev,
+        [index]: { stock: product.current_stock || 0, isStockable: product.is_stockable }
+      }));
+    } else {
+      setValue(`items.${index}.productId`, undefined);
+      setValue(`items.${index}.description`, '');
+      setValue(`items.${index}.unitPrice`, 0);
+      setItemStocks(prev => {
+        const newStocks = { ...prev };
+        delete newStocks[index];
+        return newStocks;
+      });
+    }
+  };
+
+  const getStockWarning = (index: number) => {
+    const itemStock = itemStocks[index];
+    if (!itemStock || !itemStock.isStockable) return null;
+    
+    const quantity = Number(watchedItems[index]?.quantity) || 0;
+    if (quantity > itemStock.stock) {
+      return `Stock insuffisant ! Disponible: ${itemStock.stock}`;
+    }
+    return null;
+  };
+
   const onSubmit = async (values: SalesOrderFormValues) => {
     try {
       setError(null);
+      
+      // Validate stock for all items
+      for (let i = 0; i < values.items.length; i++) {
+        const warning = getStockWarning(i);
+        if (warning) {
+          setError(`Ligne ${i + 1}: ${warning}`);
+          return;
+        }
+      }
+      
       const items = values.items.map((item) => ({
         description: item.description,
         quantity: Number(item.quantity) || 0,
@@ -190,7 +236,7 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Description *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Produit *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">Qté *</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 w-32">Prix HT *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">TVA</th>
@@ -199,22 +245,29 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {fields.map((field, i) => (
-                    <tr key={field.id}>
+                  {fields.map((field, i) => {
+                    const stockWarning = getStockWarning(i);
+                    return (
+                    <tr key={field.id} className={stockWarning ? 'bg-red-50' : ''}>
                       <td className="px-4 py-2">
-                        <input
-                          {...register(`items.${i}.description`, { required: true })}
-                          placeholder="Description"
+                        <ProductSelector
+                          value={watchedItems[i]?.productId}
+                          onChange={(product) => handleProductSelect(i, product)}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
                         />
+                        <input type="hidden" {...register(`items.${i}.productId`)} />
+                        <input type="hidden" {...register(`items.${i}.description`, { required: true })} />
                       </td>
                       <td className="px-4 py-2">
                         <input
                           type="number"
                           step="0.01"
                           {...register(`items.${i}.quantity`, { valueAsNumber: true })}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm text-center"
+                          className={`w-full px-2 py-1 border rounded text-sm text-center ${stockWarning ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         />
+                        {stockWarning && (
+                          <div className="text-xs text-red-600 mt-1">{stockWarning}</div>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <input
@@ -250,7 +303,8 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
                         )}
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>

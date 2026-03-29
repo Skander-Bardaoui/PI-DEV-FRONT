@@ -38,7 +38,7 @@ export const productsApi = {
     id: string,
     data: UpdateProductDto
   ): Promise<Product> => {
-    const response = await axios.patch(
+    const response = await axios.put(
       `${API_URL}/businesses/${businessId}/products/${id}`,
       data,
       { withCredentials: true }
