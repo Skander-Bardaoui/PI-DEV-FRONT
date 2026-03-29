@@ -65,3 +65,21 @@ export const deleteDeliveryNote = async (
 ): Promise<void> => {
   await axiosInstance.delete(`${base(businessId)}/${id}`);
 };
+
+export const cleanDuplicates = async (
+  businessId: string,
+  id: string,
+): Promise<DeliveryNote> => {
+  const { data } = await axiosInstance.post(`${base(businessId)}/${id}/clean-duplicates`);
+  return data;
+};
+
+export const getDeliveryNotesBySalesOrder = async (
+  businessId: string,
+  salesOrderId: string,
+): Promise<DeliveryNote[]> => {
+  const { data } = await axiosInstance.get(`${base(businessId)}`, {
+    params: { sales_order_id: salesOrderId },
+  });
+  return data.data || [];
+};

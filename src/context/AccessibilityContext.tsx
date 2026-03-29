@@ -8,6 +8,7 @@ interface AccessibilitySettings {
   cursorSize: 'normal' | 'large' | 'extra-large';
   readingGuide: boolean;
   textToSpeech: boolean;
+  focusMode: boolean;
   reduceAnimations: boolean;
   highlightLinks: boolean;
   dyslexiaFont: boolean;
@@ -37,6 +38,7 @@ const defaultSettings: AccessibilitySettings = {
   cursorSize: 'normal',
   readingGuide: false,
   textToSpeech: false,
+  focusMode: false,
   reduceAnimations: false,
   highlightLinks: false,
   dyslexiaFont: false,
@@ -58,6 +60,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
           ...parsed,
           handScrollMode: parsed.handScrollMode ?? false,
           cameraGestureControl: parsed.cameraGestureControl ?? false,
+          focusMode: parsed.focusMode ?? false,
         };
       } catch (e) {
         return defaultSettings;

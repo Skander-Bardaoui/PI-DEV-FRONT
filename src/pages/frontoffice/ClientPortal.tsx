@@ -70,7 +70,7 @@ export default function ClientPortal() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
               <Building2 className="h-8 w-8 text-indigo-600" />
-              <span className="text-xl font-bold text-gray-900">BizManage</span>
+              <span className="text-xl font-bold text-gray-900">NovaEntra</span>
               <span className="text-sm text-gray-500 ml-2">| Portail Client</span>
             </div>
             <div className="flex items-center gap-4">
@@ -271,8 +271,8 @@ export default function ClientPortal() {
             Pour toute question concernant vos factures, n'hésitez pas à nous contacter.
           </p>
           <div className="flex flex-wrap gap-4">
-            <a href="mailto:support@bizmanage.tn" className="text-indigo-600 hover:text-indigo-700 font-medium">
-              support@bizmanage.tn
+            <a href="mailto:support@novaentra.tn" className="text-indigo-600 hover:text-indigo-700 font-medium">
+              support@novaentra.tn
             </a>
             <span className="text-gray-300">|</span>
             <a href="tel:+21671234567" className="text-indigo-600 hover:text-indigo-700 font-medium">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, ScanLine, Bell } from 'lucide-react';
+import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, ScanLine, Bell, GitCompare } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useSalesInvoices, useDeleteSalesInvoice } from '@/hooks/useSalesInvoices';
 import { SALES_INVOICE_STATUS_COLORS, SALES_INVOICE_STATUS_LABELS, SalesInvoiceType } from '@/types/sales-invoice';
@@ -7,6 +7,7 @@ import SalesInvoiceModal from '@/components/sales/SalesInvoiceModal';
 import SalesInvoiceDetailModal from '@/components/sales/SalesInvoiceDetailModal';
 import SendInvoiceEmailModal from '@/components/sales/SendInvoiceEmailModal';
 import SalesOcrInvoiceModal from '@/components/sales/SalesOcrInvoiceModal';
+import SalesMatchingModal from '@/components/sales/SalesMatchingModal';
 
 const INVOICE_TYPE_LABELS: Record<SalesInvoiceType, string> = {
   [SalesInvoiceType.NORMAL]: 'Normale',
@@ -53,6 +54,7 @@ export default function SalesInvoicesPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showOcrModal, setShowOcrModal] = useState(false);
   const [invoiceForEmail, setInvoiceForEmail] = useState<any>(null);
+  const [matchingInvoice, setMatchingInvoice] = useState<any>(null);
 
   const { data, isLoading } = useSalesInvoices(businessId, {
     status: statusFilter || undefined,
@@ -123,6 +125,23 @@ export default function SalesInvoicesPage() {
             <Plus className="h-5 w-5" />
             Nouvelle facture
           </button>
+        </div>
+      </div>
+
+      {/* Rapprochement Notice */}
+      <div className="mb-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            <GitCompare className="h-5 w-5 text-indigo-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-indigo-900 mb-1">
+              Rapprochement automatique disponible
+            </h3>
+            <p className="text-xs text-indigo-700 leading-relaxed">
+              Les factures liées à une commande client (badge <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">CMD</span>) peuvent être rapprochées automatiquement avec les bons de livraison pour valider les montants.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -231,7 +250,16 @@ export default function SalesInvoicesPage() {
               ) : (
                 sorted.map((invoice) => (
                   <tr key={invoice.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{invoice.invoice_number}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{invoice.invoice_number}</span>
+                        {invoice.sales_order_id && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                            CMD
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-xs ${INVOICE_TYPE_COLORS[invoice.type || SalesInvoiceType.NORMAL]}`}>
                         {INVOICE_TYPE_LABELS[invoice.type || SalesInvoiceType.NORMAL]}
@@ -255,6 +283,15 @@ export default function SalesInvoicesPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
+                        {invoice.sales_order_id && (
+                          <button
+                            onClick={() => setMatchingInvoice(invoice)}
+                            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            title="Rapprochement automatique"
+                          >
+                            <GitCompare className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setInvoiceForEmail(invoice);
@@ -342,6 +379,14 @@ export default function SalesInvoicesPage() {
             setShowOcrModal(false);
             window.location.reload();
           }}
+        />
+      )}
+
+      {matchingInvoice && (
+        <SalesMatchingModal
+          businessId={businessId}
+          invoiceId={matchingInvoice.id}
+          onClose={() => setMatchingInvoice(null)}
         />
       )}
     </div>

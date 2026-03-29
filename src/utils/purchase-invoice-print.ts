@@ -167,7 +167,7 @@ export const printPurchaseInvoice = (
  
     <div class="doc-footer">
       <div class="footer-accent"></div>
-      <span>BizManage — Gestion Fournisseurs & Achats</span>
+      <span>NovaEntra — Gestion Fournisseurs & Achats</span>
       <span>${invoice.invoice_number_supplier}</span>
       <span>Imprimé le ${now}</span>
     </div>

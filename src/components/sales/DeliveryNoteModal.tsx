@@ -3,15 +3,18 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { useCreateDeliveryNote, useUpdateDeliveryNote } from '@/hooks/useDeliveryNotes';
 import { useClients } from '@/hooks/useClients';
+import { useSalesOrders } from '@/hooks/useSalesOrders';
 import { CreateDeliveryNoteItemDto } from '@/types/delivery-note';
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 interface DeliveryNoteFormValues {
   clientId: string;
+  salesOrderId?: string;
   deliveryDate?: string;
   notes?: string;
   items: {
     productId?: string;
+    salesOrderItemId?: string;
     description: string;
     quantity: number;
     deliveredQuantity: number;
@@ -28,48 +31,133 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
   const create = useCreateDeliveryNote(businessId);
   const update = useUpdateDeliveryNote(businessId, note?.id || '');
   const { data: clientsData } = useClients(businessId, { limit: 100 });
+  const { data: ordersData } = useSalesOrders(businessId, { limit: 100 });
   const [error, setError] = useState<string | null>(null);
 
   const isEdit = !!note;
+
+  // Track whether the order-items effect has already run once (create mode only)
+  const orderItemsPopulated = useRef(false);
+
+  // Deduplicate items helper
+  const deduplicateItems = useCallback((items: any[]) => {
+    return items.reduce((acc: any[], item: any) => {
+      const existing = acc.find(
+        (i: any) =>
+          i.description?.trim().toLowerCase() === item.description?.trim().toLowerCase(),
+      );
+      if (existing) {
+        // Keep the one with higher deliveredQuantity
+        if (Number(item.deliveredQuantity) > Number(existing.deliveredQuantity)) {
+          const index = acc.indexOf(existing);
+          acc[index] = item;
+        }
+      } else {
+        acc.push(item);
+      }
+      return acc;
+    }, []);
+  }, []);
+
+  // Compute default values — stable, runs only once on mount
+  const defaultValues = useMemo((): DeliveryNoteFormValues => {
+    if (isEdit && note) {
+      const uniqueItems = deduplicateItems(note.items ?? []);
+      return {
+        clientId: note.clientId || '',
+        salesOrderId: note.salesOrderId || '',
+        deliveryDate: note.deliveryDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+        notes: note.notes || '',
+        items: uniqueItems.map((item: any) => ({
+          description: item.description,
+          quantity: Number(item.quantity),
+          deliveredQuantity: Number(item.deliveredQuantity),
+          productId: item.productId ?? undefined,
+          salesOrderItemId: item.salesOrderItemId ?? undefined,
+        })),
+      };
+    }
+
+    return {
+      clientId: '',
+      salesOrderId: '',
+      deliveryDate: new Date().toISOString().split('T')[0],
+      notes: '',
+      items: [{ description: '', quantity: 1, deliveredQuantity: 1 }],
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — only compute once on mount
 
   const {
     register,
     control,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<DeliveryNoteFormValues>({
-    defaultValues: isEdit ? {
-      clientId: note.clientId || '',
-      deliveryDate: note.deliveryDate?.split('T')[0] || new Date().toISOString().split('T')[0],
-      notes: note.notes || '',
-      items: note.items?.map((item: any) => ({
-        description: item.description,
-        quantity: item.quantity,
-        deliveredQuantity: item.deliveredQuantity || item.quantity,
-        productId: item.productId,
-      })) || [{ description: '', quantity: 1, deliveredQuantity: 1 }],
-    } : {
-      clientId: '',
-      deliveryDate: new Date().toISOString().split('T')[0],
-      notes: '',
-      items: [{ description: '', quantity: 1, deliveredQuantity: 1 }],
-    },
+    defaultValues,
+    mode: 'onChange',
+    shouldUnregister: false,
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const { fields, append, remove, replace } = useFieldArray({
+    control,
+    name: 'items',
+    keyName: 'fieldId',
+  });
+
+  const watchedSalesOrderId = watch('salesOrderId');
+
+  // ─── KEY FIX ────────────────────────────────────────────────────────────────
+  // Only populate items from order in CREATE mode, and only once per order
+  // selection (guarded by the ref). In EDIT mode this effect never runs.
+  // ────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    // Never auto-populate in edit mode
+    if (isEdit) return;
+    // Only run when we have an order selected and the orders data is loaded
+    if (!watchedSalesOrderId || !ordersData?.data) return;
+    // Don't run again if we already populated for this selection
+    if (orderItemsPopulated.current) return;
+
+    const selectedOrder = ordersData.data.find((o: any) => o.id === watchedSalesOrderId);
+    if (selectedOrder?.items) {
+      const orderItems = selectedOrder.items.map((item: any) => ({
+        salesOrderItemId: item.id,
+        productId: item.productId,
+        description: item.description,
+        quantity: Number(item.quantity),
+        deliveredQuantity: Number(item.quantity),
+      }));
+      replace(orderItems);
+      setValue('clientId', selectedOrder.clientId);
+      orderItemsPopulated.current = true;
+    }
+  }, [watchedSalesOrderId, ordersData, isEdit, replace, setValue]);
+
+  // Reset the guard when the user picks a different order (create mode)
+  useEffect(() => {
+    if (!isEdit) {
+      orderItemsPopulated.current = false;
+    }
+  }, [watchedSalesOrderId, isEdit]);
 
   const onSubmit = async (values: DeliveryNoteFormValues) => {
     try {
       setError(null);
+
       const items = values.items.map((item) => ({
         description: item.description,
         quantity: Number(item.quantity) || 0,
         deliveredQuantity: Number(item.deliveredQuantity) || 0,
         ...(item.productId ? { productId: item.productId } : {}),
+        ...(item.salesOrderItemId ? { salesOrderItemId: item.salesOrderItemId } : {}),
       })) as CreateDeliveryNoteItemDto[];
 
       const payload = {
         clientId: values.clientId,
+        salesOrderId: values.salesOrderId || undefined,
         deliveryDate: values.deliveryDate || undefined,
         notes: values.notes || undefined,
         items,
@@ -82,8 +170,12 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
       }
       onClose();
     } catch (err: any) {
-      console.error('Error with delivery note:', err);
-      setError(err?.response?.data?.message || err?.message || 'Erreur lors de l\'opération');
+      console.error('❌ Erreur bon de livraison:', err);
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Erreur lors de l'opération",
+      );
     }
   };
 
@@ -109,25 +201,75 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Client <span className="text-red-500">*</span>
+                Commande client
               </label>
               <select
-                {...register('clientId', { required: 'Client requis' })}
-                className={`w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 ${
-                  errors.clientId ? 'border-red-400 bg-red-50' : 'border-gray-300'
-                }`}
+                {...register('salesOrderId')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                disabled={isEdit}
               >
-                <option value="">Sélectionner un client</option>
-                {clientsData?.clients?.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
+                <option value="">Sélectionner une commande (optionnel)</option>
+                {ordersData?.data?.map((order: any) => (
+                  <option key={order.id} value={order.id}>
+                    {order.orderNumber} - {order.client?.name}
                   </option>
                 ))}
               </select>
-              {errors.clientId && (
-                <p className="text-red-500 text-xs mt-1">{errors.clientId.message}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Sélectionnez une commande pour lier automatiquement les articles
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Client <span className="text-red-500">*</span>
+              </label>
+              {watchedSalesOrderId || isEdit ? (
+                <>
+                  <input
+                    type="hidden"
+                    {...register('clientId', { required: 'Client requis' })}
+                  />
+                  <select
+                    value={watch('clientId')}
+                    disabled
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-gray-100 cursor-not-allowed"
+                  >
+                    <option value="">Sélectionner un client</option>
+                    {clientsData?.clients?.map((client: any) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Le client ne peut pas être modifié
+                  </p>
+                </>
+              ) : (
+                <>
+                  <select
+                    {...register('clientId', { required: 'Client requis' })}
+                    className={`w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 ${
+                      errors.clientId ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Sélectionner un client</option>
+                    {clientsData?.clients?.map((client: any) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.clientId && (
+                    <p className="text-red-500 text-xs mt-1">{errors.clientId.message}</p>
+                  )}
+                </>
               )}
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date de livraison
@@ -143,54 +285,88 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
           {/* Lignes */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="font-medium text-gray-900">Articles livrés</span>
-              <button
-                type="button"
-                onClick={() => append({ description: '', quantity: 1, deliveredQuantity: 1 })}
-                className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-              >
-                <Plus className="h-4 w-4" /> Ajouter
-              </button>
+              <div>
+                <span className="font-medium text-gray-900">Articles livrés</span>
+                {watchedSalesOrderId && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Articles liés à la commande — Modifiez les quantités livrées selon la
+                    livraison réelle
+                  </p>
+                )}
+              </div>
+              {!watchedSalesOrderId && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    append({ description: '', quantity: 1, deliveredQuantity: 1 })
+                  }
+                  className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  <Plus className="h-4 w-4" /> Ajouter
+                </button>
+              )}
             </div>
 
             <div className="border border-gray-200 rounded-xl overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Description *</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-28">Qté commandée *</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-28">Qté livrée *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">
+                      Description *
+                    </th>
+                    <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-32">
+                      Qté commandée
+                    </th>
+                    <th className="text-center px-4 py-3 text-xs font-medium text-green-600 w-32 bg-green-50">
+                      Qté livrée *
+                      <div className="text-[10px] font-normal text-gray-500 mt-0.5">
+                        Modifiable
+                      </div>
+                    </th>
                     <th className="w-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {fields.map((field, i) => (
-                    <tr key={field.id}>
+                    <tr key={field.fieldId}>
                       <td className="px-4 py-2">
                         <input
                           {...register(`items.${i}.description`, { required: true })}
                           placeholder="Description de l'article"
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                          disabled={!!watchedSalesOrderId}
+                          readOnly={!!watchedSalesOrderId}
                         />
                       </td>
                       <td className="px-4 py-2">
                         <input
                           type="number"
-                          step="0.01"
+                          step="0.001"
+                          min="0"
                           {...register(`items.${i}.quantity`, { valueAsNumber: true })}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm text-center"
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm text-center bg-gray-50"
+                          disabled={!!watchedSalesOrderId}
+                          readOnly={!!watchedSalesOrderId}
                         />
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 bg-green-50/30">
                         <input
                           type="number"
-                          step="0.01"
-                          {...register(`items.${i}.deliveredQuantity`, { valueAsNumber: true })}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm text-center"
+                          step="0.001"
+                          min="0"
+                          {...register(`items.${i}.deliveredQuantity`, {
+                            required: 'Quantité livrée requise',
+                            setValueAs: (v) => (v === '' ? 0 : parseFloat(v)),
+                          })}
+                          className="w-full px-2 py-1.5 border-2 border-green-300 rounded text-sm text-center font-semibold text-green-700 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                          placeholder="0.000"
                         />
+                        {errors.items?.[i]?.deliveredQuantity && (
+                          <p className="text-red-500 text-[10px] mt-0.5">Requis</p>
+                        )}
                       </td>
                       <td className="px-4 py-2">
-                        {fields.length > 1 && (
+                        {fields.length > 1 && !watchedSalesOrderId && (
                           <button
                             type="button"
                             onClick={() => remove(i)}
@@ -230,7 +406,13 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
             >
-              {isSubmitting ? (isEdit ? 'Modification...' : 'Création...') : (isEdit ? 'Modifier' : 'Créer le bon')}
+              {isSubmitting
+                ? isEdit
+                  ? 'Modification...'
+                  : 'Création...'
+                : isEdit
+                  ? 'Modifier'
+                  : 'Créer le bon'}
             </button>
           </div>
         </form>

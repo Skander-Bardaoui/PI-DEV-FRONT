@@ -108,7 +108,7 @@ Le site est testé et compatible avec :
 ## Signaler un problème d'accessibilité
 
 Si vous rencontrez des difficultés d'accessibilité, veuillez nous contacter :
-- Email : accessibility@bizmanage.com
+- Email : accessibility@novaentra.com
 - Nous nous engageons à répondre dans les 48 heures
 
 ## Ressources

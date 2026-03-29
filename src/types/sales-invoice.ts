@@ -49,6 +49,7 @@ export interface SalesInvoiceItem {
 }
 
 export interface SalesInvoice {
+  sales_order_id: import("react/jsx-runtime").JSX.Element;
   id: string;
   invoice_number: string;
   type: SalesInvoiceType;

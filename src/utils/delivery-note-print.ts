@@ -138,7 +138,11 @@ export const printDeliveryNote = (
     <!-- PIED DE PAGE -->
     <div class="doc-footer">
       <div class="footer-accent"></div>
+<<<<<<< HEAD
       <span>BizManage — Gestion Commerciale</span>
+=======
+      <span>NovaEntra — Gestion Commerciale</span>
+>>>>>>> 77bdaeb57fe17a0efb615d39e44f8dc8776a6748
       <span>${note.deliveryNoteNumber}</span>
       <span>Imprimé le ${now}</span>
     </div>

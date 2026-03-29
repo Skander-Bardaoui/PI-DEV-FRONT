@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2 } from 'lucide-react';
+import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Package } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useDeliveryNotes, useDeleteDeliveryNote } from '@/hooks/useDeliveryNotes';
+import { useSalesOrder } from '@/hooks/useSalesOrders';
 import { DELIVERY_NOTE_STATUS_COLORS, DELIVERY_NOTE_STATUS_LABELS } from '@/types/delivery-note';
 import DeliveryNoteModal from '@/components/sales/DeliveryNoteModal';
 import DeliveryNoteDetailModal from '@/components/sales/DeliveryNoteDetailModal';
@@ -31,6 +32,7 @@ export default function DeliveryNotesPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<any>(null);
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
   const { data, isLoading } = useDeliveryNotes(businessId, {
     status: statusFilter || undefined,
@@ -75,6 +77,90 @@ export default function DeliveryNotesPage() {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR');
+  };
+
+  const toggleExpand = (noteId: string) => {
+    setExpandedNoteId(expandedNoteId === noteId ? null : noteId);
+  };
+
+  // Component for expanded row
+  const ExpandedRow = ({ note }: { note: any }) => {
+    const { data: salesOrder } = useSalesOrder(businessId, note.salesOrderId || '');
+    
+    if (!note.salesOrderId || !salesOrder) {
+      return (
+        <tr>
+          <td colSpan={5} className="px-4 py-3 bg-gray-50">
+            <div className="text-sm text-gray-500 italic">Aucune commande client associée</div>
+          </td>
+        </tr>
+      );
+    }
+
+    return (
+      <tr>
+        <td colSpan={5} className="px-4 py-4 bg-gray-50">
+          <div className="space-y-3">
+            {/* Sales Order Items */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-2">LIGNES DE LA COMMANDE</div>
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-600">Article</th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-gray-600">Commandé</th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-gray-600">Reçu</th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-gray-600">Reliquat</th>
+                      <th className="text-right px-3 py-2 text-xs font-medium text-gray-600">PU HT</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {salesOrder.items?.map((item: any) => {
+                      // Try to find delivered quantity by salesOrderItemId first, then by description
+                      const deliveredItem = note.items?.find((ni: any) => 
+                        ni.salesOrderItemId === item.id || 
+                        ni.description?.trim().toLowerCase() === item.description?.trim().toLowerCase()
+                      );
+                      const delivered = deliveredItem?.deliveredQuantity || 0;
+                      const reliquat = Number(item.quantity) - Number(delivered);
+                      
+                      return (
+                        <tr key={item.id}>
+                          <td className="px-3 py-2 text-gray-900">{item.description}</td>
+                          <td className="px-3 py-2 text-center text-gray-700">{Number(item.quantity).toFixed(3)}</td>
+                          <td className="px-3 py-2 text-center text-green-600 font-medium">{Number(delivered).toFixed(3)}</td>
+                          <td className="px-3 py-2 text-center text-orange-600 font-medium">{reliquat.toFixed(3)}</td>
+                          <td className="px-3 py-2 text-right text-gray-700">{Number(item.unitPrice).toFixed(3)} TND</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Delivery Notes for this Sales Order */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-2">BONS DE LIVRAISON ({note.items?.length || 0})</div>
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="h-4 w-4 text-green-600" />
+                <span className="font-medium text-gray-900">{note.deliveryNoteNumber}</span>
+                <span className="text-gray-500">
+                  {formatDate(note.deliveryDate)} - {note.items?.length || 0} ligne(s)
+                </span>
+                <button
+                  onClick={() => setSelectedNote(note)}
+                  className="ml-auto text-indigo-600 hover:text-indigo-700 text-xs font-medium"
+                >
+                  Voir détails →
+                </button>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
   };
 
   return (
@@ -185,42 +271,61 @@ export default function DeliveryNotesPage() {
                 </tr>
               ) : (
                 sorted.map((note) => (
-                  <tr key={note.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{note.deliveryNoteNumber}</td>
-                    <td className="px-4 py-3">{note.client?.name || 'N/A'}</td>
-                    <td className="px-4 py-3">{formatDate(note.deliveryDate)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs ${DELIVERY_NOTE_STATUS_COLORS[note.status]}`}>
-                        {DELIVERY_NOTE_STATUS_LABELS[note.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => setSelectedNote(note)}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Voir les détails"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setSelectedNote(note)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="PDF"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteNote.mutate(note.id)}
-                          disabled={deleteNote.isPending}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  <>
+                    <tr key={note.id} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {note.salesOrderId && (
+                            <button
+                              onClick={() => toggleExpand(note.id)}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
+                              {expandedNoteId === note.id ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronUp className="h-4 w-4 rotate-180" />
+                              )}
+                            </button>
+                          )}
+                          <span className="font-medium">{note.deliveryNoteNumber}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">{note.client?.name || 'N/A'}</td>
+                      <td className="px-4 py-3">{formatDate(note.deliveryDate)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs ${DELIVERY_NOTE_STATUS_COLORS[note.status]}`}>
+                          {DELIVERY_NOTE_STATUS_LABELS[note.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setSelectedNote(note)}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Voir les détails"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setSelectedNote(note)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="PDF"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteNote.mutate(note.id)}
+                            disabled={deleteNote.isPending}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedNoteId === note.id && <ExpandedRow note={note} />}
+                  </>
                 ))
               )}
             </tbody>
@@ -229,11 +334,16 @@ export default function DeliveryNotesPage() {
       </div>
 
       {modalOpen && (
-        <DeliveryNoteModal businessId={businessId} onClose={() => setModalOpen(false)} />
+        <DeliveryNoteModal 
+          key="new-delivery-note"
+          businessId={businessId} 
+          onClose={() => setModalOpen(false)} 
+        />
       )}
 
       {selectedNote && (
         <DeliveryNoteDetailModal
+          key={selectedNote.id}
           note={selectedNote}
           businessId={businessId}
           onClose={() => setSelectedNote(null)}

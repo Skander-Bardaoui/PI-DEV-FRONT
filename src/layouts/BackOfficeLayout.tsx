@@ -33,7 +33,7 @@ export default function BackOfficeLayout() {
   const { user, logout } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
 
-  // Alertes non lues
+  // Alertes non lues (DB)
   const { data: alerts = [] } = usePurchaseAlerts(businessId);
   const unreadCount = alerts.filter(a => a.status === 'UNREAD').length;
 
@@ -77,7 +77,7 @@ export default function BackOfficeLayout() {
         { name: t('nav.goodsReceipts'),    href: '/app/purchases/goods-receipts',   icon: Truck           },
         { name: t('nav.supplierInvoices'), href: '/app/purchases/invoices',         icon: FileText        },
         { name: t('nav.supplierPayments'), href: '/app/purchases/payments',         icon: Receipt         },
-        { name: t('nav.supplierRanking'),  href: '/app/purchases/supplier-ranking', icon: Award           },
+        { name: t('nav.supplierIntelligence'),  href: '/app/purchases/supplier-intelligence', icon: Award           },
       ],
     },
     { name: t('nav.expenses'),      href: '/app/expenses',      icon: Receipt      },
@@ -246,7 +246,7 @@ export default function BackOfficeLayout() {
           <div className="sidebar-header flex h-16 items-center justify-between px-6 border-b flex-shrink-0">
             <div className="flex items-center gap-2">
               <Building2 className="h-8 w-8 text-indigo-600" />
-              <span className="text-xl font-bold text-gray-900">BizManage</span>
+              <span className="text-xl font-bold text-gray-900">NovaEntra</span>
             </div>
             <button onClick={() => setSidebarOpen(false)}>
               <X className="h-6 w-6 text-gray-500" />
@@ -292,7 +292,7 @@ export default function BackOfficeLayout() {
         <div className="sidebar-container flex flex-col h-full bg-white border-r border-gray-200">
           <div className="sidebar-header flex h-16 items-center gap-2 px-6 border-b border-gray-200 flex-shrink-0">
             <Building2 className="h-8 w-8 text-indigo-600" />
-            <span className="text-xl font-bold text-gray-900">Noventra</span>
+            <span className="text-xl font-bold text-gray-900">NovaEntra</span>
           </div>
 
           {/* User Card in Desktop Sidebar */}

@@ -163,7 +163,7 @@ export const printSupplierPO = (po: SupplierPO, businessName: string, businessMF
     <!-- PIED DE PAGE -->
     <div class="doc-footer">
       <div class="footer-accent"></div>
-      <span>BizManage — Gestion Fournisseurs & Achats</span>
+      <span>NovaEntra — Gestion Fournisseurs & Achats</span>
       <span>${po.po_number}</span>
       <span>Imprimé le ${now}</span>
     </div>

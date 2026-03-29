@@ -38,16 +38,16 @@ export default function CategoryTable({ categories }: CategoryTableProps) {
                 </td>
                 <td className="px-6 py-4 text-center">
                   <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${
-                    category.isActive
+                    category.is_active
                       ? 'bg-green-100 text-green-700'
                       : 'bg-gray-100 text-gray-600'
                   }`}>
-                    {category.isActive ? 'Active' : 'Inactive'}
+                    {category.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-600">
-                    {new Date(category.createdAt).toLocaleDateString('fr-FR')}
+                    {new Date(category.created_at).toLocaleDateString('fr-FR')}
                   </span>
                 </td>
                 <td className="px-6 py-4">

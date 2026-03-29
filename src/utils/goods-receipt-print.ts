@@ -141,7 +141,7 @@ export const printGoodsReceipt = (gr: GoodsReceipt, businessName: string, busine
  
     <div class="doc-footer">
       <div class="footer-accent"></div>
-      <span>BizManage — Gestion Fournisseurs & Achats</span>
+      <span>NovaEntra — Gestion Fournisseurs & Achats</span>
       <span>${gr.gr_number}</span>
       <span>Imprimé le ${now}</span>
     </div>

@@ -1,7 +1,14 @@
 // src/api/purchase-invoices.api.ts
-import { CreatePurchaseInvoiceDto, DisputeInvoiceDto, PaginatedPurchaseInvoices, PurchaseInvoice, PurchaseInvoicesQueryParams, UpdatePaymentAmountDto, UpdatePurchaseInvoiceDto } from '@/types';
+import {
+  CreatePurchaseInvoiceDto,
+  DisputeInvoiceDto,
+  PaginatedPurchaseInvoices,
+  PurchaseInvoice,
+  PurchaseInvoicesQueryParams,
+  UpdatePaymentAmountDto,
+  UpdatePurchaseInvoiceDto
+} from '@/types';
 import axiosInstance from './axiosInstance';
-
 
 const base = (businessId: string) =>
   `/businesses/${businessId}/purchase-invoices`;
@@ -19,6 +26,15 @@ export const getPurchaseInvoice = async (
   id: string,
 ): Promise<PurchaseInvoice> => {
   const { data } = await axiosInstance.get(`${base(businessId)}/${id}`);
+  return data;
+};
+
+// ✅ FROM main (keep it)
+export const getPurchaseInvoicesByPO = async (
+  businessId: string,
+  poId: string,
+): Promise<PurchaseInvoice[]> => {
+  const { data } = await axiosInstance.get(`${base(businessId)}/by-po/${poId}`);
   return data;
 };
 
@@ -81,10 +97,8 @@ export const updatePaymentAmount = async (
   return data;
 };
 
-
-
-////////treasury////////
-// GET only APPROVED and PARTIALLY_PAID invoices
+//////// treasury ////////
+// ✅ FROM Achraf branch (keep it)
 export const getApprovedOrPartialInvoices = async (
   businessId: string,
   params?: PurchaseInvoicesQueryParams,
@@ -95,4 +109,3 @@ export const getApprovedOrPartialInvoices = async (
   );
   return data;
 };
-////////treasury////////

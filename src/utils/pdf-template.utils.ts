@@ -1,6 +1,6 @@
 // src/utils/pdf-template.utils.ts
 // ─────────────────────────────────────────────────────────────────────────────
-// Template PDF professionnel — Module 3 BizManage
+// Template PDF professionnel — Module 3 NovaEntra
 // Inspiré des standards comptables tunisiens (MF, TVA, timbre fiscal)
 // ─────────────────────────────────────────────────────────────────────────────
 // npm install jspdf jspdf-autotable
@@ -489,7 +489,7 @@ export const drawPageFooter = (
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(...C.muted);
-  doc.text('BizManage — Gestion Fournisseurs & Achats', ML, footY + 5);
+  doc.text('NovaEntra — Gestion Fournisseurs & Achats', ML, footY + 5);
 
   // Date impression (centre)
   doc.text(
