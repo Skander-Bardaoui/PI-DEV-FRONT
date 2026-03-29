@@ -66,9 +66,17 @@ export default function ThreeWayMatchingPage() {
     try {
       await approve.mutateAsync(selectedInvoiceId);
       toast.success('✅ Facture approuvée avec succès');
-      navigate('/backoffice/purchases/invoices');
+      navigate('/app/purchases/invoices');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Erreur lors de l\'approbation');
+      const errorMsg = error.response?.data?.message || 'Erreur lors de l\'approbation';
+      
+      // Si la facture est déjà approuvée, afficher un message informatif au lieu d'une erreur
+      if (errorMsg.includes('Statut') || errorMsg.includes('PENDING')) {
+        toast.info('ℹ️ Cette facture a déjà été approuvée automatiquement');
+        navigate('/app/purchases/invoices');
+      } else {
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -90,7 +98,7 @@ export default function ThreeWayMatchingPage() {
         },
       });
       toast.success('🚨 Facture mise en litige');
-      navigate('/backoffice/purchases/invoices');
+      navigate('/app/purchases/invoices');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erreur lors de la mise en litige');
     }
@@ -113,9 +121,17 @@ export default function ThreeWayMatchingPage() {
         toast.info(`ℹ️ Revue manuelle requise`);
       }
       
-      navigate('/backoffice/purchases/invoices');
+      navigate('/app/purchases/invoices');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Erreur lors de l\'application');
+      const errorMsg = error.response?.data?.message || 'Erreur lors de l\'application';
+      
+      // Si la facture est déjà dans un état final, afficher un message informatif
+      if (errorMsg.includes('Statut') || errorMsg.includes('PENDING') || errorMsg.includes('déjà')) {
+        toast.info('ℹ️ Cette facture a déjà été traitée automatiquement');
+        navigate('/app/purchases/invoices');
+      } else {
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -129,7 +145,7 @@ export default function ThreeWayMatchingPage() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/backoffice/purchases/invoices')}
+              onClick={() => navigate('/app/purchases/invoices')}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-4 h-4 text-gray-600" />
