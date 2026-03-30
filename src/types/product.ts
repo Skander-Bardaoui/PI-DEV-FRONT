@@ -14,6 +14,7 @@ export interface StockProduct {
   description: string | null;
   category_id: string | null;
   category?: Category;
+  warehouse_id?: string | null;
   unit: string;
   sale_price_ht: number;
   purchase_price_ht: number;
@@ -35,6 +36,7 @@ export interface CreateProductDto {
   reference: string;
   description?: string;
   category_id?: string;
+  warehouse_id?: string;
   unit?: string;
   sale_price_ht?: number;
   purchase_price_ht?: number;
@@ -50,6 +52,7 @@ export interface UpdateProductDto {
   reference?: string;
   description?: string;
   category_id?: string;
+  warehouse_id?: string;
   unit?: string;
   sale_price_ht?: number;
   purchase_price_ht?: number;

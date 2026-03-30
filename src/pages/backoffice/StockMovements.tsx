@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { stockMovementsApi } from '../../api/stock-movements.api';
 import { productsApi } from '../../api/products.api';
+import { warehousesApi } from '../../api/warehouses.api';
 import {
   StockMovement,
   StockMovementType,
@@ -10,6 +11,7 @@ import {
   STOCK_MOVEMENT_TYPE_COLORS,
 } from '../../types/stock-movement';
 import { Product } from '../../types/product';
+import { Warehouse } from '../../types/warehouse';
 import {
   Plus,
   Filter,
@@ -27,6 +29,7 @@ export default function StockMovements() {
 
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
 
@@ -51,6 +54,7 @@ export default function StockMovements() {
     if (businessId) {
       loadMovements();
       loadProducts();
+      loadWarehouses();
     }
   }, [businessId, selectedProduct, selectedType, startDate, endDate, currentPage]);
 
@@ -80,6 +84,15 @@ export default function StockMovements() {
       setProducts(data);
     } catch (error) {
       console.error('Error loading products:', error);
+    }
+  };
+
+  const loadWarehouses = async () => {
+    try {
+      const data = await warehousesApi.getAll(businessId!, { is_active: true });
+      setWarehouses(data);
+    } catch (error) {
+      console.error('Error loading warehouses:', error);
     }
   };
 
@@ -423,6 +436,26 @@ export default function StockMovements() {
                   }
                   className="w-full px-3 py-2 border rounded-lg"
                 />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Warehouse
+                </label>
+                <select
+                  value={formData.warehouse_id || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, warehouse_id: e.target.value || undefined })
+                  }
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  <option value="">No Warehouse</option>
+                  {warehouses.map((wh) => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.name} ({wh.code})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="mb-4">

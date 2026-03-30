@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { productsApi } from '../../api/products.api';
 import { categoriesApi } from '../../api/categories.api';
+import { warehousesApi } from '../../api/warehouses.api';
 import { Product, CreateProductDto } from '../../types/product';
 import { Category } from '../../types/category';
+import { Warehouse } from '../../types/warehouse';
 import { Plus, Edit, Trash2, Search, AlertTriangle } from 'lucide-react';
 
 export default function Products() {
@@ -11,6 +13,7 @@ export default function Products() {
   const businessId = user?.business_id;
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -35,6 +38,7 @@ export default function Products() {
     if (businessId) {
       loadProducts();
       loadCategories();
+      loadWarehouses();
     }
   }, [businessId, searchTerm, selectedCategory, showActiveOnly, showLowStock]);
 
@@ -61,6 +65,15 @@ export default function Products() {
       setCategories(data);
     } catch (error) {
       console.error('Error loading categories:', error);
+    }
+  };
+
+  const loadWarehouses = async () => {
+    try {
+      const data = await warehousesApi.getAll(businessId!, { is_active: true });
+      setWarehouses(data);
+    } catch (error) {
+      console.error('Error loading warehouses:', error);
     }
   };
 
@@ -103,6 +116,7 @@ export default function Products() {
       reference: product.reference,
       description: product.description || '',
       category_id: product.category_id || '',
+      warehouse_id: product.warehouse_id || '',
       unit: product.unit,
       sale_price_ht: product.sale_price_ht,
       purchase_price_ht: product.purchase_price_ht,
@@ -385,6 +399,26 @@ export default function Products() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Warehouse
+                  </label>
+                  <select
+                    value={formData.warehouse_id}
+                    onChange={(e) => setFormData({ ...formData, warehouse_id: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="">No Warehouse</option>
+                    {warehouses.map((wh) => (
+                      <option key={wh.id} value={wh.id}>
+                        {wh.name} ({wh.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Unit

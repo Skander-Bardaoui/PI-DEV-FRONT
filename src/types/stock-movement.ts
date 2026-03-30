@@ -15,6 +15,7 @@ export interface StockMovement {
   stock_after: number;
   source_type: string | null;
   source_id: string | null;
+  warehouse_id?: string | null;
   note: string | null;
   created_by: string | null;
   created_at: string;
@@ -31,6 +32,7 @@ export interface CreateStockMovementDto {
   quantity: number;
   source_type?: string;
   source_id?: string;
+  warehouse_id?: string;
   note?: string;
 }
 
