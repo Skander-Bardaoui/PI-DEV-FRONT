@@ -227,6 +227,23 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
     }
   }, [taskId, businessId]);
 
+  // Helper to get current user name from team members
+  const getCurrentUserName = () => {
+    // Try to get from team members first
+    const currentMember = teamMembers.find(m => m.user_id === currentUserId);
+    if (currentMember) {
+      return getMemberName(currentMember);
+    }
+    
+    // Try to get from messages
+    const myMessage = messages.find(m => m.senderId === currentUserId);
+    if (myMessage) {
+      return getSenderName(myMessage.sender);
+    }
+    
+    return 'Someone';
+  };
+
   // Socket.io connection
   useEffect(() => {
     const newSocket = io(API_BASE, {
@@ -394,18 +411,14 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       clearTimeout(typingTimeoutRef.current);
     }
 
-    // Émettre l'événement typing
-    const userName = getSenderName({ 
-      id: currentUserId, 
-      email: '', 
-      firstName: '', 
-      lastName: '' 
-    });
+    // Récupérer le nom de l'utilisateur actuel
+    const userName = getCurrentUserName();
     
+    // Émettre l'événement typing
     socket.emit('userTyping', {
       taskId,
       userId: currentUserId,
-      userName: userName || 'Someone',
+      userName: userName,
       isTyping: true,
     });
 
@@ -414,7 +427,7 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       socket.emit('userTyping', {
         taskId,
         userId: currentUserId,
-        userName: userName || 'Someone',
+        userName: userName,
         isTyping: false,
       });
     }, 2000);
