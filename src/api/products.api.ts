@@ -58,4 +58,30 @@ export const productsApi = {
     });
     return response.data;
   },
+
+  scanImage: async (businessId: string, imageFile: File): Promise<{
+    name: string | null;
+    description: string | null;
+    barcode: string | null;
+    unit: string | null;
+    suggested_category_name: string | null;
+    sale_price_ht: number | null;
+    brand: string | null;
+    confidence_note: string;
+  }> => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await axios.post(
+      `${API_URL}/businesses/${businessId}/products/scan-image`,
+      formData,
+      {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  },
 };
