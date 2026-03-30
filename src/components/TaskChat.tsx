@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Loader2, MessageCircle, Paperclip, File as FileIcon, Image as ImageIcon, Download, AtSign, Palette } from 'lucide-react';
+import { X, Send, Loader2, MessageCircle, Paperclip, File as FileIcon, Image as ImageIcon, Download, AtSign, Palette, Reply, MessageSquare } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
+import ThreadPanel from './ThreadPanel';
 
 interface Message {
   id: string;
@@ -13,6 +14,8 @@ interface Message {
   fileSize?: number;
   mentions?: string[];
   messageColor?: string; // Deprecated - now using sender.messageColor
+  parentMessageId?: string;
+  replyCount?: number;
   createdAt: string;
   sender: {
     id: string;
@@ -131,6 +134,9 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
   const [messageColor, setMessageColor] = useState<string>('#4F46E5'); // Default indigo
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; userName: string }[]>([]);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [openThread, setOpenThread] = useState<Message | null>(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -259,6 +265,17 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       setMessages((prev) => [...prev, message]);
     });
 
+    newSocket.on('newReply', (data: { reply: Message; parentMessageId: string; newReplyCount: number }) => {
+      // Update the reply count of the parent message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === data.parentMessageId
+            ? { ...msg, replyCount: data.newReplyCount }
+            : msg
+        )
+      );
+    });
+
     newSocket.on('userTyping', (data: { userId: string; userName: string; isTyping: boolean }) => {
       if (data.userId !== currentUserId) {
         setTypingUsers((prev) => {
@@ -323,6 +340,11 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
         formData.append('mentions', JSON.stringify(selectedMentions));
       }
 
+      // Add parent message ID if replying
+      if (replyingTo) {
+        formData.append('parentMessageId', replyingTo.id);
+      }
+
       // Note: messageColor is now saved in user profile, not per message
 
       const res = await fetch(`${API_BASE}/messages`, {
@@ -338,6 +360,7 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
         setUploadProgress(0);
         setSelectedMentions([]);
         setShowMentions(false);
+        setReplyingTo(null);
       } else {
         throw new Error('Failed to send message');
       }
@@ -598,18 +621,33 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
             messages.map((message) => {
               const isOwn = message.senderId === currentUserId;
               const isImage = message.fileType?.startsWith('image/');
+              const isHovered = hoveredMessageId === message.id;
               
               return (
                 <div
                   key={message.id}
-                  className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}
+                  onMouseEnter={() => setHoveredMessageId(message.id)}
+                  onMouseLeave={() => setHoveredMessageId(null)}
                 >
-                  <div className={`max-w-[70%] ${isOwn ? 'order-2' : 'order-1'}`}>
+                  <div className={`max-w-[70%] ${isOwn ? 'order-2' : 'order-1'} relative`}>
                     {!isOwn && (
                       <p className="text-xs font-medium text-gray-600 mb-1 px-3">
                         {getSenderName(message.sender)}
                       </p>
                     )}
+                    
+                    {/* Reply button on hover */}
+                    {isHovered && (
+                      <button
+                        onClick={() => setReplyingTo(message)}
+                        className="absolute -top-2 right-2 bg-white border border-gray-200 rounded-full p-1.5 shadow-md hover:bg-gray-50 transition-colors z-10"
+                        title="Répondre"
+                      >
+                        <Reply className="h-4 w-4 text-gray-600" />
+                      </button>
+                    )}
+                    
                     <div
                       className="rounded-2xl px-4 py-2"
                       style={{
@@ -680,6 +718,20 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
                         </div>
                       )}
                     </div>
+                    
+                    {/* Thread button */}
+                    {message.replyCount && message.replyCount > 0 && (
+                      <button
+                        onClick={() => setOpenThread(message)}
+                        className="flex items-center gap-2 mt-2 px-3 py-1 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="font-medium">
+                          {message.replyCount} réponse{message.replyCount > 1 ? 's' : ''} · Voir le fil
+                        </span>
+                      </button>
+                    )}
+                    
                     <p
                       className={`text-xs text-gray-400 mt-1 px-3 ${
                         isOwn ? 'text-right' : 'text-left'
@@ -717,6 +769,27 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
 
         {/* Input */}
         <div className="p-4 border-t border-gray-200 relative">
+          {/* Reply preview bar */}
+          {replyingTo && (
+            <div className="mb-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-start gap-3">
+              <Reply className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-indigo-900 mb-1">
+                  Répondre à {getSenderName(replyingTo.sender)}
+                </p>
+                <p className="text-sm text-indigo-700 truncate">
+                  {replyingTo.content || (replyingTo.fileName ? `📎 ${replyingTo.fileName}` : 'Message')}
+                </p>
+              </div>
+              <button
+                onClick={() => setReplyingTo(null)}
+                className="text-indigo-400 hover:text-indigo-600 flex-shrink-0"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+          
           {/* Color Picker */}
           {showColorPicker && (
             <div 
@@ -923,6 +996,18 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
           </div>
         </div>
       </div>
+      
+      {/* Thread Panel */}
+      {openThread && (
+        <ThreadPanel
+          parentMessage={openThread}
+          taskId={taskId}
+          currentUserId={currentUserId}
+          socket={socket}
+          onClose={() => setOpenThread(null)}
+          teamMembers={teamMembers}
+        />
+      )}
     </div>
   );
 }
