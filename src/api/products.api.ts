@@ -58,4 +58,80 @@ export const productsApi = {
     });
     return response.data;
   },
+
+  scanImage: async (businessId: string, imageFile: File): Promise<{
+    name: string | null;
+    description: string | null;
+    barcode: string | null;
+    unit: string | null;
+    suggested_category_name: string | null;
+    sale_price_ht: number | null;
+    brand: string | null;
+    confidence_note: string;
+  }> => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await axios.post(
+      `${API_URL}/businesses/${businessId}/products/scan-image`,
+      formData,
+      {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  },
+
+  generateSku: async (
+    businessId: string,
+    data: {
+      category_name?: string | null;
+      brand?: string | null;
+      name?: string | null;
+      unit?: string | null;
+      extra_attribute?: string | null;
+    }
+  ): Promise<{ sku: string }> => {
+    const response = await axios.post(
+      `${API_URL}/businesses/${businessId}/products/generate-sku`,
+      data,
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  generateBarcode: async (businessId: string, productId: string): Promise<Product> => {
+    const response = await axios.post(
+      `${API_URL}/businesses/${businessId}/products/${productId}/generate-barcode`,
+      {},
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  downloadLabel: async (businessId: string, productId: string): Promise<Blob> => {
+    const response = await axios.get(
+      `${API_URL}/businesses/${businessId}/products/${productId}/label`,
+      {
+        withCredentials: true,
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  },
+
+  downloadBulkLabels: async (businessId: string, productIds: string[]): Promise<Blob> => {
+    const response = await axios.post(
+      `${API_URL}/businesses/${businessId}/products/labels/bulk`,
+      { product_ids: productIds },
+      {
+        withCredentials: true,
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  },
 };

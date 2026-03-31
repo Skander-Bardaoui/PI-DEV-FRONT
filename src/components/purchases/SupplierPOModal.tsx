@@ -6,6 +6,8 @@ import { supplierPOSchema, SupplierPOFormValues } from '@/schemas/purchases.sche
 import { useSuppliers }        from '@/hooks/useSuppliers';
 import { useCreateSupplierPO } from '@/hooks/useSupplierPOs';
 import { CreateSupplierPOItemDto, formatAmount, round3, TIMBRE_FISCAL, TVA_RATES } from '@/types';
+import ProductSelectorPurchase from './ProductSelectorPurchase';
+import { Product } from '@/types/product';
 
 const inputCls = (error?: string) =>
   `w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 ${
@@ -23,6 +25,7 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SupplierPOFormValues>({
     resolver: zodResolver(supplierPOSchema),
@@ -45,6 +48,18 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
   const subtotal_ht = round3(computed.reduce((s, c) => s + c.ht,  0));
   const tax_amount  = round3(computed.reduce((s, c) => s + c.tax, 0));
   const net_amount  = round3(subtotal_ht + tax_amount + TIMBRE_FISCAL);
+
+  const handleProductSelect = (index: number, product: Product | null) => {
+    if (product) {
+      setValue(`items.${index}.product_id`, product.id);
+      setValue(`items.${index}.description`, product.name);
+      setValue(`items.${index}.unit_price_ht`, product.purchase_price_ht);
+    } else {
+      setValue(`items.${index}.product_id`, undefined);
+      setValue(`items.${index}.description`, '');
+      setValue(`items.${index}.unit_price_ht`, 0);
+    }
+  };
 
   const onSubmit = async (values: SupplierPOFormValues) => {
     // FIX: Zod infère description / quantity_ordered / unit_price_ht / tax_rate_value
@@ -137,7 +152,7 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Description *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Produit *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">Qté *</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 w-32">Prix HT *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">TVA</th>
@@ -149,16 +164,13 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
                   {fields.map((field, i) => (
                     <tr key={field.id}>
                       <td className="px-4 py-2">
-                        <input
-                          {...register(`items.${i}.description`)}
-                          className={inputCls(errors.items?.[i]?.description?.message)}
-                          placeholder="Description"
+                        <ProductSelectorPurchase
+                          value={watchedItems[i]?.product_id}
+                          onChange={(product) => handleProductSelect(i, product)}
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
                         />
-                        {errors.items?.[i]?.description && (
-                          <p className="text-red-500 text-xs mt-0.5">
-                            {errors.items[i]?.description?.message}
-                          </p>
-                        )}
+                        <input type="hidden" {...register(`items.${i}.product_id`)} />
+                        <input type="hidden" {...register(`items.${i}.description`, { required: true })} />
                       </td>
                       <td className="px-4 py-2">
                         <input

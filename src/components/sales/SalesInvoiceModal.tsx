@@ -5,6 +5,8 @@ import { useCreateSalesInvoice, useUpdateSalesInvoice } from '@/hooks/useSalesIn
 import { useClients } from '@/hooks/useClients';
 import { CreateSalesInvoiceItemDto, SalesInvoiceType } from '@/types/sales-invoice';
 import { useState } from 'react';
+import ProductSelector from './ProductSelector';
+import { Product } from '@/types/product';
 
 const TIMBRE_FISCAL = 1.000;
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -17,6 +19,7 @@ interface SalesInvoiceFormValues {
   due_date?: string;
   notes?: string;
   items: {
+    productId?: string;
     description: string;
     quantity: number;
     unit_price: number;
@@ -35,6 +38,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
   const update = useUpdateSalesInvoice(businessId, invoice?.id || '');
   const { data: clientsData } = useClients(businessId, { limit: 100 });
   const [error, setError] = useState<string | null>(null);
+  const [itemStocks, setItemStocks] = useState<{ [key: number]: { stock: number; isStockable: boolean } }>({});
 
   const isEdit = !!invoice;
 
@@ -48,6 +52,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
         due_date: invoice.due_date?.split('T')[0] || '',
         notes: invoice.notes || '',
         items: invoice.items?.map((item: any) => ({
+          productId: item.productId || undefined,
           description: item.description || '',
           quantity: item.quantity || 1,
           unit_price: item.unit_price || 0,
@@ -72,6 +77,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SalesInvoiceFormValues>({
     defaultValues: getInitialValues(),
@@ -91,15 +97,58 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
   const tax_amount = round3(computed.reduce((s, c) => s + (c?.tax || 0), 0));
   const net_amount = round3(subtotal_ht + tax_amount + TIMBRE_FISCAL);
 
+  const handleProductSelect = (index: number, product: Product | null) => {
+    if (product) {
+      setValue(`items.${index}.productId`, product.id);
+      setValue(`items.${index}.description`, product.name);
+      setValue(`items.${index}.unit_price`, product.sale_price_ht);
+      setItemStocks(prev => ({
+        ...prev,
+        [index]: { stock: product.current_stock || 0, isStockable: product.is_stockable }
+      }));
+    } else {
+      setValue(`items.${index}.productId`, undefined);
+      setValue(`items.${index}.description`, '');
+      setValue(`items.${index}.unit_price`, 0);
+      setItemStocks(prev => {
+        const newStocks = { ...prev };
+        delete newStocks[index];
+        return newStocks;
+      });
+    }
+  };
+
+  const getStockWarning = (index: number) => {
+    const itemStock = itemStocks[index];
+    if (!itemStock || !itemStock.isStockable) return null;
+    
+    const quantity = Number(watchedItems[index]?.quantity) || 0;
+    if (quantity > itemStock.stock) {
+      return `Stock insuffisant ! Disponible: ${itemStock.stock}`;
+    }
+    return null;
+  };
+
   const onSubmit = async (values: SalesInvoiceFormValues) => {
     try {
       setError(null);
+      
+      // Validate stock for all items
+      for (let i = 0; i < values.items.length; i++) {
+        const warning = getStockWarning(i);
+        if (warning) {
+          setError(`Ligne ${i + 1}: ${warning}`);
+          return;
+        }
+      }
+      
       const items = values.items.map((item, i) => ({
         description: item.description,
         quantity: Number(item.quantity) || 0,
         unit_price: Number(item.unit_price) || 0,
         tax_rate_value: Number(item.tax_rate_value) || 0,
         sort_order: i,
+        ...(item.productId ? { productId: item.productId } : {}),
       })) as CreateSalesInvoiceItemDto[];
 
       const payload = {
@@ -245,22 +294,29 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {fields.map((field, i) => (
-                    <tr key={field.id}>
+                  {fields.map((field, i) => {
+                    const stockWarning = getStockWarning(i);
+                    return (
+                    <tr key={field.id} className={stockWarning ? 'bg-red-50' : ''}>
                       <td className="px-4 py-2">
-                        <input
-                          {...register(`items.${i}.description`, { required: true })}
-                          placeholder="Description"
+                        <ProductSelector
+                          value={watchedItems[i]?.productId}
+                          onChange={(product) => handleProductSelect(i, product)}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
                         />
+                        <input type="hidden" {...register(`items.${i}.productId`)} />
+                        <input type="hidden" {...register(`items.${i}.description`, { required: true })} />
                       </td>
                       <td className="px-4 py-2">
                         <input
                           type="number"
                           step="0.01"
                           {...register(`items.${i}.quantity`, { valueAsNumber: true })}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm text-center"
+                          className={`w-full px-2 py-1 border rounded text-sm text-center ${stockWarning ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         />
+                        {stockWarning && (
+                          <div className="text-xs text-red-600 mt-1">{stockWarning}</div>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <input
@@ -296,7 +352,8 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
                         )}
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>

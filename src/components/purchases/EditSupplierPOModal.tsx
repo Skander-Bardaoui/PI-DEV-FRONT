@@ -7,6 +7,8 @@ import { useUpdateSupplierPO }  from '@/hooks/useSupplierPOs';
 import { useToast }             from '@/components/ui/Toast';
 import { CreateSupplierPOItemDto, formatAmount, round3, SupplierPO, TIMBRE_FISCAL, TVA_RATES } from '@/types';
 import { useApiError } from '../ui/ConfirmModal';
+import ProductSelectorPurchase from './ProductSelectorPurchase';
+import { Product } from '@/types/product';
 
 interface Props {
   businessId: string;
@@ -26,6 +28,7 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
   // Initialiser les lignes depuis le BC existant
   useEffect(() => {
     setLines((po.items ?? []).map(item => ({
+      product_id:       item.product_id || undefined,
       description:      item.description,
       quantity_ordered: Number(item.quantity_ordered),
       unit_price_ht:    Number(item.unit_price_ht),
@@ -49,6 +52,18 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
 
   const addLine    = () => setLines(ls => [...ls, { description: '', quantity_ordered: 1, unit_price_ht: 0, tax_rate_value: 19 }]);
   const removeLine = (i: number) => setLines(ls => ls.filter((_, idx) => idx !== i));
+
+  const handleProductSelect = (index: number, product: Product | null) => {
+    if (product) {
+      setLine(index, 'product_id', product.id);
+      setLine(index, 'description', product.name);
+      setLine(index, 'unit_price_ht', product.purchase_price_ht);
+    } else {
+      setLine(index, 'product_id', undefined);
+      setLine(index, 'description', '');
+      setLine(index, 'unit_price_ht', 0);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,7 +120,7 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Description *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Produit *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">Qté</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 w-32">Prix HT</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">TVA %</th>
@@ -117,9 +132,11 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
                   {lines.map((line, i) => (
                     <tr key={i}>
                       <td className="px-4 py-2">
-                        <input type="text" required value={line.description}
-                          onChange={e => setLine(i, 'description', e.target.value)}
-                          className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-indigo-500" />
+                        <ProductSelectorPurchase
+                          value={line.product_id}
+                          onChange={(product) => handleProductSelect(i, product)}
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                        />
                       </td>
                       <td className="px-4 py-2">
                         <input type="number" min={0.001} step={0.001} value={line.quantity_ordered}
