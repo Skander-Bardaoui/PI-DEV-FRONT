@@ -8,7 +8,9 @@ import {
   Edit,
   Trash2,
   GripVertical,
+  Eye,
 } from 'lucide-react';
+import SubtaskProgress from './SubtaskProgress';
 
 interface User {
   id: string;
@@ -95,7 +97,10 @@ export default function DraggableTaskCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({ 
+    id: task.id,
+    disabled: !canManage, // Désactiver le drag pour TEAM_MEMBER et ACCOUNTANT
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -115,15 +120,17 @@ export default function DraggableTaskCard({
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-start gap-2 flex-1">
-          {/* Drag Handle */}
-          <button
-            {...attributes}
-            {...listeners}
-            className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-            title="Drag to reorder"
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
+          {/* Drag Handle - visible uniquement pour OWNER/ADMIN */}
+          {canManage && (
+            <button
+              {...attributes}
+              {...listeners}
+              className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Drag to reorder"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
           <h4 className="font-medium text-gray-900 text-sm flex-1">{task.title}</h4>
         </div>
         <div className="flex items-center gap-2">
@@ -134,6 +141,15 @@ export default function DraggableTaskCard({
           >
             <MessageSquare className="h-4 w-4" />
           </button>
+          {!canManage && (
+            <button
+              onClick={() => onEdit(task)}
+              className="text-gray-400 hover:text-green-600 transition-colors"
+              title="View subtasks"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+          )}
           {canManage && (
             <div className="relative">
               <button
@@ -198,6 +214,12 @@ export default function DraggableTaskCard({
       {task.description && (
         <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
       )}
+      
+      {/* Subtask Progress */}
+      <div className="mb-3">
+        <SubtaskProgress taskId={task.id} compact />
+      </div>
+
       <div className="flex items-center justify-between">
         <span
           className={`px-2 py-1 text-xs font-medium rounded border ${

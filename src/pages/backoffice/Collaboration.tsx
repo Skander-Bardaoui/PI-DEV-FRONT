@@ -36,6 +36,8 @@ import { arrayMove } from '@dnd-kit/sortable';
 import TaskChat from '../../components/TaskChat';
 import DroppableColumn from '../../components/DroppableColumn';
 import DraggableTaskCard from '../../components/DraggableTaskCard';
+import SubtaskList from '../../components/SubtaskList';
+import SubtaskViewModal from '../../components/SubtaskViewModal';
 import { toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
 
@@ -253,6 +255,7 @@ export default function Collaboration() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [showInviteMember, setShowInviteMember] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null); // Pour TEAM_MEMBER
 
   // Team state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -476,6 +479,13 @@ export default function Collaboration() {
 
   // ── Handle edit task ───────────────────────────────────────────────────────
   const handleEditTask = (task: Task) => {
+    // Si TEAM_MEMBER, ouvrir le modal de vue des subtasks
+    if (currentUser?.role === 'TEAM_MEMBER' || currentUser?.role === 'ACCOUNTANT') {
+      setViewingTask(task);
+      return;
+    }
+
+    // Sinon, ouvrir le modal d'édition complet
     setEditingTask(task);
     setNewTaskForm({
       title: task.title,
@@ -656,20 +666,62 @@ export default function Collaboration() {
       }
     }
 
+    // Determine new priority based on status
+    let newPriority: Task['priority'] = activeTask.priority;
+    if (newStatus !== activeTask.status) {
+      // Map status to priority
+      const statusToPriority: Record<Task['status'], Task['priority']> = {
+        TODO: 'LOW',
+        IN_PROGRESS: 'MEDIUM',
+        DONE: 'HIGH',
+        BLOCKED: 'HIGH',
+      };
+      newPriority = statusToPriority[newStatus];
+    }
+
     // Only make API call if something changed
-    if (activeTask.status !== newStatus || activeId !== overId) {
+    if (activeTask.status !== newStatus || activeTask.priority !== newPriority || activeId !== overId) {
       try {
-        await fetch(`${API_BASE}/tasks/${activeId}/move`, {
+        // Update both status and priority
+        const updates: Partial<Task> = {
+          status: newStatus,
+          priority: newPriority,
+        };
+
+        const payload = { 
+          status: newStatus, 
+          priority: newPriority,
+          order: newOrder 
+        };
+        
+        console.log('Sending to backend:', payload);
+
+        const response = await fetch(`${API_BASE}/tasks/${activeId}/move`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ status: newStatus, order: newOrder }),
+          body: JSON.stringify(payload),
         });
 
-        toast.success('Task moved successfully');
+        if (!response.ok) {
+          throw new Error('Failed to move task');
+        }
+
+        const updatedTask = await response.json();
+        console.log('Received from backend:', updatedTask);
+
+        // Update local state with the response from backend
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === activeId ? updatedTask : t
+          )
+        );
+
+        toast.success(`Task moved to ${newStatus.replace('_', ' ')} with ${newPriority} priority`);
       } catch (err: any) {
         // Rollback on error
         toast.error('Failed to move task');
+        console.error('Move task error:', err);
         // Reload tasks to get correct state
         if (currentBusiness) {
           const fetchedTasks = await fetchTasks(currentBusiness.id);
@@ -1067,8 +1119,8 @@ export default function Collaboration() {
       {/* ── New/Edit Task Modal ─────────────────────────────────────────────────────── */}
       {showNewTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl max-w-lg w-full">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h2 className="text-xl font-bold text-gray-900">
                 {editingTask ? 'Edit Task' : 'Create New Task'}
               </h2>
@@ -1076,7 +1128,7 @@ export default function Collaboration() {
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Task Title</label>
                 <input
@@ -1162,8 +1214,26 @@ export default function Collaboration() {
                   </p>
                 )}
               </div>
+
+              {/* Subtasks Section - Only show when editing existing task */}
+              {editingTask && (
+                <div className="pt-4 border-t border-gray-200">
+                  <SubtaskList
+                    taskId={editingTask.id}
+                    taskTitle={newTaskForm.title}
+                    taskDescription={newTaskForm.description}
+                    userRole={currentUser?.role}
+                    onProgressUpdate={() => {
+                      // Rafraîchir les tâches pour mettre à jour la progression visible
+                      if (currentBusiness) {
+                        fetchTasks(currentBusiness.id).then(setTasks).catch(console.error);
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
-            <div className="p-6 border-t border-gray-200 flex gap-3">
+            <div className="p-6 border-t border-gray-200 flex gap-3 flex-shrink-0">
               <button
                 onClick={handleCloseTaskModal}
                 className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
@@ -1241,6 +1311,19 @@ export default function Collaboration() {
           currentUserId={currentUser.id}
           businessId={currentBusiness.id}
           onClose={() => setChatTask(null)}
+        />
+      )}
+
+      {/* ── Subtask View Modal (TEAM_MEMBER) ──────────────────────────────────── */}
+      {viewingTask && (
+        <SubtaskViewModal
+          task={viewingTask}
+          onClose={() => setViewingTask(null)}
+          onProgressUpdate={() => {
+            if (currentBusiness) {
+              fetchTasks(currentBusiness.id).then(setTasks).catch(console.error);
+            }
+          }}
         />
       )}
     </div>
