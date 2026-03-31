@@ -6,8 +6,9 @@ import { warehousesApi } from '../../api/warehouses.api';
 import { Product, CreateProductDto } from '../../types/product';
 import { Category } from '../../types/category';
 import { Warehouse } from '../../types/warehouse';
-import { Plus, Edit, Trash2, Search, AlertTriangle, Camera, Upload, X, RefreshCw, CheckCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, AlertTriangle, Camera, Upload, X, RefreshCw, CheckCircle, Barcode, Printer, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import JsBarcode from 'jsbarcode';
 
 export default function Products() {
   const { user } = useAuth();
@@ -38,6 +39,11 @@ export default function Products() {
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [categoryMatchStatus, setCategoryMatchStatus] = useState<'matched' | 'no-match' | null>(null);
   const [matchedCategoryName, setMatchedCategoryName] = useState<string | null>(null);
+  const [generatingSku, setGeneratingSku] = useState(false);
+  const [skuError, setSkuError] = useState<string | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [generatingDetailBarcode, setGeneratingDetailBarcode] = useState(false);
   
   const [formData, setFormData] = useState<CreateProductDto>({
     name: '',
@@ -299,6 +305,123 @@ export default function Products() {
     setCategoryError(null);
   };
 
+  const handleGenerateSku = async () => {
+    // Check if user has manually entered a SKU
+    if (formData.reference && formData.reference.trim()) {
+      const confirmed = window.confirm('This will replace your current SKU. Continue?');
+      if (!confirmed) return;
+    }
+
+    setGeneratingSku(true);
+    setSkuError(null);
+
+    try {
+      // Get category name from selected category
+      let categoryName: string | null = null;
+      if (formData.category_id) {
+        const selectedCategory = categories.find(cat => cat.id === formData.category_id);
+        categoryName = selectedCategory?.name || null;
+      }
+
+      const result = await productsApi.generateSku(businessId!, {
+        category_name: categoryName,
+        brand: null, // No brand field yet
+        name: formData.name || null,
+        unit: formData.unit || null,
+        extra_attribute: null, // For future use
+      });
+
+      setFormData(prev => ({ ...prev, reference: result.sku }));
+    } catch (error: any) {
+      setSkuError(error.response?.data?.message || 'Failed to generate SKU');
+    } finally {
+      setGeneratingSku(false);
+    }
+  };
+
+  const handleGenerateBarcode = async (productId: string) => {
+    try {
+      const updatedProduct = await productsApi.generateBarcode(businessId!, productId);
+      
+      // Update the product in the local state
+      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+      
+      toast.success('Barcode generated');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to generate barcode');
+    }
+  };
+
+  const handlePrintLabel = async (productId: string, productSku: string) => {
+    try {
+      const blob = await productsApi.downloadLabel(businessId!, productId);
+      
+      // Create temporary anchor and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `label-${productSku}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to download label');
+    }
+  };
+
+  const handleRegenerateBarcode = async () => {
+    if (!editingProduct) return;
+    
+    try {
+      const updatedProduct = await productsApi.generateBarcode(businessId!, editingProduct.id);
+      setFormData(prev => ({ ...prev, barcode: updatedProduct.barcode || '' }));
+      toast.success('Barcode regenerated');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to regenerate barcode');
+    }
+  };
+
+  const handleViewProduct = async (product: Product) => {
+    setViewingProduct(product);
+    setShowDetailModal(true);
+  };
+
+  const handleGenerateDetailBarcode = async () => {
+    if (!viewingProduct) return;
+    
+    setGeneratingDetailBarcode(true);
+    try {
+      const updatedProduct = await productsApi.generateBarcode(businessId!, viewingProduct.id);
+      setViewingProduct(updatedProduct);
+      setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+      toast.success('Barcode generated');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to generate barcode');
+    } finally {
+      setGeneratingDetailBarcode(false);
+    }
+  };
+
+  // Render barcode SVG when modal opens
+  React.useEffect(() => {
+    if (showDetailModal && viewingProduct?.barcode) {
+      try {
+        const svg = document.getElementById('barcode-svg');
+        if (svg) {
+          JsBarcode(svg, viewingProduct.barcode, {
+            format: 'CODE128',
+            width: 2,
+            height: 80,
+            displayValue: false,
+          });
+        }
+      } catch (error) {
+        console.error('Error rendering barcode:', error);
+      }
+    }
+  }, [showDetailModal, viewingProduct]);
+
   const handleSaveScannedProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -323,6 +446,7 @@ export default function Products() {
     setNewCategoryName('');
     setNewCategoryDescription('');
     setCategoryError(null);
+    setSkuError(null);
     resetForm();
   };
 
@@ -435,6 +559,9 @@ export default function Products() {
                 Category
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Barcode
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Stock
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -451,13 +578,13 @@ export default function Products() {
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-4 text-center">
+                <td colSpan={8} className="px-6 py-4 text-center">
                   Loading...
                 </td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
                   No products found
                 </td>
               </tr>
@@ -474,6 +601,15 @@ export default function Products() {
                     <div className="text-sm text-gray-500">
                       {product.category?.name || '-'}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {product.barcode ? (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-mono bg-gray-100 text-gray-800 rounded">
+                        {product.barcode}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -505,18 +641,43 @@ export default function Products() {
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(product)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleViewProduct(product)}
+                        className="text-gray-600 hover:text-gray-900"
+                        title="View details"
+                      >
+                        <Eye size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(product)}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="Edit"
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleGenerateBarcode(product.id)}
+                        className="text-purple-600 hover:text-purple-900"
+                        title="Generate barcode"
+                      >
+                        <Barcode size={18} />
+                      </button>
+                      <button
+                        onClick={() => handlePrintLabel(product.id, product.reference)}
+                        className="text-green-600 hover:text-green-900"
+                        title="Print label"
+                      >
+                        <Printer size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -550,13 +711,29 @@ export default function Products() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Reference *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.reference}
-                    onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={formData.reference}
+                      onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                      className="flex-1 px-3 py-2 border rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGenerateSku}
+                      disabled={generatingSku}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {generatingSku ? 'Generating...' : 'Generate SKU'}
+                    </button>
+                  </div>
+                  {skuError && (
+                    <p className="mt-1 text-sm text-red-600">{skuError}</p>
+                  )}
+                  {!formData.reference && (
+                    <p className="mt-1 text-sm text-gray-500">SKU not generated yet</p>
+                  )}
                 </div>
               </div>
 
@@ -708,12 +885,39 @@ export default function Products() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Barcode
                 </label>
-                <input
-                  type="text"
-                  value={formData.barcode}
-                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
+                {editingProduct && formData.barcode ? (
+                  <div className="flex gap-2">
+                    <div className="flex-1 px-3 py-2 border rounded-lg bg-gray-50 font-mono text-sm">
+                      {formData.barcode}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRegenerateBarcode}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 whitespace-nowrap"
+                    >
+                      Regenerate
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.barcode}
+                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                )}
+                {!formData.warehouse_id && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      No warehouse assigned to this product. The generated barcode will use the GEN prefix instead of a warehouse code. Consider assigning a warehouse first for better traceability.
+                    </p>
+                  </div>
+                )}
+                {!editingProduct && !formData.barcode && (
+                  <p className="mt-1 text-sm text-gray-500">
+                    You can also generate a barcode after saving the product.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2">
@@ -891,13 +1095,29 @@ export default function Products() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Reference *
                       </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.reference}
-                        onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          value={formData.reference}
+                          onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                          className="flex-1 px-3 py-2 border rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleGenerateSku}
+                          disabled={generatingSku}
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          {generatingSku ? 'Generating...' : 'Generate SKU'}
+                        </button>
+                      </div>
+                      {skuError && (
+                        <p className="mt-1 text-sm text-red-600">{skuError}</p>
+                      )}
+                      {!formData.reference && (
+                        <p className="mt-1 text-sm text-gray-500">SKU not generated yet</p>
+                      )}
                     </div>
 
                     <div>
@@ -973,6 +1193,14 @@ export default function Products() {
                         />
                       </div>
                     </div>
+
+                    {!formData.warehouse_id && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-sm text-amber-800">
+                          No warehouse assigned to this product. The generated barcode will use the GEN prefix instead of a warehouse code. Consider assigning a warehouse first for better traceability.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -1146,6 +1374,158 @@ export default function Products() {
                 ) : (
                   'Create and select'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Detail Modal */}
+      {showDetailModal && viewingProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Product Details</h2>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <p className="text-gray-900">{viewingProduct.name}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reference/SKU</label>
+                  <p className="text-gray-900 font-mono">{viewingProduct.reference}</p>
+                </div>
+              </div>
+
+              {viewingProduct.description && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <p className="text-gray-900">{viewingProduct.description}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <p className="text-gray-900">{viewingProduct.category?.name || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
+                  <p className="text-gray-900">{viewingProduct.warehouse?.name || '-'}</p>
+                </div>
+              </div>
+
+              {/* Barcode Section */}
+              <div className="border-t pt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">Barcode</label>
+                {viewingProduct.barcode ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-center bg-white p-4 border rounded-lg">
+                      <svg id="barcode-svg"></svg>
+                    </div>
+                    <p className="text-center font-mono text-sm text-gray-700">
+                      {viewingProduct.barcode}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleGenerateDetailBarcode}
+                        disabled={generatingDetailBarcode}
+                        className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {generatingDetailBarcode ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Barcode size={18} />
+                            Regenerate Barcode
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handlePrintLabel(viewingProduct.id, viewingProduct.reference)}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                      >
+                        <Printer size={18} />
+                        Print Label
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-gray-500 text-center py-4">No barcode generated yet</p>
+                    <button
+                      onClick={handleGenerateDetailBarcode}
+                      disabled={generatingDetailBarcode}
+                      className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {generatingDetailBarcode ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Barcode size={18} />
+                          Generate Barcode
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {!viewingProduct.warehouse_id && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      No warehouse assigned to this product. The generated barcode will use the GEN prefix instead of a warehouse code. Consider assigning a warehouse first for better traceability.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Additional Info */}
+              <div className="border-t pt-6 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                  <p className="text-gray-900">{viewingProduct.unit}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sale Price HT</label>
+                  <p className="text-gray-900">{(viewingProduct.sale_price_ht || 0).toFixed(3)} DT</p>
+                </div>
+                {viewingProduct.is_stockable && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock</label>
+                      <p className="text-gray-900">{viewingProduct.current_stock} {viewingProduct.unit}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock Threshold</label>
+                      <p className="text-gray-900">{viewingProduct.min_stock_threshold} {viewingProduct.unit}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Close
               </button>
             </div>
           </div>
