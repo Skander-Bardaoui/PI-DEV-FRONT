@@ -44,6 +44,8 @@ export default function Products() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [generatingDetailBarcode, setGeneratingDetailBarcode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<CreateProductDto>({
     name: '',
@@ -106,15 +108,17 @@ export default function Products() {
     try {
       if (editingProduct) {
         await productsApi.update(businessId!, editingProduct.id, formData);
+        toast.success('Product updated successfully');
       } else {
         await productsApi.create(businessId!, formData);
+        toast.success('Product created successfully');
       }
       setShowModal(false);
       setEditingProduct(null);
       resetForm();
       loadProducts();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error saving product');
+      toast.error(error.response?.data?.message || 'Error saving product');
     }
   };
 
@@ -153,13 +157,22 @@ export default function Products() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      try {
-        await productsApi.delete(businessId!, id);
-        loadProducts();
-      } catch (error: any) {
-        alert(error.response?.data?.message || 'Error deleting product');
-      }
+    setProductToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    
+    try {
+      await productsApi.delete(businessId!, productToDelete);
+      setProducts(prev => prev.filter(p => p.id !== productToDelete));
+      toast.success('Product deleted successfully');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error deleting product');
+    } finally {
+      setShowDeleteConfirm(false);
+      setProductToDelete(null);
     }
   };
 
@@ -340,6 +353,14 @@ export default function Products() {
   };
 
   const handleGenerateBarcode = async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    
+    // Check if product has no warehouse
+    if (product && !product.warehouse_id) {
+      const confirmed = window.confirm('This product has no warehouse. Barcode will use GEN prefix. Continue?');
+      if (!confirmed) return;
+    }
+    
     try {
       const updatedProduct = await productsApi.generateBarcode(businessId!, productId);
       
@@ -426,11 +447,12 @@ export default function Products() {
     e.preventDefault();
     try {
       await productsApi.create(businessId!, formData);
+      toast.success('Product created successfully');
       setShowScanModal(false);
       resetScanModal();
       loadProducts();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error saving product');
+      toast.error(error.response?.data?.message || 'Error saving product');
     }
   };
 
@@ -613,10 +635,23 @@ export default function Products() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      {isLowStock(product) && (
-                        <AlertTriangle size={16} className="text-red-500" />
+                      {isLowStock(product) && product.current_stock > 0 && (
+                        <span title={`Low stock — below minimum threshold of ${product.min_stock_threshold} ${product.unit}`}>
+                          <AlertTriangle size={16} className="text-amber-500" />
+                        </span>
                       )}
-                      <span className="text-sm text-gray-900">
+                      {product.is_stockable && product.current_stock === 0 && (
+                        <span title="Out of stock">
+                          <X size={16} className="text-red-500" />
+                        </span>
+                      )}
+                      <span className={`text-sm ${
+                        product.is_stockable && product.current_stock === 0
+                          ? 'text-red-600 font-semibold'
+                          : isLowStock(product)
+                          ? 'text-amber-600 font-semibold'
+                          : 'text-gray-900'
+                      }`}>
                         {product.is_stockable
                           ? `${product.current_stock} ${product.unit}`
                           : 'N/A'}
@@ -885,38 +920,58 @@ export default function Products() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Barcode
                 </label>
-                {editingProduct && formData.barcode ? (
-                  <div className="flex gap-2">
-                    <div className="flex-1 px-3 py-2 border rounded-lg bg-gray-50 font-mono text-sm">
-                      {formData.barcode}
+                {editingProduct ? (
+                  // Edit mode
+                  formData.barcode ? (
+                    <div className="flex gap-2">
+                      <div className="flex-1 px-3 py-2 border rounded-lg bg-gray-50 font-mono text-sm">
+                        {formData.barcode}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRegenerateBarcode}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 whitespace-nowrap"
+                      >
+                        Regenerate
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleRegenerateBarcode}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 whitespace-nowrap"
-                    >
-                      Regenerate
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={formData.barcode}
+                        onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                        className="flex-1 px-3 py-2 border rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRegenerateBarcode}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 whitespace-nowrap"
+                      >
+                        Generate
+                      </button>
+                    </div>
+                  )
                 ) : (
-                  <input
-                    type="text"
-                    value={formData.barcode}
-                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  />
+                  // Create mode
+                  <>
+                    <input
+                      type="text"
+                      value={formData.barcode}
+                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                    <p className="mt-1 text-sm text-gray-500">
+                      You can generate an internal barcode after saving the product.
+                    </p>
+                  </>
                 )}
                 {!formData.warehouse_id && (
                   <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-sm text-amber-800">
-                      No warehouse assigned to this product. The generated barcode will use the GEN prefix instead of a warehouse code. Consider assigning a warehouse first for better traceability.
+                      No warehouse assigned. The generated barcode will use a GEN prefix. You can assign a warehouse before generating.
                     </p>
                   </div>
-                )}
-                {!editingProduct && !formData.barcode && (
-                  <p className="mt-1 text-sm text-gray-500">
-                    You can also generate a barcode after saving the product.
-                  </p>
                 )}
               </div>
 
@@ -1191,13 +1246,18 @@ export default function Products() {
                           onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                           className="w-full px-3 py-2 border rounded-lg"
                         />
+                        {!scannedData?.barcode && (
+                          <p className="mt-1 text-sm text-gray-500">
+                            You can generate an internal barcode after saving the product.
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     {!formData.warehouse_id && (
                       <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <p className="text-sm text-amber-800">
-                          No warehouse assigned to this product. The generated barcode will use the GEN prefix instead of a warehouse code. Consider assigning a warehouse first for better traceability.
+                          No warehouse assigned. The generated barcode will use a GEN prefix. You can assign a warehouse before generating.
                         </p>
                       </div>
                     )}
@@ -1526,6 +1586,33 @@ export default function Products() {
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-2">Delete product?</h2>
+            <p className="text-gray-600 mb-6">This action cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setProductToDelete(null);
+                }}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
               </button>
             </div>
           </div>

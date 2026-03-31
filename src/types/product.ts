@@ -1,4 +1,5 @@
 import { Category } from './category';
+import { Warehouse } from './warehouse';
 
 export interface StockProduct {
   sku: string;
@@ -15,6 +16,7 @@ export interface StockProduct {
   category_id: string | null;
   category?: Category;
   warehouse_id?: string | null;
+  warehouse?: Warehouse;
   unit: string;
   sale_price_ht: number;
   purchase_price_ht: number;
