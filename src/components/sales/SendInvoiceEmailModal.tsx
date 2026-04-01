@@ -35,10 +35,7 @@ export default function SendInvoiceEmailModal({
   const handleGenerateDraft = async () => {
     const draft = await generateDraft({
       businessId,
-      clientName: invoice.client?.name || 'Client',
-      invoiceNumber: invoice.invoice_number,
-      amount: Number(invoice.net_amount || 0),
-      dueDate: new Date(invoice.due_date).toLocaleDateString('fr-TN'),
+      invoiceId: invoice.id,
       isReminder,
       language,
     });
@@ -62,10 +59,7 @@ export default function SendInvoiceEmailModal({
       // Generate AI draft
       const draft = await generateDraft({
         businessId,
-        clientName: invoice.client?.name || 'Client',
-        invoiceNumber: invoice.invoice_number,
-        amount: Number(invoice.net_amount || 0),
-        dueDate: new Date(invoice.due_date).toLocaleDateString('fr-TN'),
+        invoiceId: invoice.id,
         isReminder,
         language,
       });
