@@ -30,6 +30,7 @@ export default {
     products:    'Produits',
     categories:  'Catégories',
     movements:   'Mouvements',
+    warehouses:  'Entrepôts',
   },
 
   // ── Auth ───────────────────────────────────────────────────────────────────

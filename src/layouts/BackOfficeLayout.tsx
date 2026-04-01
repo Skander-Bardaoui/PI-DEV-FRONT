@@ -8,6 +8,7 @@ import {
   Truck, ClipboardList, Award, RefreshCw, User,
   Wallet,
   ArrowRightLeft,
+  Warehouse,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
@@ -89,6 +90,7 @@ export default function BackOfficeLayout() {
         { name: t('nav.products'),    href: '/app/stock/products',   icon: Box             },
         { name: t('nav.categories'),  href: '/app/stock/categories', icon: Tag             },
         { name: t('nav.movements'),   href: '/app/stock/movements',  icon: TrendingUp      },
+        { name: t('nav.warehouses'),  href: '/app/warehouses',       icon: Warehouse       },
       ],
     },
     {

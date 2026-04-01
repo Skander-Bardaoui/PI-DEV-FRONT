@@ -36,6 +36,8 @@ import StockDashboard from './pages/backoffice/StockDashboard';
 import Products       from './pages/backoffice/Products';
 import Categories     from './pages/backoffice/Categories';
 import StockMovements from './pages/backoffice/StockMovements';
+import Warehouses from './pages/backoffice/Warehouses';
+import WarehouseDetail from './pages/backoffice/WarehouseDetail';
 
 // ── Module 3 — Gestion Fournisseurs & Achats ──────────────────────────────
 import SuppliersPage          from './pages/backoffice/purchases/SuppliersPage';
@@ -144,6 +146,8 @@ function AppContent() {
           <Route path="stock/products"    element={<Products />}       />
           <Route path="stock/categories"  element={<Categories />}     />
           <Route path="stock/movements"   element={<StockMovements />} />
+          <Route path="warehouses"        element={<Warehouses />}     />
+          <Route path="warehouses/:id"    element={<WarehouseDetail />} />
 
           <Route path="reports"       element={<Reports />}       />
           <Route path="team"          element={<Team />}          />

@@ -21,7 +21,25 @@ import {
   Trash2,
   Edit,
 } from 'lucide-react';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+} from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import TaskChat from '../../components/TaskChat';
+import DroppableColumn from '../../components/DroppableColumn';
+import DraggableTaskCard from '../../components/DraggableTaskCard';
+import SubtaskList from '../../components/SubtaskList';
+import SubtaskViewModal from '../../components/SubtaskViewModal';
+import { toast } from 'sonner';
+import { io, Socket } from 'socket.io-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -237,6 +255,7 @@ export default function Collaboration() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [showInviteMember, setShowInviteMember] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null); // Pour TEAM_MEMBER
 
   // Team state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -256,6 +275,19 @@ export default function Collaboration() {
 
   // Chat state
   const [chatTask, setChatTask] = useState<Task | null>(null);
+
+  // Drag and drop state
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+
+  // Sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   // New task form state
   const [newTaskForm, setNewTaskForm] = useState({
@@ -312,6 +344,50 @@ export default function Collaboration() {
     }
     loadData();
   }, []);
+
+  // ── WebSocket connection for real-time updates ────────────────────────────
+  useEffect(() => {
+    if (!currentBusiness) return;
+
+    const newSocket = io(API_BASE, {
+      withCredentials: true,
+    });
+
+    newSocket.on('connect', () => {
+      console.log('WebSocket connected');
+      newSocket.emit('joinBusiness', currentBusiness.id);
+    });
+
+    newSocket.on('taskMoved', (data: {
+      taskId: string;
+      newStatus: string;
+      newOrder: number;
+      movedBy: string;
+    }) => {
+      // Update task in local state if moved by another user
+      if (data.movedBy !== currentUser?.id) {
+        setTasks((prevTasks) => {
+          const taskIndex = prevTasks.findIndex((t) => t.id === data.taskId);
+          if (taskIndex === -1) return prevTasks;
+
+          const updatedTasks = [...prevTasks];
+          updatedTasks[taskIndex] = {
+            ...updatedTasks[taskIndex],
+            status: data.newStatus as Task['status'],
+          };
+
+          return updatedTasks;
+        });
+      }
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.emit('leaveBusiness', currentBusiness.id);
+      newSocket.disconnect();
+    };
+  }, [currentBusiness, currentUser]);
 
   // ── Filtered members by search ────────────────────────────────────────────
   const filteredMembers = teamMembers.filter((m) => {
@@ -403,6 +479,13 @@ export default function Collaboration() {
 
   // ── Handle edit task ───────────────────────────────────────────────────────
   const handleEditTask = (task: Task) => {
+    // Si TEAM_MEMBER, ouvrir le modal de vue des subtasks
+    if (currentUser?.role === 'TEAM_MEMBER' || currentUser?.role === 'ACCOUNTANT') {
+      setViewingTask(task);
+      return;
+    }
+
+    // Sinon, ouvrir le modal d'édition complet
     setEditingTask(task);
     setNewTaskForm({
       title: task.title,
@@ -503,6 +586,151 @@ export default function Collaboration() {
     }
   };
 
+  // ── Drag and Drop Handlers ─────────────────────────────────────────────────
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const task = tasks.find((t) => t.id === active.id);
+    setActiveTask(task || null);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Find active and over tasks
+    const activeTask = tasks.find((t) => t.id === activeId);
+    if (!activeTask) return;
+
+    // Check if over a column (status)
+    const overColumn = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'].includes(overId as string);
+    
+    if (overColumn) {
+      const newStatus = overId as Task['status'];
+      if (activeTask.status !== newStatus) {
+        // Optimistically update UI
+        setTasks((prevTasks) => {
+          const updatedTasks = prevTasks.map((t) =>
+            t.id === activeId ? { ...t, status: newStatus } : t
+          );
+          return updatedTasks;
+        });
+      }
+    } else {
+      // Over another task - handle reordering
+      const overTask = tasks.find((t) => t.id === overId);
+      if (!overTask || activeTask.status !== overTask.status) return;
+
+      setTasks((prevTasks) => {
+        const oldIndex = prevTasks.findIndex((t) => t.id === activeId);
+        const newIndex = prevTasks.findIndex((t) => t.id === overId);
+        return arrayMove(prevTasks, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveTask(null);
+
+    if (!over || !currentUser) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeTask = tasks.find((t) => t.id === activeId);
+    if (!activeTask) return;
+
+    // Determine new status and order
+    let newStatus: Task['status'] = activeTask.status;
+    let newOrder = 0;
+
+    // Check if dropped on a column
+    const overColumn = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'].includes(overId as string);
+    
+    if (overColumn) {
+      newStatus = overId as Task['status'];
+      // Get tasks in the new column
+      const tasksInColumn = tasks.filter((t) => t.id !== activeId && t.status === newStatus);
+      newOrder = tasksInColumn.length;
+    } else {
+      // Dropped on another task
+      const overTask = tasks.find((t) => t.id === overId);
+      if (overTask) {
+        newStatus = overTask.status;
+        const tasksInColumn = tasks.filter((t) => t.status === newStatus);
+        const overIndex = tasksInColumn.findIndex((t) => t.id === overId);
+        newOrder = overIndex >= 0 ? overIndex : 0;
+      }
+    }
+
+    // Determine new priority based on status
+    let newPriority: Task['priority'] = activeTask.priority;
+    if (newStatus !== activeTask.status) {
+      // Map status to priority
+      const statusToPriority: Record<Task['status'], Task['priority']> = {
+        TODO: 'LOW',
+        IN_PROGRESS: 'MEDIUM',
+        DONE: 'HIGH',
+        BLOCKED: 'HIGH',
+      };
+      newPriority = statusToPriority[newStatus];
+    }
+
+    // Only make API call if something changed
+    if (activeTask.status !== newStatus || activeTask.priority !== newPriority || activeId !== overId) {
+      try {
+        // Update both status and priority
+        const updates: Partial<Task> = {
+          status: newStatus,
+          priority: newPriority,
+        };
+
+        const payload = { 
+          status: newStatus, 
+          priority: newPriority,
+          order: newOrder 
+        };
+        
+        console.log('Sending to backend:', payload);
+
+        const response = await fetch(`${API_BASE}/tasks/${activeId}/move`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to move task');
+        }
+
+        const updatedTask = await response.json();
+        console.log('Received from backend:', updatedTask);
+
+        // Update local state with the response from backend
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === activeId ? updatedTask : t
+          )
+        );
+
+        toast.success(`Task moved to ${newStatus.replace('_', ' ')} with ${newPriority} priority`);
+      } catch (err: any) {
+        // Rollback on error
+        toast.error('Failed to move task');
+        console.error('Move task error:', err);
+        // Reload tasks to get correct state
+        if (currentBusiness) {
+          const fetchedTasks = await fetchTasks(currentBusiness.id);
+          setTasks(fetchedTasks);
+        }
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -588,52 +816,79 @@ export default function Collaboration() {
               )}
 
               {!loadingTasks && !tasksError && (
-                <div className="grid lg:grid-cols-4 gap-4">
-                  <KanbanColumn
-                    label="TODO"
-                    icon={<Circle className="h-5 w-5 text-gray-400" />}
-                    tasks={tasksByStatus.TODO}
-                    onUpdateStatus={handleUpdateTaskStatus}
-                    onDelete={handleDeleteTask}
-                    onEdit={handleEditTask}
-                    onOpenChat={setChatTask}
-                    canManage={canManageTasks}
-                    teamMembers={teamMembers}
-                  />
-                  <KanbanColumn
-                    label="IN PROGRESS"
-                    icon={<Clock className="h-5 w-5 text-blue-500" />}
-                    tasks={tasksByStatus.IN_PROGRESS}
-                    onUpdateStatus={handleUpdateTaskStatus}
-                    onDelete={handleDeleteTask}
-                    onEdit={handleEditTask}
-                    onOpenChat={setChatTask}
-                    canManage={canManageTasks}
-                    teamMembers={teamMembers}
-                  />
-                  <KanbanColumn
-                    label="DONE"
-                    icon={<CheckCircle2 className="h-5 w-5 text-green-500" />}
-                    tasks={tasksByStatus.DONE}
-                    onUpdateStatus={handleUpdateTaskStatus}
-                    onDelete={handleDeleteTask}
-                    onEdit={handleEditTask}
-                    onOpenChat={setChatTask}
-                    canManage={canManageTasks}
-                    teamMembers={teamMembers}
-                  />
-                  <KanbanColumn
-                    label="BLOCKED"
-                    icon={<XCircle className="h-5 w-5 text-red-500" />}
-                    tasks={tasksByStatus.BLOCKED}
-                    onUpdateStatus={handleUpdateTaskStatus}
-                    onDelete={handleDeleteTask}
-                    onEdit={handleEditTask}
-                    onOpenChat={setChatTask}
-                    canManage={canManageTasks}
-                    teamMembers={teamMembers}
-                  />
-                </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCorners}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="grid lg:grid-cols-4 gap-4">
+                    <DroppableColumn
+                      label="TODO"
+                      icon={<Circle className="h-5 w-5 text-gray-400" />}
+                      status="TODO"
+                      tasks={tasksByStatus.TODO}
+                      onUpdateStatus={handleUpdateTaskStatus}
+                      onDelete={handleDeleteTask}
+                      onEdit={handleEditTask}
+                      onOpenChat={setChatTask}
+                      canManage={canManageTasks}
+                      teamMembers={teamMembers}
+                    />
+                    <DroppableColumn
+                      label="IN PROGRESS"
+                      icon={<Clock className="h-5 w-5 text-blue-500" />}
+                      status="IN_PROGRESS"
+                      tasks={tasksByStatus.IN_PROGRESS}
+                      onUpdateStatus={handleUpdateTaskStatus}
+                      onDelete={handleDeleteTask}
+                      onEdit={handleEditTask}
+                      onOpenChat={setChatTask}
+                      canManage={canManageTasks}
+                      teamMembers={teamMembers}
+                    />
+                    <DroppableColumn
+                      label="DONE"
+                      icon={<CheckCircle2 className="h-5 w-5 text-green-500" />}
+                      status="DONE"
+                      tasks={tasksByStatus.DONE}
+                      onUpdateStatus={handleUpdateTaskStatus}
+                      onDelete={handleDeleteTask}
+                      onEdit={handleEditTask}
+                      onOpenChat={setChatTask}
+                      canManage={canManageTasks}
+                      teamMembers={teamMembers}
+                    />
+                    <DroppableColumn
+                      label="BLOCKED"
+                      icon={<XCircle className="h-5 w-5 text-red-500" />}
+                      status="BLOCKED"
+                      tasks={tasksByStatus.BLOCKED}
+                      onUpdateStatus={handleUpdateTaskStatus}
+                      onDelete={handleDeleteTask}
+                      onEdit={handleEditTask}
+                      onOpenChat={setChatTask}
+                      canManage={canManageTasks}
+                      teamMembers={teamMembers}
+                    />
+                  </div>
+                  <DragOverlay>
+                    {activeTask ? (
+                      <div className="rotate-3">
+                        <DraggableTaskCard
+                          task={activeTask}
+                          onUpdateStatus={handleUpdateTaskStatus}
+                          onDelete={handleDeleteTask}
+                          onEdit={handleEditTask}
+                          onOpenChat={setChatTask}
+                          canManage={canManageTasks}
+                          teamMembers={teamMembers}
+                        />
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
               )}
             </div>
           )}
@@ -864,8 +1119,8 @@ export default function Collaboration() {
       {/* ── New/Edit Task Modal ─────────────────────────────────────────────────────── */}
       {showNewTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl max-w-lg w-full">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h2 className="text-xl font-bold text-gray-900">
                 {editingTask ? 'Edit Task' : 'Create New Task'}
               </h2>
@@ -873,7 +1128,7 @@ export default function Collaboration() {
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Task Title</label>
                 <input
@@ -959,8 +1214,26 @@ export default function Collaboration() {
                   </p>
                 )}
               </div>
+
+              {/* Subtasks Section - Only show when editing existing task */}
+              {editingTask && (
+                <div className="pt-4 border-t border-gray-200">
+                  <SubtaskList
+                    taskId={editingTask.id}
+                    taskTitle={newTaskForm.title}
+                    taskDescription={newTaskForm.description}
+                    userRole={currentUser?.role}
+                    onProgressUpdate={() => {
+                      // Rafraîchir les tâches pour mettre à jour la progression visible
+                      if (currentBusiness) {
+                        fetchTasks(currentBusiness.id).then(setTasks).catch(console.error);
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
-            <div className="p-6 border-t border-gray-200 flex gap-3">
+            <div className="p-6 border-t border-gray-200 flex gap-3 flex-shrink-0">
               <button
                 onClick={handleCloseTaskModal}
                 className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
@@ -1031,204 +1304,29 @@ export default function Collaboration() {
       )}
 
       {/* ── Task Chat Modal ────────────────────────────────────────────────────── */}
-      {chatTask && currentUser && (
+      {chatTask && currentUser && currentBusiness && (
         <TaskChat
           taskId={chatTask.id}
           taskTitle={chatTask.title}
           currentUserId={currentUser.id}
+          businessId={currentBusiness.id}
           onClose={() => setChatTask(null)}
+        />
+      )}
+
+      {/* ── Subtask View Modal (TEAM_MEMBER) ──────────────────────────────────── */}
+      {viewingTask && (
+        <SubtaskViewModal
+          task={viewingTask}
+          onClose={() => setViewingTask(null)}
+          onProgressUpdate={() => {
+            if (currentBusiness) {
+              fetchTasks(currentBusiness.id).then(setTasks).catch(console.error);
+            }
+          }}
         />
       )}
     </div>
   );
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function KanbanColumn({
-  label,
-  icon,
-  tasks,
-  onUpdateStatus,
-  onDelete,
-  onEdit,
-  onOpenChat,
-  canManage,
-  teamMembers,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  tasks: Task[];
-  onUpdateStatus: (taskId: string, newStatus: Task['status']) => void;
-  onDelete: (taskId: string) => void;
-  onEdit: (task: Task) => void;
-  onOpenChat: (task: Task) => void;
-  canManage: boolean;
-  teamMembers: TeamMember[];
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-4">
-        {icon}
-        <h3 className="font-semibold text-gray-900 text-sm">{label}</h3>
-        <span className="text-sm text-gray-500">({tasks.length})</span>
-      </div>
-      <div className="space-y-3">
-        {tasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onUpdateStatus={onUpdateStatus}
-            onDelete={onDelete}
-            onEdit={onEdit}
-            onOpenChat={onOpenChat}
-            canManage={canManage}
-            teamMembers={teamMembers}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TaskCard({
-  task,
-  onUpdateStatus,
-  onDelete,
-  onEdit,
-  onOpenChat,
-  canManage,
-  teamMembers,
-}: {
-  task: Task;
-  onUpdateStatus: (taskId: string, newStatus: Task['status']) => void;
-  onDelete: (taskId: string) => void;
-  onEdit: (task: Task) => void;
-  onOpenChat: (task: Task) => void;
-  canManage: boolean;
-  teamMembers: TeamMember[];
-}) {
-  const [showMenu, setShowMenu] = useState(false);
-
-  const statusOptions: Task['status'][] = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'];
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <h4 className="font-medium text-gray-900 text-sm flex-1">{task.title}</h4>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onOpenChat(task)}
-            className="text-gray-400 hover:text-indigo-600 transition-colors"
-            title="Open chat"
-          >
-            <MessageSquare className="h-4 w-4" />
-          </button>
-          {canManage && (
-            <div className="relative">
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                  <div className="py-1">
-                    <button
-                      onClick={() => {
-                        onEdit(task);
-                        setShowMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                    >
-                      <Edit className="h-4 w-4" />
-                      Edit
-                    </button>
-                    <div className="border-t border-gray-100 my-1" />
-                    <div className="px-4 py-2 text-xs font-medium text-gray-500">Change Status</div>
-                    {statusOptions.map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => {
-                          onUpdateStatus(task.id, status);
-                          setShowMenu(false);
-                        }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
-                          task.status === status ? 'text-indigo-600 font-medium' : 'text-gray-700'
-                        }`}
-                      >
-                        {status.replace('_', ' ')}
-                      </button>
-                    ))}
-                    <div className="border-t border-gray-100 my-1" />
-                    <button
-                      onClick={() => {
-                        onDelete(task.id);
-                        setShowMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        
-      </div>
-      {task.description && (
-        <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
-      )}
-      <div className="flex items-center justify-between">
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded border ${
-            priorityColors[task.priority]
-          }`}
-        >
-          {priorityLabels[task.priority]}
-        </span>
-        <div className="flex items-center gap-2">
-          {task.dueDate && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <Calendar className="h-3 w-3" />
-              {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </div>
-          )}
-          {task.assignedTo && task.assignedTo.length > 0 && (
-            <div className="flex -space-x-2">
-              {task.assignedTo.slice(0, 3).map((user, index) => {
-                const name = user.firstName && user.lastName 
-                  ? `${user.firstName} ${user.lastName}` 
-                  : user.email;
-                const initials = getInitials(name);
-                
-                return (
-                  <div
-                    key={user.id}
-                    className="h-7 w-7 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white"
-                    title={name}
-                    style={{ zIndex: task.assignedTo!.length - index }}
-                  >
-                    {initials}
-                  </div>
-                );
-              })}
-              {task.assignedTo.length > 3 && (
-                <div
-                  className="h-7 w-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium border-2 border-white"
-                  title={`+${task.assignedTo.length - 3} more`}
-                >
-                  +{task.assignedTo.length - 3}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
