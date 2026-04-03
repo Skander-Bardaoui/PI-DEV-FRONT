@@ -117,14 +117,14 @@ export default function SalesOcrModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-t-lg flex items-center justify-between">
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <FileText className="h-6 w-6" />
-              <h2 className="text-xl font-semibold">Scanner un document</h2>
+              <FileText className="h-6 w-6 text-indigo-600" />
+              <h2 className="text-xl font-bold text-gray-900">Scanner un document</h2>
             </div>
             <button
               onClick={handleClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
             >
               <X className="h-5 w-5" />
             </button>

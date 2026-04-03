@@ -5,7 +5,7 @@ import {
   Plus, Search, Edit, Trash2, RotateCcw, Eye,
   Phone, Mail, Building2, ChevronUp, ChevronDown,
   Filter, Award, UserPlus, Sparkles,
-  Brain,
+  Brain, MessageCircle,
 } from 'lucide-react';
 import { useAuth }             from '../../../hooks/useAuth';
 import {
@@ -20,6 +20,7 @@ import SupplierModal           from '@/components/purchases/SupplierModal';
 import SupplierInviteModal     from '@/components/purchases/SupplierInviteModal';
 import SupplierScoreModal      from '@/components/purchases/SupplierScoreModal';
 import SupplierAIInsightsModal from '@/components/purchases/SupplierAIInsightsModal';
+import PurchaseAIAssistant     from '@/components/purchases/PurchaseAIAssistant';
 import PDFButton               from '@/components/purchases/PDFButton';
 import { formatDate, Supplier } from '@/types';
 import SupplierScoreBadge from './SupplierScoreBadge';
@@ -57,6 +58,7 @@ export default function SuppliersPage() {
   const [detailSupplier, setDetailSupplier] = useState<Supplier | null>(null);
   const [scoreSupplier,  setScoreSupplier]  = useState<Supplier | null>(null);
   const [aiInsightsSupplier, setAiInsightsSupplier] = useState<Supplier | null>(null);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
 
   const { data, isLoading } = useSuppliers(businessId, {
     search:   search || undefined,
@@ -118,27 +120,56 @@ export default function SuppliersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Fournisseurs</h1>
           <p className="text-gray-500 text-sm">{total} fournisseur(s) au total</p>
         </div>
-        <div className="flex gap-2">
-        <button onClick={() => navigate('/app/purchases/supplier-intelligence')}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-purple-300 bg-purple-50 text-purple-700 rounded-lg text-sm hover:bg-purple-100">
-            <Brain className="h-4 w-4" /> Intelligence IA
-          </button>
-          <button onClick={() => setShowFilters(f => !f)}
-            className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors ${
-              hasActiveFilters ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-            }`}>
-            <Filter className="h-4 w-4" />
-            Filtres {hasActiveFilters && '(actifs)'}
-          </button>
-          <button onClick={() => setInviteOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 rounded-lg text-sm hover:bg-green-100 transition-colors">
-            <UserPlus className="h-4 w-4" /> Inviter par email
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {/* Bouton principal */}
           <button onClick={openCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
             <Plus className="h-5 w-5" /> Nouveau fournisseur
           </button>
+          
+          {/* Actions secondaires */}
+          <button onClick={() => setInviteOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+            <UserPlus className="h-4 w-4" /> Inviter
+          </button>
+          
+          <button onClick={() => setShowFilters(f => !f)}
+            className={`inline-flex items-center gap-2 px-4 py-2 bg-white border rounded-lg transition-colors shadow-sm ${
+              hasActiveFilters ? 'border-indigo-400 text-indigo-700 bg-indigo-50' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+            }`}>
+            <Filter className="h-4 w-4" />
+            Filtres
+          </button>
         </div>
+      </div>
+
+      {/* Cartes d'actions IA */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        <button onClick={() => setAiAssistantOpen(true)}
+          className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 hover:shadow-md transition-all text-left group">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+              <MessageCircle className="h-5 w-5 text-purple-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 mb-1">Poser une question</h3>
+              <p className="text-sm text-gray-600">Interrogez vos données en langage naturel</p>
+            </div>
+          </div>
+        </button>
+
+        <button onClick={() => navigate('/app/purchases/supplier-intelligence')}
+          className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-4 hover:shadow-md transition-all text-left group">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+              <Brain className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 mb-1">Évaluer la performance</h3>
+              <p className="text-sm text-gray-600">Analyse intelligente de vos fournisseurs</p>
+            </div>
+          </div>
+        </button>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-4">
@@ -398,6 +429,13 @@ export default function SuppliersPage() {
           supplierId={aiInsightsSupplier.id}
           supplierName={aiInsightsSupplier.name} 
           onClose={() => setAiInsightsSupplier(null)} 
+        />
+      )}
+
+      {aiAssistantOpen && (
+        <PurchaseAIAssistant
+          businessId={businessId}
+          onClose={() => setAiAssistantOpen(false)}
         />
       )}
     </div>

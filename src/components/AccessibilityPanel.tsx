@@ -1,5 +1,5 @@
 // src/components/AccessibilityPanel.tsx
-import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Zap, Link as LinkIcon, Hand, Volume2, Target } from 'lucide-react';
+import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Zap, Link as LinkIcon, Hand, Volume2, Target, Mic } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 
 export default function AccessibilityPanel() {
@@ -27,24 +27,22 @@ export default function AccessibilityPanel() {
         aria-labelledby="accessibility-title"
         aria-modal="true"
       >
-        {/* Header avec gradient */}
-        <div className="sticky top-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-6 shadow-lg z-10">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 shadow-sm z-10">
           <div className="flex items-center justify-between mb-2">
-            <h2 id="accessibility-title" className="text-2xl font-bold flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <Eye className="h-6 w-6" />
-              </div>
+            <h2 id="accessibility-title" className="text-xl font-bold text-gray-900 flex items-center gap-3">
+              <Eye className="h-6 w-6 text-indigo-600" />
               Accessibilité
             </h2>
             <button
               onClick={toggleAccessibilityPanel}
-              className="p-2 hover:bg-white/20 rounded-lg transition-all"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-all text-gray-400 hover:text-gray-600"
               aria-label="Fermer le panneau d'accessibilité"
             >
               <X className="h-6 w-6" />
             </button>
           </div>
-          <p className="text-indigo-100 text-sm">Personnalisez votre expérience de navigation</p>
+          <p className="text-sm text-gray-600">Personnalisez votre expérience de navigation</p>
         </div>
 
         <div className="p-6 space-y-6">
@@ -176,6 +174,14 @@ export default function AccessibilityPanel() {
             <h3 className="text-base font-semibold text-gray-900 mb-4">Options avancées</h3>
             <div className="space-y-3">
               <ModernToggle
+                icon={<Mic className="h-5 w-5" />}
+                label="Dictée vocale"
+                description="Remplir les champs par la voix"
+                checked={settings.voiceInput}
+                onChange={v => updateSetting('voiceInput', v)}
+                color="pink"
+              />
+              <ModernToggle
                 icon={<Target className="h-5 w-5" />}
                 label="Mode Focus"
                 description="Assombrit tout sauf l'élément actif"
@@ -246,7 +252,7 @@ interface ModernToggleProps {
   description:  string;
   checked:      boolean;
   onChange:     (checked: boolean) => void;
-  color:        'orange' | 'purple' | 'blue' | 'green' | 'indigo' | 'yellow';
+  color:        'orange' | 'purple' | 'blue' | 'green' | 'indigo' | 'yellow' | 'teal' | 'pink';
 }
 
 function ModernToggle({ icon, label, description, checked, onChange, color }: ModernToggleProps) {
@@ -257,6 +263,8 @@ function ModernToggle({ icon, label, description, checked, onChange, color }: Mo
     green:   { bg: 'bg-green-100',   text: 'text-green-600',   border: 'border-green-500',   activeBg: 'bg-green-500'   },
     indigo:  { bg: 'bg-indigo-100',  text: 'text-indigo-600',  border: 'border-indigo-500',  activeBg: 'bg-indigo-500'  },
     yellow:  { bg: 'bg-yellow-100',  text: 'text-yellow-600',  border: 'border-yellow-500',  activeBg: 'bg-yellow-500'  },
+    teal:    { bg: 'bg-teal-100',    text: 'text-teal-600',    border: 'border-teal-500',    activeBg: 'bg-teal-500'    },
+    pink:    { bg: 'bg-pink-100',    text: 'text-pink-600',    border: 'border-pink-500',    activeBg: 'bg-pink-500'    },
   };
 
   const colors = colorClasses[color];
