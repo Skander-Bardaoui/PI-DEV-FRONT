@@ -28,7 +28,11 @@ export default {
     // Stock
     overview:    "Vue d'ensemble",
     products:    'Produits',
-    categories:  'Catégories',
+    // ==================== Alaa change for service type ====================
+    services:    'Services',
+    serviceCategories: 'Catégories de services',
+    productCategories: 'Catégories de produits',
+    // ====================================================================
     movements:   'Mouvements',
     warehouses:  'Entrepôts',
   },

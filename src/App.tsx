@@ -34,6 +34,10 @@ import Settings      from './pages/backoffice/Settings';
 // Stock Management Pages
 import StockDashboard from './pages/backoffice/StockDashboard';
 import Products       from './pages/backoffice/Products';
+// ==================== Alaa change for service type ====================
+import Services       from './pages/backoffice/Services';
+import ServiceCategories from './pages/backoffice/ServiceCategories';
+// ====================================================================
 import Categories     from './pages/backoffice/Categories';
 import StockMovements from './pages/backoffice/StockMovements';
 import Warehouses from './pages/backoffice/Warehouses';
@@ -144,6 +148,10 @@ function AppContent() {
           {/* Stock Management Routes */}
           <Route path="stock"             element={<StockDashboard />} />
           <Route path="stock/products"    element={<Products />}       />
+          {/* ==================== Alaa change for service type ==================== */}
+          <Route path="stock/services"    element={<Services />}       />
+          <Route path="stock/service-categories" element={<ServiceCategories />} />
+          {/* ==================================================================== */}
           <Route path="stock/categories"  element={<Categories />}     />
           <Route path="stock/movements"   element={<StockMovements />} />
           <Route path="warehouses"        element={<Warehouses />}     />
