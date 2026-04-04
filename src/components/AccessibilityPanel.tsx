@@ -1,5 +1,5 @@
 // src/components/AccessibilityPanel.tsx
-import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Zap, Link as LinkIcon, Hand, Volume2, Target, Mic } from 'lucide-react';
+import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Zap, Link as LinkIcon, Hand, Volume2, Target } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 
 export default function AccessibilityPanel() {
@@ -173,14 +173,6 @@ export default function AccessibilityPanel() {
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
             <h3 className="text-base font-semibold text-gray-900 mb-4">Options avancées</h3>
             <div className="space-y-3">
-              <ModernToggle
-                icon={<Mic className="h-5 w-5" />}
-                label="Dictée vocale"
-                description="Remplir les champs par la voix"
-                checked={settings.voiceInput}
-                onChange={v => updateSetting('voiceInput', v)}
-                color="pink"
-              />
               <ModernToggle
                 icon={<Target className="h-5 w-5" />}
                 label="Mode Focus"

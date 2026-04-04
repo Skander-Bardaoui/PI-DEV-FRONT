@@ -21,6 +21,9 @@ const EXAMPLE_QUESTIONS = [
   "Combien ai-je dépensé ce mois-ci ?",
   "Quels sont mes meilleurs fournisseurs ?",
   "Ai-je des litiges en cours ?",
+  "Combien de commandes sont en attente ?",
+  "Quels paiements ai-je effectués récemment ?",
+  "Quel fournisseur livre le plus rapidement ?",
 ];
 
 export default function PurchaseAIAssistant({ businessId, onClose }: Props) {
@@ -68,16 +71,27 @@ export default function PurchaseAIAssistant({ businessId, onClose }: Props) {
 
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.answer,
+        content: data.answer || 'Désolé, je n\'ai pas pu générer une réponse.',
         suggestions: data.suggestions || [],
         timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error: any) {
+      console.error('Erreur chat IA:', error);
+      
+      let errorContent = 'Désolé, une erreur s\'est produite. Pouvez-vous reformuler votre question ?';
+      
+      if (error.response?.status === 429) {
+        errorContent = 'Trop de requêtes. Veuillez patienter quelques secondes avant de réessayer.';
+      } else if (error.response?.data?.message) {
+        errorContent = error.response.data.message;
+      }
+      
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Désolé, une erreur s\'est produite. Pouvez-vous reformuler votre question ?',
+        content: errorContent,
+        suggestions: ['Reformuler la question', 'Réessayer'],
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);

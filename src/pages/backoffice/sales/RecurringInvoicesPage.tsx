@@ -11,6 +11,8 @@ import {
 import { RECURRING_FREQUENCY_LABELS } from '@/types/recurring-invoice';
 import RecurringInvoiceModal from '@/components/sales/RecurringInvoiceModal';
 
+const LIMIT = 20;
+
 export default function RecurringInvoicesPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
@@ -23,12 +25,25 @@ export default function RecurringInvoicesPage() {
   const { data, isLoading } = useRecurringInvoices(businessId, {
     is_active: activeFilter,
     page,
-    limit: 20,
+    limit: LIMIT,
   });
 
   const deleteRecurring = useDeleteRecurringInvoice(businessId);
   const activate = useActivateRecurringInvoice(businessId);
   const deactivate = useDeactivateRecurringInvoice(businessId);
+
+  const totalPages = data?.total_pages ?? 1;
+  const total = data?.total ?? 0;
+
+  const getPageNumbers = () => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (page <= 3) return [1, 2, 3, 4, 5];
+    if (page >= totalPages - 2) {
+      const start = Math.max(1, totalPages - 4);
+      return Array.from({ length: Math.min(5, totalPages) }, (_, i) => start + i);
+    }
+    return [page-2, page-1, page, page+1, page+2];
+  };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR');
@@ -115,6 +130,9 @@ export default function RecurringInvoicesPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                  N°
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   Client
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
@@ -143,19 +161,22 @@ export default function RecurringInvoicesPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
                     Chargement...
                   </td>
                 </tr>
               ) : (data?.data ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
                     Aucune facture récurrente trouvée
                   </td>
                 </tr>
               ) : (
-                (data?.data ?? []).map((recurring) => (
+                (data?.data ?? []).map((recurring, index) => (
                   <tr key={recurring.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-500 font-mono text-sm">
+                      #{(page - 1) * LIMIT + index + 1}
+                    </td>
                     <td className="px-4 py-3 font-medium">
                       {recurring.client?.name || 'N/A'}
                     </td>
@@ -244,29 +265,41 @@ export default function RecurringInvoicesPage() {
           </table>
         </div>
 
-        {data && data.total_pages > 1 && (
-          <div className="p-4 border-t flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Page {data.page} sur {data.total_pages} ({data.total} résultats)
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
-              >
-                Précédent
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between flex-wrap gap-3">
+          <p className="text-sm text-gray-500">
+            {total === 0
+              ? 'Aucun résultat'
+              : `${(page - 1) * LIMIT + 1}–${Math.min(page * LIMIT, total)} sur ${total} facture${total > 1 ? 's' : ''} récurrente${total > 1 ? 's' : ''}`
+            }
+          </p>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(1)} disabled={page === 1}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              «
+            </button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              Précédent
+            </button>
+            {getPageNumbers().map(n => (
+              <button key={n} onClick={() => setPage(n)}
+                className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                  page === n ? 'bg-indigo-600 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}>
+                {n}
               </button>
-              <button
-                onClick={() => setPage(p => Math.min(data.total_pages, p + 1))}
-                disabled={page === data.total_pages}
-                className="px-3 py-1 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
-              >
-                Suivant
-              </button>
-            </div>
+            ))}
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              Suivant
+            </button>
+            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              »
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       {modalOpen && (
