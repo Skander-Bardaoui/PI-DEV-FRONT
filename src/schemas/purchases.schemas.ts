@@ -99,7 +99,7 @@ export type SupplierFormValues = z.infer<typeof supplierSchema>;
 // 2. LIGNE DE BON DE COMMANDE
 // ══════════════════════════════════════════════════════════════════════════════
 export const poItemSchema = z.object({
-  product_id:       z.string().uuid('Produit invalide').optional().or(z.literal('')),
+  product_id: z.string().uuid('Produit invalide').optional().or(z.literal('')),
 
   description: z
     .string()
