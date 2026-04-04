@@ -101,7 +101,9 @@ export default function BackOfficeLayout() {
         { name: 'Accounts', href: '/app/treasury/accounts', icon: Building2 },
         { name: 'Invoices', href: '/app/treasury/invoices', icon: FileText },
         { name: 'Expenses to Pay', href: '/app/treasury/expenses', icon: Receipt },
+        { name: 'Salary to Pay', href: '/app/treasury/salaries', icon: Users },
         { name: 'Transactions', href: '/app/treasury/transactions', icon: ArrowRightLeft },
+
       ],
     },
     // Hide Team section for TEAM_MEMBER role
