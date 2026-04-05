@@ -24,7 +24,12 @@ export const useCreateSupplier = (businessId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateSupplierDto) => createSupplier(businessId, dto),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: [SUPPLIERS_KEY, businessId] }),
+    onSuccess:  () => {
+      // Invalider la liste des fournisseurs
+      qc.invalidateQueries({ queryKey: [SUPPLIERS_KEY, businessId] });
+      // Invalider aussi les rankings et scores
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+    },
   });
 };
 
@@ -32,7 +37,13 @@ export const useUpdateSupplier = (businessId: string, id: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: UpdateSupplierDto) => updateSupplier(businessId, id, dto),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: [SUPPLIERS_KEY, businessId] }),
+    onSuccess:  () => {
+      // Invalider la liste des fournisseurs
+      qc.invalidateQueries({ queryKey: [SUPPLIERS_KEY, businessId] });
+      // Invalider aussi les rankings et scores
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+      qc.invalidateQueries({ queryKey: ['supplier-score', businessId, id] });
+    },
   });
 };
 

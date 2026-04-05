@@ -82,7 +82,13 @@ export function useCreatePurchaseInvoice(businessId: string) {
     mutationFn: (dto: CreatePurchaseInvoiceDto) =>
       createPurchaseInvoice(businessId, dto),
     onSuccess: () => {
+      // Invalider toutes les queries liées aux factures
       qc.invalidateQueries({ queryKey: [PURCHASE_INVOICES_KEY, businessId] });
+      // Invalider aussi les stats et scores fournisseurs
+      qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+      // Invalider les matches 3-voies
+      qc.invalidateQueries({ queryKey: ['three-way-match-all', businessId] });
     },
   });
 }
@@ -105,7 +111,13 @@ export function useApprovePurchaseInvoice(businessId: string) {
   return useMutation({
     mutationFn: (id: string) => approvePurchaseInvoice(businessId, id),
     onSuccess: () => {
+      // Invalider toutes les queries liées aux factures
       qc.invalidateQueries({ queryKey: [PURCHASE_INVOICES_KEY, businessId] });
+      // Invalider aussi les stats et scores fournisseurs
+      qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+      // Invalider les matches 3-voies
+      qc.invalidateQueries({ queryKey: ['three-way-match-all', businessId] });
     },
   });
 }
@@ -117,7 +129,15 @@ export function useDisputePurchaseInvoice(businessId: string) {
     mutationFn: ({ id, dto }: { id: string; dto: DisputeInvoiceDto }) =>
       disputePurchaseInvoice(businessId, id, dto),
     onSuccess: () => {
+      // Invalider toutes les queries liées aux factures
       qc.invalidateQueries({ queryKey: [PURCHASE_INVOICES_KEY, businessId] });
+      // Invalider aussi les stats et scores fournisseurs
+      qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+      // Invalider les matches 3-voies
+      qc.invalidateQueries({ queryKey: ['three-way-match-all', businessId] });
+      // Invalider les réponses aux litiges
+      qc.invalidateQueries({ queryKey: ['dispute-responses', businessId] });
     },
   });
 }
@@ -140,7 +160,13 @@ export function useUpdatePayment(businessId: string) {
     mutationFn: ({ id, dto }: { id: string; dto: UpdatePaymentAmountDto }) =>
       updatePaymentAmount(businessId, id, dto),
     onSuccess: () => {
+      // Invalider toutes les queries liées aux factures
       qc.invalidateQueries({ queryKey: [PURCHASE_INVOICES_KEY, businessId] });
+      // Invalider aussi les stats et scores fournisseurs
+      qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+      // Invalider les données de trésorerie
+      qc.invalidateQueries({ queryKey: ['treasury', businessId] });
     },
   });
 }

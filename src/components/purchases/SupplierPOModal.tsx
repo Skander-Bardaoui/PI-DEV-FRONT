@@ -8,6 +8,8 @@ import { useCreateSupplierPO } from '@/hooks/useSupplierPOs';
 import { CreateSupplierPOItemDto, formatAmount, round3, TIMBRE_FISCAL, TVA_RATES } from '@/types';
 import ProductSelectorPurchase from './ProductSelectorPurchase';
 import { Product } from '@/types/product';
+import SupplierRecommendationPanel from './SupplierRecommendationPanel';
+import { useAuth } from '@/hooks/useAuth';
 
 const inputCls = (error?: string) =>
   `w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 ${
@@ -39,6 +41,12 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const watchedItems = watch('items');
+
+  // Extraire les noms de produits pour la recommandation IA
+  const productNames = watchedItems
+    .map(item => item.description)
+    .filter(desc => desc && desc.trim().length > 0)
+    .join(', ');
 
   const computed = watchedItems.map(l => {
     const ht  = round3((l.quantity_ordered || 0) * (l.unit_price_ht || 0));
@@ -97,6 +105,14 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5" noValidate>
+
+          {/* Panneau de recommandation IA */}
+          <SupplierRecommendationPanel
+            businessId={businessId}
+            selectedSupplierId={watch('supplier_id')}
+            onSelectSupplier={(supplierId) => setValue('supplier_id', supplierId)}
+            productName={productNames || undefined}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
