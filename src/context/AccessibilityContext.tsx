@@ -15,6 +15,7 @@ interface AccessibilitySettings {
   fingerScroll: boolean;
   handScrollMode: boolean;
   cameraGestureControl: boolean;
+  voiceInput: boolean;
 }
 
 interface AccessibilityContextType {
@@ -45,6 +46,7 @@ const defaultSettings: AccessibilitySettings = {
   fingerScroll: false,
   handScrollMode: false,
   cameraGestureControl: false,
+  voiceInput: false,
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);

@@ -9,6 +9,7 @@ import {
   Wallet,
   ArrowRightLeft,
   Warehouse,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
