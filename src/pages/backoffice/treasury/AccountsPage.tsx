@@ -19,15 +19,25 @@ import { Account, CreateAccountDto, CreateTransferDto } from '@/types/treasury';
 import AccountModal from '@/components/treasury/AccountModal';
 import TransferModal from '@/components/treasury/TransferModal';
 
+// Helper: always returns a displayable string from any API error shape
+function extractErrorMessage(e: any, fallback: string): string {
+  const data = e?.response?.data;
+  if (!data) return fallback;
+  if (typeof data.message === 'string') return data.message;
+  if (Array.isArray(data.message)) return data.message.join(', ');
+  if (typeof data === 'string') return data;
+  return fallback;
+}
+
 export default function AccountsPage() {
   const { accounts, loading, error, fetchAccounts, createAccount, updateAccount, toggleActive } =
     useAccounts();
-  const { transfer, error: transferError } = useTransfers();
+  const { transfer } = useTransfers();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | { field: string; message: string }[] | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [preselectedFromId, setPreselectedFromId] = useState<string | null>(null);
@@ -61,7 +71,7 @@ export default function AccountsPage() {
       await createAccount(payload);
       setModalOpen(false);
     } catch (e: any) {
-      setActionError(e?.response?.data || 'Failed to create account');
+      setActionError(extractErrorMessage(e, 'Failed to create account'));
     }
   };
 
@@ -85,7 +95,7 @@ export default function AccountsPage() {
       setEditingAccount(null);
       setModalOpen(false);
     } catch (e: any) {
-      setActionError(e?.response?.data || 'Failed to update account');
+      setActionError(extractErrorMessage(e, 'Failed to update account'));
     }
   };
 
@@ -95,8 +105,8 @@ export default function AccountsPage() {
       await transfer(dto);
       await fetchAccounts(); // refresh balances after transfer
     } catch (e: any) {
-      setActionError(e?.response?.data || 'Failed to process transfer');
-      throw e; // re-throw so modal stays open on error
+      setActionError(extractErrorMessage(e, 'Failed to process transfer'));
+      throw e; // re-throw so TransferModal stays open and shows its own error
     }
   };
 
@@ -106,7 +116,7 @@ export default function AccountsPage() {
     try {
       await toggleActive(account.id);
     } catch (e: any) {
-      setActionError(e?.response?.data || 'Failed to toggle account');
+      setActionError(extractErrorMessage(e, 'Failed to toggle account'));
     }
   };
 
@@ -130,6 +140,17 @@ export default function AccountsPage() {
   const formatAmount = (amount: number, currency = 'TND') =>
     `${Number(amount).toLocaleString('fr-TN', { minimumFractionDigits: 3 })} ${currency}`;
 
+  // Normalize hook-level error to a string too
+  const pageError: string | null = !error
+    ? null
+    : typeof error === 'string'
+    ? error
+    : Array.isArray(error)
+    ? (error as any[]).map((e) => (e?.message ?? String(e))).join(', ')
+    : String(error);
+
+  const displayError = pageError || actionError;
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-8">
@@ -147,7 +168,6 @@ export default function AccountsPage() {
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
-          {/* Transfer button — only show if 2+ active accounts */}
           {accounts.filter((a) => a.is_active).length >= 2 && (
             <button
               onClick={() => openTransfer()}
@@ -167,18 +187,10 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      {/* Error banner */}
-      {(error || actionError) && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm space-y-1">
-          {Array.isArray(error)
-            ? error.map((e: any, idx: number) => (
-                <p key={idx}>{e.field ? `${e.field}: ` : ''}{e.message}</p>
-              ))
-            : Array.isArray(actionError)
-            ? actionError.map((e: any, idx: number) => (
-                <p key={idx}>{e.field ? `${e.field}: ` : ''}{e.message}</p>
-              ))
-            : <p>{error || actionError}</p>}
+      {/* Error banner — always a plain string now, safe to render */}
+      {displayError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+          <p>{displayError}</p>
         </div>
       )}
 
@@ -355,7 +367,6 @@ export default function AccountsPage() {
                                 <Pencil className="h-4 w-4 text-gray-400" />
                                 Edit
                               </button>
-                              {/* Transfer from this account — only if another active account exists */}
                               {account.is_active && accounts.filter((a) => a.is_active && a.id !== account.id).length >= 1 && (
                                 <button
                                   onClick={() => openTransfer(account.id)}

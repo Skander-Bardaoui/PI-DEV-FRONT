@@ -4,6 +4,7 @@ import { salaryApi, SalaryMember } from '../../api/salary.api';
 import { AuthContext } from '../../context/AuthContext';
 import { getMyBusinesses } from '../../api/business.api';
 import axiosInstance from '../../api/axiosInstance';
+import SendSalarycomponent from './SendSalarycomponent';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProposalState {
@@ -19,7 +20,7 @@ interface Toast {
   message: string;
 }
 
-type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COUNTERED';
+type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COUNTERED' | 'PAID';
 
 interface ProposalInfo {
   status: ProposalStatus;
@@ -66,6 +67,7 @@ const STATUS_CONFIG: Record<ProposalStatus, { color: string; bg: string; border:
   ACCEPTED:  { color: '#16a34a', bg: '#dcfce7', border: '#bbf7d0', icon: '✅', label: 'Accepted'          },
   REJECTED:  { color: '#dc2626', bg: '#fee2e2', border: '#fecaca', icon: '❌', label: 'Rejected'          },
   COUNTERED: { color: '#d97706', bg: '#fef3c7', border: '#fde68a', icon: '🔄', label: 'Counter-Offered'   },
+  PAID:      { color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', icon: '💸', label: 'Paid'              },
 };
 
 const formatCurrency = (amount: number, currency: string) =>
@@ -412,6 +414,7 @@ export default function SalaryToPayPage() {
           </div>
         )}
       </div>
+      <SendSalarycomponent/>
     </>
   );
 }
