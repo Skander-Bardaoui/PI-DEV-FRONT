@@ -5,7 +5,7 @@ import { productsApi } from '../../api/products.api';
 import { categoriesApi } from '../../api/categories.api';
 import { Product, CreateProductDto, ProductType } from '../../types/product';
 import { Category } from '../../types/category';
-import { Plus, Edit, Trash2, Search, Info } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Info, Sparkles, RefreshCw, CheckCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Services() {
@@ -23,6 +23,23 @@ export default function Services() {
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [generatingSku, setGeneratingSku] = useState(false);
   const [skuError, setSkuError] = useState<string | null>(null);
+  
+  // ==================== Alaa change for service type ====================
+  // AI scan states
+  const [showAiScanModal, setShowAiScanModal] = useState(false);
+  const [aiScanStep, setAiScanStep] = useState<'input' | 'review'>('input');
+  const [serviceDescription, setServiceDescription] = useState('');
+  const [analyzingDescription, setAnalyzingDescription] = useState(false);
+  const [aiScanError, setAiScanError] = useState<string | null>(null);
+  const [aiScanResult, setAiScanResult] = useState<any>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDescription, setNewCategoryDescription] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [categoryMatchStatus, setCategoryMatchStatus] = useState<'matched' | 'no-match' | null>(null);
+  const [matchedCategoryName, setMatchedCategoryName] = useState<string | null>(null);
+  // ====================================================================
   
   const [formData, setFormData] = useState<CreateProductDto>({
     name: '',
@@ -192,6 +209,174 @@ export default function Services() {
     }
   };
 
+  // ==================== Alaa change for service type ====================
+  const handleAnalyzeDescription = async () => {
+    if (!serviceDescription || serviceDescription.trim().length < 10) {
+      setAiScanError('Please enter at least 10 characters');
+      return;
+    }
+
+    setAnalyzingDescription(true);
+    setAiScanError(null);
+
+    try {
+      const result = await productsApi.scanServiceDescription(businessId!, serviceDescription);
+      setAiScanResult(result);
+
+      // Pre-fill form with scanned data
+      let description = result.description || '';
+      if (result.duration_note) {
+        description = description ? `${description} — ${result.duration_note}` : result.duration_note;
+      }
+
+      setFormData({
+        name: result.name || '',
+        reference: '',
+        description: description,
+        category_id: '',
+        unit: 'service',
+        sale_price_ht: result.price_ht || 0,
+        tax_rate_id: '',
+        is_stockable: false,
+      });
+
+      // Handle category matching
+      if (result.suggested_category_name) {
+        await handleCategoryMatching(result.suggested_category_name);
+      } else {
+        setCategoryMatchStatus(null);
+      }
+
+      setAiScanStep('review');
+    } catch (error: any) {
+      setAiScanError(error.response?.data?.message || 'Failed to analyze description. Please try again.');
+    } finally {
+      setAnalyzingDescription(false);
+    }
+  };
+
+  const handleCategoryMatching = async (suggestedName: string) => {
+    try {
+      // Fetch all service categories
+      const allCategories = await categoriesApi.getAll(businessId!, { category_type: 'SERVICE' });
+
+      // Case-insensitive match
+      const matchedCategory = allCategories.find(
+        cat => cat.name.toLowerCase() === suggestedName.toLowerCase()
+      );
+
+      if (matchedCategory) {
+        // Auto-select the matched category
+        setFormData(prev => ({ ...prev, category_id: matchedCategory.id }));
+        setCategoryMatchStatus('matched');
+        setMatchedCategoryName(matchedCategory.name);
+      } else {
+        // Show modal to create new category
+        setCategoryMatchStatus('no-match');
+        setNewCategoryName(suggestedName);
+        setNewCategoryDescription(`Services in the ${suggestedName} category`);
+        setShowCategoryModal(true);
+      }
+    } catch (error) {
+      console.error('Error matching category:', error);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      setCategoryError('Category name is required');
+      return;
+    }
+
+    setCreatingCategory(true);
+    setCategoryError(null);
+
+    try {
+      const newCategory = await categoriesApi.create(businessId!, {
+        name: newCategoryName.trim(),
+        description: newCategoryDescription.trim() || undefined,
+        category_type: 'SERVICE',
+      });
+
+      // Add to categories list
+      setCategories(prev => [...prev, newCategory]);
+
+      // Auto-select the new category
+      setFormData(prev => ({ ...prev, category_id: newCategory.id }));
+
+      // Close modal and show success
+      setShowCategoryModal(false);
+      toast.success('Service category created and selected');
+      setCategoryMatchStatus('matched');
+      setMatchedCategoryName(newCategory.name);
+    } catch (error: any) {
+      setCategoryError(error.response?.data?.message || 'Failed to create category');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const handleDeclineCategory = () => {
+    setShowCategoryModal(false);
+    setCategoryMatchStatus(null);
+    setNewCategoryName('');
+    setNewCategoryDescription('');
+    setCategoryError(null);
+  };
+
+  const handleSaveAiScannedService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const serviceData = {
+        ...formData,
+        type: ProductType.SERVICE,
+        is_stockable: false,
+        current_stock: 0,
+        min_stock_threshold: 0,
+      };
+
+      await productsApi.create(businessId!, serviceData);
+      toast.success('Service created successfully');
+      setShowAiScanModal(false);
+      resetAiScanModal();
+      loadServices();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error saving service');
+    }
+  };
+
+  const resetAiScanModal = () => {
+    setAiScanStep('input');
+    setServiceDescription('');
+    setAiScanError(null);
+    setAiScanResult(null);
+    setCategoryMatchStatus(null);
+    setMatchedCategoryName(null);
+    setShowCategoryModal(false);
+    setNewCategoryName('');
+    setNewCategoryDescription('');
+    setCategoryError(null);
+    setSkuError(null);
+    setFormData({
+      name: '',
+      reference: '',
+      description: '',
+      category_id: '',
+      unit: 'service',
+      sale_price_ht: 0,
+      tax_rate_id: '',
+      is_stockable: false,
+    });
+  };
+
+  const handleReanalyze = () => {
+    setAiScanStep('input');
+    setAiScanError(null);
+    setCategoryMatchStatus(null);
+    setMatchedCategoryName(null);
+  };
+  // ====================================================================
+
   if (!businessId) {
     return (
       <div className="p-6">
@@ -208,17 +393,31 @@ export default function Services() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Services</h1>
-        <button
-          onClick={() => {
-            setEditingService(null);
-            resetForm();
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={20} />
-          Add Service
-        </button>
+        {/* ==================== Alaa change for service type ==================== */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              resetAiScanModal();
+              setShowAiScanModal(true);
+            }}
+            className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
+          >
+            <Sparkles size={20} />
+            Add via AI
+          </button>
+          <button
+            onClick={() => {
+              setEditingService(null);
+              resetForm();
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            <Plus size={20} />
+            Add Service
+          </button>
+        </div>
+        {/* ==================================================================== */}
       </div>
 
       {/* Info Banner */}
@@ -521,6 +720,316 @@ export default function Services() {
           </div>
         </div>
       )}
+
+      {/* ==================== Alaa change for service type ==================== */}
+      {/* AI Scan Modal */}
+      {showAiScanModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {aiScanStep === 'input' ? 'Describe Your Service' : 'Review Service Details'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAiScanModal(false);
+                  resetAiScanModal();
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {aiScanStep === 'input' ? (
+              <div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Service Description
+                  </label>
+                  <textarea
+                    value={serviceDescription}
+                    onChange={(e) => setServiceDescription(e.target.value)}
+                    placeholder="Describe your service in your own words... e.g. We repair air conditioners on-site, 2-hour visit, includes diagnosis and parts replacement, price is 150 DT"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    rows={6}
+                    style={{ minHeight: '120px' }}
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <p className="text-xs text-gray-500">
+                      The AI will extract the service name, category, price and description from what you write. You can edit everything before saving.
+                    </p>
+                    <span className="text-sm text-gray-500">
+                      {serviceDescription.length}/1000
+                    </span>
+                  </div>
+                </div>
+
+                {aiScanError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-800">{aiScanError}</p>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAiScanModal(false);
+                      resetAiScanModal();
+                    }}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAnalyzeDescription}
+                    disabled={!serviceDescription || serviceDescription.length < 10 || analyzingDescription}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {analyzingDescription ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={20} />
+                        Analyze description
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveAiScannedService}>
+                {aiScanResult?.confidence_note && (
+                  <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-sm text-gray-600">{aiScanResult.confidence_note}</p>
+                  </div>
+                )}
+
+                {categoryMatchStatus === 'matched' && matchedCategoryName && (
+                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+                    <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-green-800">
+                      Category <strong>'{matchedCategoryName}'</strong> was detected and automatically selected.
+                    </p>
+                  </div>
+                )}
+
+                {categoryMatchStatus === null && aiScanResult?.suggested_category_name === null && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      AI could not determine a category. Please select one manually.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Name * {aiScanResult?.name && <span className="text-xs text-blue-600">(Detected by AI)</span>}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      SKU/Reference *
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        required
+                        value={formData.reference}
+                        onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                        className="flex-1 px-3 py-2 border rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleGenerateSku}
+                        disabled={generatingSku}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {generatingSku ? 'Generating...' : 'Generate SKU'}
+                      </button>
+                    </div>
+                    {skuError && (
+                      <p className="mt-1 text-sm text-red-600">{skuError}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description {aiScanResult?.description && <span className="text-xs text-blue-600">(Detected by AI)</span>}
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Category
+                    </label>
+                    <select
+                      value={formData.category_id}
+                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="">No Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Price HT (DT) * {aiScanResult?.price_ht && <span className="text-xs text-blue-600">(Detected by AI)</span>}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        required
+                        value={formData.sale_price_ht}
+                        onChange={(e) =>
+                          setFormData({ ...formData, sale_price_ht: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tax Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={19}
+                        disabled
+                        className="w-full px-3 py-2 border rounded-lg bg-gray-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-6">
+                  <button
+                    type="button"
+                    onClick={handleReanalyze}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <RefreshCw size={16} />
+                    Re-analyze
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAiScanModal(false);
+                      resetAiScanModal();
+                    }}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Save Service
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Category Creation Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">New service category suggested</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              The AI suggested a category that does not exist yet: <strong>'{newCategoryName}'</strong>. Would you like to create it?
+            </p>
+
+            {categoryError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">{categoryError}</p>
+              </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="Category name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={newCategoryDescription}
+                  onChange={(e) => setNewCategoryDescription(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  rows={2}
+                  placeholder="Brief description"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleDeclineCategory}
+                disabled={creatingCategory}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Decline
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateCategory}
+                disabled={creatingCategory}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {creatingCategory ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Create and select'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ==================================================================== */}
     </div>
   );
 }
