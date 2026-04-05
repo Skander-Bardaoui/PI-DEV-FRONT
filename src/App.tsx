@@ -20,6 +20,8 @@ import PricingPage   from './pages/frontoffice/PricingPage';
 import ClientPortal  from './pages/frontoffice/ClientPortal';
 import AcceptInvitationPage from './pages/frontoffice/AcceptInvitationPage';
 import SalesOrderClientPortal from './pages/frontoffice/SalesOrderClientPortal';
+import QuotePortal from './pages/frontoffice/QuotePortal';
+import ClientOnboarding from './pages/frontoffice/ClientOnboarding';
 
 // Back Office Pages
 import Dashboard     from './pages/backoffice/Dashboard';
@@ -54,6 +56,7 @@ import SalesOrdersPage        from './pages/backoffice/sales/SalesOrdersPage';
 import DeliveryNotesPage      from './pages/backoffice/sales/DeliveryNotesPage';
 import SalesInvoicesPage      from './pages/backoffice/sales/SalesInvoicesPage';
 import RecurringInvoicesPage  from './pages/backoffice/sales/RecurringInvoicesPage';
+import ClientsPage            from './pages/backoffice/sales/ClientsPage';
 
 // Layout
 import BackOfficeLayout from './layouts/BackOfficeLayout';
@@ -105,7 +108,9 @@ function AppContent() {
         <Route path="/supplier-portal" element={<SupplierPortalPage />} />
         <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
         <Route path="/client-portal" element={<SalesOrderClientPortal />} />
+        <Route path="/quote-portal" element={<QuotePortal />} />
         <Route path="/supplier-register" element={<SupplierRegisterPage />} />
+        <Route path="/client-onboarding/:token" element={<ClientOnboarding />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
         <Route
@@ -177,6 +182,7 @@ function AppContent() {
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
           <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />
+          <Route path="sales/clients"            element={<ClientsPage />}            />
           <Route path="sales/quotes"             element={<QuotesPage />}             />
           <Route path="sales/orders"             element={<SalesOrdersPage />}        />
           <Route path="sales/delivery-notes"     element={<DeliveryNotesPage />}      />
