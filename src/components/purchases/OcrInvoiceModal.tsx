@@ -513,9 +513,9 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
               <Sparkles size={22} color="#fff" />
             </div>
             <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#fff' }}>Import intelligent par IA</h2>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#fff' }}>Scanner une Facture</h2>
               <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
-                OCR + Gemini AI · Extraction automatique des données
+                Importez votre facture et laissez l'IA extraire les données automatiquement
               </p>
             </div>
             <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 8, padding: 6, display: 'flex', alignItems: 'center' }}>

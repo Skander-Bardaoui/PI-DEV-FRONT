@@ -23,8 +23,8 @@ export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   [InvoiceStatus.PARTIALLY_PAID]: 'Partiellement payée',
   [InvoiceStatus.PAID]:           'Payée',
   [InvoiceStatus.OVERDUE]:        'En retard',
-  [InvoiceStatus.DISPUTED]:       'En litige',
-  [InvoiceStatus.CANCELLED]:       'Annuler',
+  [InvoiceStatus.DISPUTED]:       'Problème détecté',
+  [InvoiceStatus.CANCELLED]:       'Annulée',
 
 };
 

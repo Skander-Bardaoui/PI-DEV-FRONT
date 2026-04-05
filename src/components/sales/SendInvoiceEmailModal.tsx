@@ -165,14 +165,14 @@ export default function SendInvoiceEmailModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
         <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full my-8 max-h-[90vh] flex flex-col">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-lg flex items-center justify-between">
+          <div className="bg-white border-b border-gray-200 p-6 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Mail className="h-6 w-6" />
-              <h2 className="text-xl font-semibold">Envoyer la facture par email</h2>
+              <Mail className="h-6 w-6 text-blue-600" />
+              <h2 className="text-xl font-bold text-gray-900">Envoyer la facture par email</h2>
             </div>
             <button
               onClick={handleClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
             >
               <X className="h-5 w-5" />
             </button>
