@@ -18,6 +18,7 @@ import { useTransfers } from '@/hooks/useTransfers';
 import { Account, CreateAccountDto, CreateTransferDto } from '@/types/treasury';
 import AccountModal from '@/components/treasury/AccountModal';
 import TransferModal from '@/components/treasury/TransferModal';
+import CashFlowForecast from '@/components/treasury/CashFlowForecast';
 
 // Helper: always returns a displayable string from any API error shape
 function extractErrorMessage(e: any, fallback: string): string {
@@ -412,6 +413,8 @@ export default function AccountsPage() {
         accounts={accounts}
         preselectedFromId={preselectedFromId}
       />
+      <CashFlowForecast />
     </div>
+
   );
 }
