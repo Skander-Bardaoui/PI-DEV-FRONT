@@ -70,6 +70,8 @@ import Transactions from './components/treasury/Transactions';
 import SupplierIntelligencePage from './pages/backoffice/purchases/SupplierIntelligencePage';
 import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingPage';
 import SupplierRegisterPage from './pages/frontoffice/SupplierRegisterPage';
+import SalaryToPayPage from './components/treasury/SalaryToPayPage';
+import SalaryRespondPage from './pages/frontoffice/SalaryRespondPage';
 
 // Inner component to access accessibility context
 function AppContent() {
@@ -80,8 +82,8 @@ function AppContent() {
     <>
       {/* Sonner Toast Notifications */}
       <Toaster position="bottom-right" richColors closeButton />
-      
-      
+
+
       {/* Accessibility Components - Available on all pages */}
       <AccessibilityButton />
       <AccessibilityPanel />
@@ -110,6 +112,7 @@ function AppContent() {
         <Route path="/client-portal" element={<SalesOrderClientPortal />} />
         <Route path="/quote-portal" element={<QuotePortal />} />
         <Route path="/supplier-register" element={<SupplierRegisterPage />} />
+        <Route path="/salary-respond/:token" element={<SalaryRespondPage />}  />
         <Route path="/client-onboarding/:token" element={<ClientOnboarding />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
@@ -179,6 +182,7 @@ function AppContent() {
           <Route path="treasury/invoices" element={<TreasuryInvoicesPage />} />
           <Route path="treasury/expenses" element={<ExpensesToPayPage />} />
           <Route path="treasury/transactions" element={<Transactions />} />
+          <Route path="treasury/salaries" element={<SalaryToPayPage />} />
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
           <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />
