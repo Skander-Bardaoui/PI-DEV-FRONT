@@ -20,6 +20,10 @@ import {
   Loader2,
   Trash2,
   Edit,
+  Sparkles,
+  Check,
+  X,
+  BarChart2,
 } from 'lucide-react';
 import {
   DndContext,
@@ -40,6 +44,8 @@ import SubtaskList from '../../components/SubtaskList';
 import SubtaskViewModal from '../../components/SubtaskViewModal';
 import { toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
+import { activitiesApi, Activity } from '../../api/activities.api';
+import StatisticsDashboard from '../../components/StatisticsDashboard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,29 +94,6 @@ interface User {
   lastName?: string;
   role: string;
 }
-
-// ─── Mock data for activity ───────────────────────────────────────────────────
-
-const activityData = [
-  { id: 1, user: 'Ahmed Ben Ali', action: 'created task', target: 'Design new landing page', time: '2 hours ago', icon: Plus, color: 'text-indigo-600' },
-  { id: 2, user: 'Salma Mansouri', action: 'completed task', target: 'Update user profile UI', time: '4 hours ago', icon: CheckCircle2, color: 'text-green-600' },
-  { id: 3, user: 'Mohamed Trabelsi', action: 'commented on', target: 'Fix authentication bug', time: '5 hours ago', icon: MessageSquare, color: 'text-blue-600' },
-  { id: 4, user: 'Fatma Khelifi', action: 'started working on', target: 'Implement payment gateway', time: '6 hours ago', icon: Clock, color: 'text-yellow-600' },
-  { id: 5, user: 'Karim Bouazizi', action: 'uploaded file to', target: 'Test documentation', time: '1 day ago', icon: FileText, color: 'text-purple-600' },
-  { id: 6, user: 'Nadia Hamdi', action: 'completed task', target: 'Deploy to production', time: '1 day ago', icon: CheckCircle2, color: 'text-green-600' },
-  { id: 7, user: 'Ahmed Ben Ali', action: 'blocked task', target: 'Database migration', time: '2 days ago', icon: XCircle, color: 'text-red-600' },
-];
-
-// ─── Mock data for notifications ──────────────────────────────────────────────
-
-const initialNotifications = [
-  { id: 1, title: 'New task assigned', message: 'Ahmed assigned you to "Design new landing page"', time: '10 min ago', read: false },
-  { id: 2, title: 'Task completed', message: 'Salma completed "Update user profile UI"', time: '1 hour ago', read: false },
-  { id: 3, title: 'Comment added', message: 'Mohamed commented on your task', time: '2 hours ago', read: false },
-  { id: 4, title: 'Deadline approaching', message: 'Task "Fix authentication bug" is due tomorrow', time: '3 hours ago', read: true },
-  { id: 5, title: 'Team member joined', message: 'Nadia Hamdi joined the team', time: '1 day ago', read: true },
-  { id: 6, title: 'Task blocked', message: 'Database migration is blocked', time: '2 days ago', read: true },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -164,6 +147,20 @@ function formatRole(role: string): string {
     .replace(/_/g, ' ')
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays < 30) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
@@ -247,11 +244,18 @@ async function fetchCurrentUser(): Promise<User> {
   return res.json();
 }
 
+async function fetchActivities(businessId: string): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/activities/business/${businessId}`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch activities');
+  return res.json();
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Collaboration() {
   const [activeTab, setActiveTab] = useState('tasks');
-  const [notifications, setNotifications] = useState(initialNotifications);
   const [showNewTask, setShowNewTask] = useState(false);
   const [showInviteMember, setShowInviteMember] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -297,6 +301,19 @@ export default function Collaboration() {
     assignedToIds: [] as string[],
     dueDate: '',
   });
+
+  // AI Priority Detection state
+  const [aiSuggestedPriority, setAiSuggestedPriority] = useState<Task['priority'] | null>(null);
+  const [detectingPriority, setDetectingPriority] = useState(false);
+
+  // AI Description Improvement state
+  const [improvingDescription, setImprovingDescription] = useState(false);
+  const [aiImprovedDescription, setAiImprovedDescription] = useState<string | null>(null);
+
+  // Activities state
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [activitiesError, setActivitiesError] = useState<string | null>(null);
 
   // Check if user can manage tasks
   const canManageTasks = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
@@ -345,6 +362,19 @@ export default function Collaboration() {
     loadData();
   }, []);
 
+  // ── Redirect to tasks tab if user doesn't have permission for current tab ──
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    // If user is TEAM_MEMBER or ACCOUNTANT and trying to access activity or statistics
+    if (
+      (currentUser.role === 'TEAM_MEMBER' || currentUser.role === 'ACCOUNTANT') &&
+      (activeTab === 'activity' || activeTab === 'statistics')
+    ) {
+      setActiveTab('tasks');
+    }
+  }, [currentUser, activeTab]);
+
   // ── WebSocket connection for real-time updates ────────────────────────────
   useEffect(() => {
     if (!currentBusiness) return;
@@ -389,6 +419,29 @@ export default function Collaboration() {
     };
   }, [currentBusiness, currentUser]);
 
+  // ── Load activities when business changes or tab switches to 'activity' ────
+  useEffect(() => {
+    if (!currentBusiness || activeTab !== 'activity') return;
+
+    async function loadActivities() {
+      console.log('🔄 Loading activities for business:', currentBusiness.id);
+      setLoadingActivities(true);
+      setActivitiesError(null);
+      try {
+        const fetchedActivities = await activitiesApi.getByBusiness(currentBusiness.id);
+        console.log('✅ Received activities:', fetchedActivities.length, fetchedActivities);
+        setActivities(fetchedActivities);
+      } catch (err: any) {
+        console.error('❌ Failed to load activities:', err);
+        setActivitiesError(err.message ?? 'Failed to load activities');
+      } finally {
+        setLoadingActivities(false);
+      }
+    }
+
+    loadActivities();
+  }, [currentBusiness, activeTab]);
+
   // ── Filtered members by search ────────────────────────────────────────────
   const filteredMembers = teamMembers.filter((m) => {
     const name = getMemberName(m).toLowerCase();
@@ -404,16 +457,6 @@ export default function Collaboration() {
     IN_PROGRESS: tasks.filter((t) => t.status === 'IN_PROGRESS'),
     DONE: tasks.filter((t) => t.status === 'DONE'),
     BLOCKED: tasks.filter((t) => t.status === 'BLOCKED'),
-  };
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const markAsRead = (id: number) => {
-    setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
   };
 
   // ── Handle create task ─────────────────────────────────────────────────────
@@ -537,6 +580,10 @@ export default function Collaboration() {
   const handleCloseTaskModal = () => {
     setShowNewTask(false);
     setEditingTask(null);
+    setAiSuggestedPriority(null);
+    setDetectingPriority(false);
+    setImprovingDescription(false);
+    setAiImprovedDescription(null);
     setNewTaskForm({
       title: '',
       description: '',
@@ -554,6 +601,108 @@ export default function Collaboration() {
         ? prev.assignedToIds.filter(id => id !== userId)
         : [...prev.assignedToIds, userId],
     }));
+  };
+
+  // ── Detect priority with AI ────────────────────────────────────────────────
+  const handleDetectPriority = async () => {
+    // Ne pas détecter si on édite une tâche existante
+    if (editingTask) {
+      console.log('⏭️  Skipping AI detection - editing existing task');
+      return;
+    }
+
+    const description = newTaskForm.description.trim();
+    const title = newTaskForm.title.trim();
+
+    console.log('🔍 handleDetectPriority called');
+    console.log('Title:', title);
+    console.log('Description:', description);
+    console.log('Description length:', description.length);
+
+    // Only trigger if description has more than 10 characters
+    if (description.length <= 10 || !title) {
+      console.log('❌ Skipping AI detection - conditions not met');
+      console.log('- Description length > 10:', description.length > 10);
+      console.log('- Title exists:', !!title);
+      return;
+    }
+
+    console.log('✅ Calling AI detection API...');
+    setDetectingPriority(true);
+    try {
+      const response = await fetch(`${API_BASE}/tasks/detect-priority`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title, description }),
+      });
+
+      console.log('📡 API Response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ AI detected priority:', data.priority);
+        setAiSuggestedPriority(data.priority);
+        setNewTaskForm(prev => ({ ...prev, priority: data.priority }));
+      } else {
+        const errorText = await response.text();
+        console.error('❌ API Error:', errorText);
+      }
+    } catch (error) {
+      // Silently ignore errors
+      console.error('❌ Failed to detect priority:', error);
+    } finally {
+      setDetectingPriority(false);
+      console.log('🏁 Detection finished');
+    }
+  };
+
+  // ── Improve description with AI ────────────────────────────────────────────
+  const handleImproveDescription = async () => {
+    const description = newTaskForm.description.trim();
+    const title = newTaskForm.title.trim();
+
+    // Only trigger if description has more than 15 characters
+    if (description.length <= 15) {
+      toast.error('Description must be at least 16 characters');
+      return;
+    }
+
+    setImprovingDescription(true);
+    try {
+      const response = await fetch(`${API_BASE}/tasks/improve-description`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title: title || undefined, description }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiImprovedDescription(data.improved);
+      } else {
+        toast.error('AI unavailable, try again');
+      }
+    } catch (error) {
+      console.error('Failed to improve description:', error);
+      toast.error('AI unavailable, try again');
+    } finally {
+      setImprovingDescription(false);
+    }
+  };
+
+  // ── Apply AI improved description ──────────────────────────────────────────
+  const handleApplyImprovedDescription = () => {
+    if (aiImprovedDescription) {
+      setNewTaskForm(prev => ({ ...prev, description: aiImprovedDescription }));
+      setAiImprovedDescription(null);
+      toast.success('AI suggestion applied');
+    }
+  };
+
+  // ── Dismiss AI improved description ────────────────────────────────────────
+  const handleDismissImprovedDescription = () => {
+    setAiImprovedDescription(null);
   };
 
   // ── Handle business change ─────────────────────────────────────────────────
@@ -774,24 +923,37 @@ export default function Collaboration() {
       <div className="bg-white rounded-xl border border-gray-200">
         <div className="border-b border-gray-200">
           <div className="flex overflow-x-auto">
-            {['tasks', 'team', 'activity', 'notifications'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-colors relative ${
-                  activeTab === tab
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                {tab === 'notifications' && unreadCount > 0 && (
-                  <span className="absolute top-2 right-2 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            ))}
+            {['tasks', 'team', 'activity', 'statistics']
+              .filter((tab) => {
+                // Hide Activity and Statistics tabs for TEAM_MEMBER and ACCOUNTANT
+                if (tab === 'activity' || tab === 'statistics') {
+                  return currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
+                }
+                return true;
+              })
+              .map((tab) => {
+                const icons = {
+                  tasks: null,
+                  team: null,
+                  activity: null,
+                  statistics: <BarChart2 className="h-4 w-4" />,
+                };
+                
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                      activeTab === tab
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {icons[tab as keyof typeof icons]}
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                );
+              })}
           </div>
         </div>
 
@@ -1039,79 +1201,136 @@ export default function Collaboration() {
           {/* ── Activity Tab ─────────────────────────────────────────────────── */}
           {activeTab === 'activity' && (
             <div className="space-y-4">
-              <div className="relative">
-                {activityData.map((activity, index) => (
-                  <div key={activity.id} className="relative pl-8 pb-8 last:pb-0">
-                    {index !== activityData.length - 1 && (
-                      <div className="absolute left-3 top-8 bottom-0 w-0.5 bg-gray-200" />
-                    )}
-                    <div className="absolute left-0 top-1 h-6 w-6 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center">
-                      <activity.icon className={`h-3 w-3 ${activity.color}`} />
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                      <p className="text-sm text-gray-900">
-                        <span className="font-medium">{activity.user}</span>{' '}
-                        {activity.action}{' '}
-                        <span className="font-medium text-indigo-600">{activity.target}</span>
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {loadingActivities ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                </div>
+              ) : activitiesError ? (
+                <div className="text-center py-12">
+                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <p className="text-red-600 font-medium">{activitiesError}</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {activitiesError.includes('Only business owners') 
+                      ? 'Activity feed is only visible to Business Owners and Admins'
+                      : 'Please try again later'}
+                  </p>
+                </div>
+              ) : activities.length === 0 ? (
+                <div className="text-center py-12">
+                  <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-medium">No activities yet</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Team member actions will appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="relative">
+                  {activities.map((activity, index) => {
+                    const userName = activity.user.firstName && activity.user.lastName
+                      ? `${activity.user.firstName} ${activity.user.lastName}`
+                      : activity.user.email;
+                    
+                    let actionText = '';
+                    let targetText = '';
+                    let icon = CheckCircle2;
+                    let color = 'text-green-600';
+                    let bgColor = 'bg-gray-50';
+                    let borderColor = 'border-gray-200';
+
+                    if (activity.type === 'SUBTASK_COMPLETED' || activity.type === 'SUBTASK_COMPLETED_OVERDUE' || activity.type === 'SUBTASK_COMPLETED_ON_TIME') {
+                      const isOverdue = activity.type === 'SUBTASK_COMPLETED_OVERDUE' || activity.isOverdue;
+                      const isOnTime = activity.type === 'SUBTASK_COMPLETED_ON_TIME' || activity.isOnTime;
+                      
+                      if (isOverdue) {
+                        actionText = 'completed subtask OVERDUE';
+                        icon = AlertCircle;
+                        color = 'text-orange-600';
+                        bgColor = 'bg-orange-50';
+                        borderColor = 'border-orange-200';
+                      } else if (isOnTime) {
+                        actionText = 'completed subtask ON TIME';
+                        icon = CheckCircle2;
+                        color = 'text-green-600';
+                        bgColor = 'bg-green-50';
+                        borderColor = 'border-green-200';
+                      } else {
+                        actionText = 'completed subtask';
+                        icon = CheckCircle2;
+                        color = 'text-green-600';
+                      }
+                      
+                      targetText = activity.subtask?.title || 'Unknown subtask';
+                      if (activity.task) {
+                        targetText += ` in "${activity.task.title}"`;
+                      }
+                    } else if (activity.type === 'TASK_BLOCKED') {
+                      actionText = 'moved task to BLOCKED';
+                      targetText = activity.task?.title || 'Unknown task';
+                      icon = XCircle;
+                      color = 'text-red-600';
+                      bgColor = 'bg-red-50';
+                      borderColor = 'border-red-200';
+                    } else if (activity.type === 'TASK_CREATED') {
+                      actionText = 'created task';
+                      targetText = activity.task?.title || 'Unknown task';
+                      icon = Plus;
+                      color = 'text-indigo-600';
+                    } else if (activity.type === 'TASK_UPDATED') {
+                      actionText = 'updated task';
+                      targetText = activity.task?.title || 'Unknown task';
+                      icon = Edit;
+                      color = 'text-blue-600';
+                    } else if (activity.type === 'TASK_DELETED') {
+                      actionText = 'deleted task';
+                      targetText = activity.task?.title || 'Unknown task';
+                      icon = Trash2;
+                      color = 'text-red-600';
+                    }
+
+                    const timeAgo = formatTimeAgo(new Date(activity.createdAt));
+                    const ActivityIcon = icon;
+
+                    return (
+                      <div key={activity.id} className="relative pl-8 pb-8 last:pb-0">
+                        {index !== activities.length - 1 && (
+                          <div className="absolute left-3 top-8 bottom-0 w-0.5 bg-gray-200" />
+                        )}
+                        <div className={`absolute left-0 top-1 h-6 w-6 rounded-full bg-white border-2 ${borderColor} flex items-center justify-center`}>
+                          <ActivityIcon className={`h-3 w-3 ${color}`} />
+                        </div>
+                        <div className={`${bgColor} rounded-lg p-4 hover:opacity-90 transition-all border ${borderColor}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm text-gray-900 flex-1">
+                              <span className="font-medium">{userName}</span>{' '}
+                              {actionText}{' '}
+                              <span className="font-medium text-indigo-600">{targetText}</span>
+                            </p>
+                            {activity.isOverdue && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200 flex-shrink-0">
+                                <AlertCircle className="h-3 w-3" />
+                                Overdue
+                              </span>
+                            )}
+                            {activity.isOnTime && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200 flex-shrink-0">
+                                <CheckCircle2 className="h-3 w-3" />
+                                On Time
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{timeAgo}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
-          {/* ── Notifications Tab ─────────────────────────────────────────────── */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="font-medium text-gray-900">
-                  {unreadCount > 0
-                    ? `${unreadCount} notification${unreadCount > 1 ? 's' : ''} non lue${unreadCount > 1 ? 's' : ''}`
-                    : 'Tout est lu !'}
-                </h3>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllAsRead}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                  >
-                    Tout marquer comme lu
-                  </button>
-                )}
-              </div>
-              <div className="space-y-2">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-4 rounded-lg border transition-colors ${
-                      notification.read ? 'bg-white border-gray-200' : 'bg-indigo-50 border-indigo-200'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className={`p-2 rounded-lg ${notification.read ? 'bg-gray-100' : 'bg-indigo-100'}`}>
-                          <Bell className={`h-5 w-5 ${notification.read ? 'text-gray-400' : 'text-indigo-600'}`} />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{notification.title}</p>
-                          <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                          <p className="text-xs text-gray-500 mt-2">{notification.time}</p>
-                        </div>
-                      </div>
-                      {!notification.read && (
-                        <button
-                          onClick={() => markAsRead(notification.id)}
-                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium whitespace-nowrap"
-                        >
-                          Marquer comme lu
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* ── Statistics Tab ─────────────────────────────────────────────── */}
+          {activeTab === 'statistics' && currentBusiness && (
+            <StatisticsDashboard businessId={currentBusiness.id} />
           )}
         </div>
       </div>
@@ -1140,27 +1359,102 @@ export default function Collaboration() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
+                  <span>Description</span>
+                  <button
+                    type="button"
+                    onClick={handleImproveDescription}
+                    disabled={improvingDescription || newTaskForm.description.trim().length <= 15}
+                    className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {improvingDescription ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Improving...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Improve with AI
+                      </>
+                    )}
+                  </button>
+                </label>
                 <textarea
                   rows={3}
                   value={newTaskForm.description}
                   onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
+                  onBlur={handleDetectPriority}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Task description"
+                  placeholder="Task description (min 16 characters for AI improvement)"
                 />
+                
+                {/* AI Improved Description Preview */}
+                {aiImprovedDescription && (
+                  <div className="mt-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-start gap-2 mb-2">
+                      <Sparkles className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-purple-900 mb-1">AI Suggestion</h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiImprovedDescription}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={handleApplyImprovedDescription}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        <Check className="h-4 w-4" />
+                        Apply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDismissImprovedDescription}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    Priority
+                    {detectingPriority && (
+                      <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                    )}
+                  </label>
                   <select
                     value={newTaskForm.priority}
-                    onChange={(e) => setNewTaskForm({ ...newTaskForm, priority: e.target.value as Task['priority'] })}
+                    onChange={(e) => {
+                      setNewTaskForm({ ...newTaskForm, priority: e.target.value as Task['priority'] });
+                      setAiSuggestedPriority(null); // Clear suggestion when manually changed
+                    }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
                     <option value="HIGH">High</option>
                   </select>
+                  {aiSuggestedPriority && (
+                    <div className="mt-2 flex items-center gap-2 text-sm">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md">
+                        <span className="text-base">✨</span>
+                        AI suggested: {aiSuggestedPriority}
+                      </span>
+                      <button
+                        onClick={() => setAiSuggestedPriority(null)}
+                        className="text-gray-400 hover:text-gray-600"
+                        title="Dismiss suggestion"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
@@ -1315,9 +1609,10 @@ export default function Collaboration() {
       )}
 
       {/* ── Subtask View Modal (TEAM_MEMBER) ──────────────────────────────────── */}
-      {viewingTask && (
+      {viewingTask && currentBusiness && (
         <SubtaskViewModal
           task={viewingTask}
+          businessId={currentBusiness.id}
           onClose={() => setViewingTask(null)}
           onProgressUpdate={() => {
             if (currentBusiness) {

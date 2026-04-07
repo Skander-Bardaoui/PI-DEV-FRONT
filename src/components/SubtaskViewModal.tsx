@@ -15,11 +15,12 @@ interface Task {
 
 interface SubtaskViewModalProps {
   task: Task;
+  businessId: string;
   onClose: () => void;
   onProgressUpdate?: () => void;
 }
 
-export default function SubtaskViewModal({ task, onClose, onProgressUpdate }: SubtaskViewModalProps) {
+export default function SubtaskViewModal({ task, businessId, onClose, onProgressUpdate }: SubtaskViewModalProps) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export default function SubtaskViewModal({ task, onClose, onProgressUpdate }: Su
 
     try {
       setMarkingId(subtask.id);
-      const updated = await subtasksApi.markCompleteByTeamMember(subtask.id);
+      const updated = await subtasksApi.markCompleteByTeamMember(subtask.id, businessId);
       setSubtasks((prev) =>
         prev.map((s) => (s.id === subtask.id ? updated : s))
       );

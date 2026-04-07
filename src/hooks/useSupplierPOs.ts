@@ -34,7 +34,13 @@ export const useCreateSupplierPO = (businessId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateSupplierPODto) => createSupplierPO(businessId, dto),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] }),
+    onSuccess:  () => {
+      // Invalider la liste des BCs
+      qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
+      // Invalider aussi les stats et scores fournisseurs
+      qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+    },
   });
 };
 
@@ -50,7 +56,13 @@ export const useSendSupplierPO = (businessId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => sendSupplierPO(businessId, id),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] }),
+    onSuccess:  () => {
+      // Invalider la liste des BCs
+      qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
+      // Invalider aussi les stats et scores fournisseurs
+      qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+    },
   });
 };
 
@@ -58,7 +70,13 @@ export const useConfirmSupplierPO = (businessId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => confirmSupplierPO(businessId, id),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] }),
+    onSuccess:  () => {
+      // Invalider la liste des BCs
+      qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
+      // Invalider aussi les stats et scores fournisseurs
+      qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
+      qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+    },
   });
 };
 
