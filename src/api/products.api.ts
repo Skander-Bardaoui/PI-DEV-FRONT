@@ -85,6 +85,7 @@ export const productsApi = {
     return response.data;
   },
 
+  // ==================== Alaa change for service type ====================
   generateSku: async (
     businessId: string,
     data: {
@@ -93,6 +94,7 @@ export const productsApi = {
       name?: string | null;
       unit?: string | null;
       extra_attribute?: string | null;
+      type?: 'PHYSICAL' | 'SERVICE' | 'DIGITAL'; // Added type parameter for service SKU generation
     }
   ): Promise<{ sku: string }> => {
     const response = await axios.post(
@@ -102,6 +104,7 @@ export const productsApi = {
     );
     return response.data;
   },
+  // ====================================================================
 
   generateBarcode: async (businessId: string, productId: string): Promise<Product> => {
     const response = await axios.post(
@@ -134,4 +137,25 @@ export const productsApi = {
     );
     return response.data;
   },
+
+  // ==================== Alaa change for service type ====================
+  scanServiceDescription: async (
+    businessId: string,
+    description: string
+  ): Promise<{
+    name: string | null;
+    description: string | null;
+    suggested_category_name: string | null;
+    price_ht: number | null;
+    duration_note: string | null;
+    confidence_note: string;
+  }> => {
+    const response = await axios.post(
+      `${API_URL}/businesses/${businessId}/products/scan-service-description`,
+      { description },
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+  // ====================================================================
 };

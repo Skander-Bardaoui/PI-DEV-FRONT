@@ -1,3 +1,4 @@
+// ==================== Alaa change for service type ====================
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -5,7 +6,7 @@ import { categoriesApi } from '../../api/categories.api';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../types/category';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 
-export default function Categories() {
+export default function ServiceCategories() {
   const { user } = useAuth();
   const businessId = user?.business_id;
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function Categories() {
   const [formData, setFormData] = useState<CreateCategoryDto>({
     name: '',
     description: '',
+    category_type: 'SERVICE',
   });
 
   useEffect(() => {
@@ -29,16 +31,14 @@ export default function Categories() {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      // ==================== Alaa change for service type ====================
       const data = await categoriesApi.getAll(businessId!, {
         search: searchTerm || undefined,
         is_active: showActiveOnly ? true : undefined,
-        category_type: 'PRODUCT',
+        category_type: 'SERVICE',
       });
-      // ====================================================================
       setCategories(data);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('Error loading service categories:', error);
     } finally {
       setLoading(false);
     }
@@ -47,20 +47,18 @@ export default function Categories() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // ==================== Alaa change for service type ====================
-      const dataToSend = { ...formData, category_type: 'PRODUCT' };
+      const dataToSend = { ...formData, category_type: 'SERVICE' };
       if (editingCategory) {
         await categoriesApi.update(businessId!, editingCategory.id, dataToSend);
       } else {
         await categoriesApi.create(businessId!, dataToSend);
       }
-      // ====================================================================
       setShowModal(false);
       setEditingCategory(null);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', category_type: 'SERVICE' });
       await loadCategories();
     } catch (error) {
-      console.error('Error saving category:', error);
+      console.error('Error saving service category:', error);
     }
   };
 
@@ -69,17 +67,18 @@ export default function Categories() {
     setFormData({
       name: category.name,
       description: category.description || '',
+      category_type: 'SERVICE',
     });
     setShowModal(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this category?')) {
+    if (window.confirm('Are you sure you want to delete this service category?')) {
       try {
         await categoriesApi.delete(businessId!, id);
         loadCategories();
       } catch (error: any) {
-        alert(error.response?.data?.message || 'Error deleting category');
+        alert(error.response?.data?.message || 'Error deleting service category');
       }
     }
   };
@@ -91,7 +90,7 @@ export default function Categories() {
       });
       loadCategories();
     } catch (error) {
-      console.error('Error toggling category status:', error);
+      console.error('Error toggling service category status:', error);
     }
   };
 
@@ -110,19 +109,17 @@ export default function Categories() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        {/* ==================== Alaa change for service type ==================== */}
-        <h1 className="text-2xl font-bold">Product Categories</h1>
-        {/* ==================================================================== */}
+        <h1 className="text-2xl font-bold">Service Categories</h1>
         <button
           onClick={() => {
             setEditingCategory(null);
-            setFormData({ name: '', description: '' });
+            setFormData({ name: '', description: '', category_type: 'SERVICE' });
             setShowModal(true);
           }}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
         >
           <Plus size={20} />
-          New Category
+          New Service Category
         </button>
       </div>
 
@@ -133,7 +130,7 @@ export default function Categories() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Search categories..."
+              placeholder="Search service categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border rounded-lg"
@@ -180,7 +177,7 @@ export default function Categories() {
             ) : categories.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
-                  No categories found
+                  No service categories found
                 </td>
               </tr>
             ) : (
@@ -230,7 +227,7 @@ export default function Categories() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">
-              {editingCategory ? 'Edit Category' : 'New Category'}
+              {editingCategory ? 'Edit Service Category' : 'New Service Category'}
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
@@ -262,7 +259,7 @@ export default function Categories() {
                   onClick={() => {
                     setShowModal(false);
                     setEditingCategory(null);
-                    setFormData({ name: '', description: '' });
+                    setFormData({ name: '', description: '', category_type: 'SERVICE' });
                   }}
                   className="px-4 py-2 border rounded-lg hover:bg-gray-50"
                 >
@@ -282,3 +279,4 @@ export default function Categories() {
     </div>
   );
 }
+// ====================================================================
