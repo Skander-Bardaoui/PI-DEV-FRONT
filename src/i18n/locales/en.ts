@@ -24,7 +24,7 @@ export default {
     goodsReceipts:    'Goods Receipts',
     supplierInvoices: 'Supplier Invoices',
     supplierPayments: 'Supplier Payments',
-    supplierIntelligence:  'Supplier Intelligence',
+    supplierIntelligence:  'Supplier Performance',
     // Stock
     overview:    'Overview',
     products:    'Products',
@@ -334,11 +334,11 @@ export default {
     extraLarge:     'Extra large',
   },
 
-  // ── Three-way matching ─────────────────────────────────────────────────────
+  // ── Invoice Control ─────────────────────────────────────────────────────
   matching: {
-    title:        'Three-way matching',
+    title:        'Invoice Control',
     subtitle:     'PO ↔ Goods Receipt ↔ Invoice',
-    matched:      'Match validated',
+    matched:      'Control validated',
     partial:      'Partial match',
     mismatch:     'Significant discrepancies detected',
     missingPo:    'Purchase order missing',

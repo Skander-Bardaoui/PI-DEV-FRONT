@@ -167,7 +167,7 @@ export default function SupplierPOsPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/30"
           >
             <Sparkles className="h-5 w-5" />
-            Générer par IA
+            Créer avec l'Assistant IA
           </button>
           <button
             onClick={() => setModalOpen(true)}

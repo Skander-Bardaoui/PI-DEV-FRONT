@@ -119,7 +119,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
               <Sparkles className="h-5 w-5 animate-pulse" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Génération de BC par IA</h2>
+              <h2 className="text-lg font-bold">Assistant IA - Création de BC</h2>
               <p className="text-xs text-purple-100">Décrivez votre commande en langage naturel</p>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
               ) : (
                 <>
                   <Sparkles className="h-5 w-5" />
-                  Générer le BC avec l'IA
+                  Créer le BC
                 </>
               )}
             </button>

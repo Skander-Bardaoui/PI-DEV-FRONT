@@ -85,16 +85,18 @@ export default function SupplierInviteModal({ businessId, onClose }: Props) {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Info box */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-            <div className="flex gap-3">
-              <Mail className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-indigo-900">
-                <p className="font-medium mb-1">Comment ça marche ?</p>
-                <ul className="space-y-1 text-indigo-700 text-xs">
-                  <li>• Le fournisseur reçoit un email avec un lien sécurisé</li>
-                  <li>• Il remplit sa fiche en quelques minutes</li>
-                  <li>• Vous recevez une notification automatique</li>
-                  <li>• Le fournisseur est ajouté à votre liste</li>
+          <div style={{ background: '#EEF2FF', border: '2px solid #C7D2FE', borderRadius: 10, padding: '14px 16px' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ width: 36, height: 36, background: '#4F46E5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Mail className="h-5 w-5" style={{ color: '#fff' }} />
+              </div>
+              <div className="text-sm">
+                <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: 14, color: '#1E1B4B' }}>Comment ça marche ?</p>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#4338CA', lineHeight: 1.8 }}>
+                  <li>Le fournisseur reçoit un email avec un lien sécurisé</li>
+                  <li>Il remplit sa fiche en quelques minutes</li>
+                  <li>Vous recevez une notification automatique</li>
+                  <li>Le fournisseur est ajouté à votre liste</li>
                 </ul>
               </div>
             </div>

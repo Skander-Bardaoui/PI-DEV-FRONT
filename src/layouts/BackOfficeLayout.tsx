@@ -12,6 +12,7 @@ import {
   // ==================== Alaa change for service type ====================
   Briefcase,
   // ====================================================================
+  AlertTriangle,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
@@ -65,6 +66,7 @@ export default function BackOfficeLayout() {
       name: t('nav.sales'), href: '/app/sales', icon: ShoppingCart,
       subItems: [
         { name: t('nav.dashboard'),  href: '/app/sales/dashboard',          icon: LayoutDashboard },
+        { name: t('nav.clients'),    href: '/app/sales/clients',            icon: Users           },
         { name: t('nav.quotes'),     href: '/app/sales/quotes',             icon: FileCheck       },
         { name: t('nav.orders'),     href: '/app/sales/orders',             icon: ClipboardList   },
         { name: t('nav.deliveries'), href: '/app/sales/delivery-notes',     icon: Truck           },
@@ -108,7 +110,9 @@ export default function BackOfficeLayout() {
         { name: 'Accounts', href: '/app/treasury/accounts', icon: Building2 },
         { name: 'Invoices', href: '/app/treasury/invoices', icon: FileText },
         { name: 'Expenses to Pay', href: '/app/treasury/expenses', icon: Receipt },
+        { name: 'Salary to Pay', href: '/app/treasury/salaries', icon: Users },
         { name: 'Transactions', href: '/app/treasury/transactions', icon: ArrowRightLeft },
+
       ],
     },
     // Hide Team section for TEAM_MEMBER role

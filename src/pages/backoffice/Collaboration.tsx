@@ -20,6 +20,9 @@ import {
   Loader2,
   Trash2,
   Edit,
+  Sparkles,
+  Check,
+  X,
 } from 'lucide-react';
 import {
   DndContext,
@@ -298,6 +301,14 @@ export default function Collaboration() {
     dueDate: '',
   });
 
+  // AI Priority Detection state
+  const [aiSuggestedPriority, setAiSuggestedPriority] = useState<Task['priority'] | null>(null);
+  const [detectingPriority, setDetectingPriority] = useState(false);
+
+  // AI Description Improvement state
+  const [improvingDescription, setImprovingDescription] = useState(false);
+  const [aiImprovedDescription, setAiImprovedDescription] = useState<string | null>(null);
+
   // Check if user can manage tasks
   const canManageTasks = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
 
@@ -537,6 +548,10 @@ export default function Collaboration() {
   const handleCloseTaskModal = () => {
     setShowNewTask(false);
     setEditingTask(null);
+    setAiSuggestedPriority(null);
+    setDetectingPriority(false);
+    setImprovingDescription(false);
+    setAiImprovedDescription(null);
     setNewTaskForm({
       title: '',
       description: '',
@@ -554,6 +569,108 @@ export default function Collaboration() {
         ? prev.assignedToIds.filter(id => id !== userId)
         : [...prev.assignedToIds, userId],
     }));
+  };
+
+  // ── Detect priority with AI ────────────────────────────────────────────────
+  const handleDetectPriority = async () => {
+    // Ne pas détecter si on édite une tâche existante
+    if (editingTask) {
+      console.log('⏭️  Skipping AI detection - editing existing task');
+      return;
+    }
+
+    const description = newTaskForm.description.trim();
+    const title = newTaskForm.title.trim();
+
+    console.log('🔍 handleDetectPriority called');
+    console.log('Title:', title);
+    console.log('Description:', description);
+    console.log('Description length:', description.length);
+
+    // Only trigger if description has more than 10 characters
+    if (description.length <= 10 || !title) {
+      console.log('❌ Skipping AI detection - conditions not met');
+      console.log('- Description length > 10:', description.length > 10);
+      console.log('- Title exists:', !!title);
+      return;
+    }
+
+    console.log('✅ Calling AI detection API...');
+    setDetectingPriority(true);
+    try {
+      const response = await fetch(`${API_BASE}/tasks/detect-priority`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title, description }),
+      });
+
+      console.log('📡 API Response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ AI detected priority:', data.priority);
+        setAiSuggestedPriority(data.priority);
+        setNewTaskForm(prev => ({ ...prev, priority: data.priority }));
+      } else {
+        const errorText = await response.text();
+        console.error('❌ API Error:', errorText);
+      }
+    } catch (error) {
+      // Silently ignore errors
+      console.error('❌ Failed to detect priority:', error);
+    } finally {
+      setDetectingPriority(false);
+      console.log('🏁 Detection finished');
+    }
+  };
+
+  // ── Improve description with AI ────────────────────────────────────────────
+  const handleImproveDescription = async () => {
+    const description = newTaskForm.description.trim();
+    const title = newTaskForm.title.trim();
+
+    // Only trigger if description has more than 15 characters
+    if (description.length <= 15) {
+      toast.error('Description must be at least 16 characters');
+      return;
+    }
+
+    setImprovingDescription(true);
+    try {
+      const response = await fetch(`${API_BASE}/tasks/improve-description`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title: title || undefined, description }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiImprovedDescription(data.improved);
+      } else {
+        toast.error('AI unavailable, try again');
+      }
+    } catch (error) {
+      console.error('Failed to improve description:', error);
+      toast.error('AI unavailable, try again');
+    } finally {
+      setImprovingDescription(false);
+    }
+  };
+
+  // ── Apply AI improved description ──────────────────────────────────────────
+  const handleApplyImprovedDescription = () => {
+    if (aiImprovedDescription) {
+      setNewTaskForm(prev => ({ ...prev, description: aiImprovedDescription }));
+      setAiImprovedDescription(null);
+      toast.success('AI suggestion applied');
+    }
+  };
+
+  // ── Dismiss AI improved description ────────────────────────────────────────
+  const handleDismissImprovedDescription = () => {
+    setAiImprovedDescription(null);
   };
 
   // ── Handle business change ─────────────────────────────────────────────────
@@ -1140,27 +1257,102 @@ export default function Collaboration() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
+                  <span>Description</span>
+                  <button
+                    type="button"
+                    onClick={handleImproveDescription}
+                    disabled={improvingDescription || newTaskForm.description.trim().length <= 15}
+                    className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {improvingDescription ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Improving...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Improve with AI
+                      </>
+                    )}
+                  </button>
+                </label>
                 <textarea
                   rows={3}
                   value={newTaskForm.description}
                   onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
+                  onBlur={handleDetectPriority}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Task description"
+                  placeholder="Task description (min 16 characters for AI improvement)"
                 />
+                
+                {/* AI Improved Description Preview */}
+                {aiImprovedDescription && (
+                  <div className="mt-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-start gap-2 mb-2">
+                      <Sparkles className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-purple-900 mb-1">AI Suggestion</h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiImprovedDescription}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={handleApplyImprovedDescription}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        <Check className="h-4 w-4" />
+                        Apply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDismissImprovedDescription}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    Priority
+                    {detectingPriority && (
+                      <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                    )}
+                  </label>
                   <select
                     value={newTaskForm.priority}
-                    onChange={(e) => setNewTaskForm({ ...newTaskForm, priority: e.target.value as Task['priority'] })}
+                    onChange={(e) => {
+                      setNewTaskForm({ ...newTaskForm, priority: e.target.value as Task['priority'] });
+                      setAiSuggestedPriority(null); // Clear suggestion when manually changed
+                    }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
                     <option value="HIGH">High</option>
                   </select>
+                  {aiSuggestedPriority && (
+                    <div className="mt-2 flex items-center gap-2 text-sm">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md">
+                        <span className="text-base">✨</span>
+                        AI suggested: {aiSuggestedPriority}
+                      </span>
+                      <button
+                        onClick={() => setAiSuggestedPriority(null)}
+                        className="text-gray-400 hover:text-gray-600"
+                        title="Dismiss suggestion"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>

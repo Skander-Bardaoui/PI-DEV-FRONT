@@ -50,6 +50,11 @@ export function useCreateGoodsReceipt(businessId: string, poId: string) {
       qc.invalidateQueries({ queryKey: ['supplier-po', businessId, poId] });
       // Invalider le cache de la liste globale des bons de réception
       qc.invalidateQueries({ queryKey: ['goods-receipts', businessId] });
+      // Invalider les matches 3-voies (car les BRs affectent le rapprochement)
+      qc.invalidateQueries({ queryKey: ['three-way-match-all', businessId] });
+      qc.invalidateQueries({ queryKey: ['three-way-match', businessId] });
+      // Invalider les factures liées au BC
+      qc.invalidateQueries({ queryKey: ['purchase-invoices', businessId, 'by-po', poId] });
       // Forcer le refetch immédiat des données
       qc.refetchQueries({ queryKey: ['supplier-pos', businessId] });
     },
