@@ -1,7 +1,7 @@
 // src/pages/backoffice/purchases/GoodsReceiptsPage.tsx — VERSION CORRIGÉE
 
 import { useState } from 'react';
-import { Eye, Package, ChevronDown, ChevronRight, PackageCheck, Clock } from 'lucide-react';
+import { Eye, Package, ChevronDown, ChevronRight, PackageCheck, Clock, ChevronUp } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useSupplierPOs } from '@/hooks/useSupplierPOs';
 import { useSupplierPO } from '@/hooks/useSupplierPOs'; // ← useSupplierPO pour charger items
@@ -15,14 +15,17 @@ import {
   PO_STATUS_COLORS, PO_STATUS_LABELS, POStatus, SupplierPO
 } from '@/types';
 
+type SortField = 'po_number' | 'created_at' | 'supplier';
+type SortDir   = 'asc' | 'desc';
+
 // ── Ligne BC avec détail chargé correctement ──────────────────────────────────
 function PORow({ businessId, po: listPO }: { businessId: string; po: SupplierPO }) {
   const [open, setOpen] = useState(false);
   const [detailPO, setDetailPO] = useState(false);
   const [grOpen, setGrOpen] = useState(false);
 
-  // ← FIX : charger le PO complet avec ses items quand la ligne est ouverte
-  const { data: fullPO } = useSupplierPO(businessId, open ? listPO.id : '');
+  // ← FIX : charger le PO complet avec ses items (toujours pour avoir la progression)
+  const { data: fullPO } = useSupplierPO(businessId, listPO.id);
   const po = fullPO ?? listPO;
 
   const { data: receipts, isLoading: receiptsLoading } = useGoodsReceiptsByPO(
@@ -71,7 +74,7 @@ function PORow({ businessId, po: listPO }: { businessId: string; po: SupplierPO 
 
         {/* Progression réception */}
         <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
-          {open && fullPO ? (
+          {fullPO ? (
             <div className="flex items-center gap-2 min-w-[120px]">
               <div className="flex-1 bg-gray-200 rounded-full h-2">
                 <div
@@ -87,7 +90,7 @@ function PORow({ businessId, po: listPO }: { businessId: string; po: SupplierPO 
             </div>
           ) : (
             <span className="text-xs text-gray-400 italic">
-              {open ? 'Chargement...' : '—'}
+              Chargement...
             </span>
           )}
         </td>
@@ -257,7 +260,9 @@ function GRCard({ gr }: { gr: GoodsReceipt }) {
             <tbody className="divide-y divide-gray-100">
               {gr.items.map(item => (
                 <tr key={item.id}>
-                  <td className="px-4 py-2 text-gray-700">{item.supplier_po_item?.description ?? '—'}</td>
+                  <td className="px-4 py-2 text-gray-700">
+                    {item.supplier_po_item?.description || 'Article sans nom'}
+                  </td>
                   <td className="px-4 py-2 text-center font-medium text-green-700">
                     {Number(item.quantity_received).toFixed(3)}
                   </td>
@@ -290,6 +295,10 @@ export default function GoodsReceiptsPage() {
   );
   const [page, setPage] = useState(1);
 
+  // ── Tri ───────────────────────────────────────────────────────────────────
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDir,   setSortDir]   = useState<SortDir>('desc');
+
   const { data, isLoading } = useSupplierPOs(businessId, {
     status: statusFilter || undefined,
     page,
@@ -306,6 +315,33 @@ export default function GoodsReceiptsPage() {
     { value: POStatus.FULLY_RECEIVED,     label: 'Entièrement reçus'   },
     { value: '',                          label: 'Tous'                 },
   ];
+
+  // ── Tri local ─────────────────────────────────────────────────────────────
+  const sorted = [...(data?.data ?? [])].sort((a, b) => {
+    let va: any, vb: any;
+    if (sortField === 'supplier') { 
+      va = a.supplier?.name ?? ''; 
+      vb = b.supplier?.name ?? ''; 
+    } else { 
+      va = a[sortField]; 
+      vb = b[sortField]; 
+    }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) =>
+    sortField === field
+      ? (sortDir === 'asc' ? <ChevronUp className="h-3 w-3 inline ml-1" /> : <ChevronDown className="h-3 w-3 inline ml-1" />)
+      : <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+
+  const totalPages = data?.total_pages ?? 1;
 
   return (
     <div className="space-y-6">
@@ -343,23 +379,31 @@ export default function GoodsReceiptsPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-4 text-sm font-semibold text-gray-900">N° BC</th>
-                  <th className="text-left px-4 py-4 text-sm font-semibold text-gray-900">Fournisseur</th>
-                  <th className="text-left px-4 py-4 text-sm font-semibold text-gray-900">Date</th>
+                  {[
+                    { label: 'N° BC',       field: 'po_number'   as SortField },
+                    { label: 'Fournisseur', field: 'supplier'    as SortField },
+                    { label: 'Date',        field: 'created_at'  as SortField },
+                  ].map(col => (
+                    <th key={col.field}
+                      onClick={() => toggleSort(col.field)}
+                      className="text-left px-4 py-4 text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none transition-colors">
+                      {col.label}<SortIcon field={col.field} />
+                    </th>
+                  ))}
                   <th className="text-left px-4 py-4 text-sm font-semibold text-gray-900">Statut</th>
                   <th className="text-left px-4 py-4 text-sm font-semibold text-gray-900">Progression</th>
                   <th className="text-center px-4 py-4 text-sm font-semibold text-gray-900">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {!data?.data.length ? (
+                {!sorted.length ? (
                   <tr>
                     <td colSpan={6} className="text-center py-12 text-gray-400">
                       <Package className="h-10 w-10 mx-auto mb-3 text-gray-200" />
                       Aucun bon de commande trouvé
                     </td>
                   </tr>
-                ) : data.data.map(po => (
+                ) : sorted.map(po => (
                   <PORow key={po.id} businessId={businessId} po={po} />
                 ))}
               </tbody>
@@ -369,11 +413,21 @@ export default function GoodsReceiptsPage() {
 
         {/* Pagination */}
         {data && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+          <div className="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p className="text-sm text-gray-500">
               {data.total} BC(s) — page {page} / {data.total_pages ?? 1}
             </p>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              {/* Bouton première page */}
+              <button 
+                onClick={() => setPage(1)} 
+                disabled={page === 1}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              >
+                «
+              </button>
+
+              {/* Bouton précédent */}
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
@@ -381,6 +435,33 @@ export default function GoodsReceiptsPage() {
               >
                 Précédent
               </button>
+
+              {/* Numéros de pages */}
+              {Array.from({ length: data.total_pages ?? 1 }, (_, i) => i + 1)
+                .filter(p =>
+                  p === 1 ||
+                  p === (data.total_pages ?? 1) ||
+                  Math.abs(p - page) <= 1
+                )
+                .map((p, index, arr) => (
+                  <span key={p} className="flex items-center">
+                    {index > 0 && arr[index - 1] !== p - 1 && (
+                      <span className="px-1 text-gray-400">...</span>
+                    )}
+                    <button
+                      onClick={() => setPage(p)}
+                      className={`px-3 py-1 border rounded-lg text-sm transition-colors ${
+                        page === p
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                ))}
+
+              {/* Bouton suivant */}
               <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={page >= (data.total_pages ?? 1)}
@@ -389,6 +470,14 @@ export default function GoodsReceiptsPage() {
                 Suivant
               </button>
 
+              {/* Bouton dernière page */}
+              <button 
+                onClick={() => setPage(totalPages)} 
+                disabled={page >= totalPages}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              >
+                »
+              </button>
             </div>
           </div>
         )}

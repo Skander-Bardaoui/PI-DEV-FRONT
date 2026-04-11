@@ -19,6 +19,8 @@ const STATUS_OPTIONS = [
   { value: 'CANCELLED', label: 'Annulé' },
 ];
 
+const LIMIT = 20;
+
 export default function SalesOrdersPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
@@ -41,13 +43,23 @@ export default function SalesOrdersPage() {
     status: statusFilter || undefined,
     client_id: clientFilter || undefined,
     page,
-    limit: 20,
+    limit: LIMIT,
   });
 
   const deleteOrder = useDeleteSalesOrder(businessId);
   const startProgress = useStartProgressSalesOrder(businessId);
   const markDelivered = useMarkDeliveredSalesOrder(businessId);
   const convertToInvoice = useConvertSalesOrderToInvoice(businessId);
+
+  const totalPages = data?.total_pages ?? 1;
+  const total = data?.total ?? 0;
+
+  const getPageNumbers = () => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (page <= 3) return [1, 2, 3, 4, 5];
+    if (page >= totalPages - 2) return [totalPages-4, totalPages-3, totalPages-2, totalPages-1, totalPages];
+    return [page-2, page-1, page, page+1, page+2];
+  };
   const cancel = useCancelSalesOrder(businessId);
   const sendEmail = useSendSalesOrderEmail(businessId);
 
@@ -345,6 +357,42 @@ export default function SalesOrdersPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between flex-wrap gap-3">
+          <p className="text-sm text-gray-500">
+            {total === 0
+              ? 'Aucun résultat'
+              : `${(page - 1) * LIMIT + 1}–${Math.min(page * LIMIT, total)} sur ${total} commande${total > 1 ? 's' : ''}`
+            }
+          </p>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(1)} disabled={page === 1}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              «
+            </button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              Précédent
+            </button>
+            {getPageNumbers().map(n => (
+              <button key={n} onClick={() => setPage(n)}
+                className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                  page === n ? 'bg-indigo-600 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}>
+                {n}
+              </button>
+            ))}
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              Suivant
+            </button>
+            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              »
+            </button>
+          </div>
         </div>
       </div>
 

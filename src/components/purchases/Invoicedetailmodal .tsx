@@ -17,6 +17,7 @@ import {
 import { formatAmount, formatDate, INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS, InvoiceStatus, PurchaseInvoice, round3 } from '@/types';
 import { usePDFExport } from '@/hooks/usePDFExport';
 import CorrectInvoiceModal from '@/components/purchases/CorrectInvoiceModal';
+import { ActionButton, ActionSection } from '@/components/ui/ActionButton';
 
 interface Props {
   invoice:    PurchaseInvoice;
@@ -192,59 +193,47 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
                   </div>
                 </div>
               )}
-
-              {/* Scan facture - simplifié */}
-              {invoice.receipt_url && (
-                <a
-                  href={invoice.receipt_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 p-3 bg-indigo-50/50 border border-indigo-200 rounded-lg text-indigo-600 hover:bg-indigo-100/50 transition-colors text-sm font-medium"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  <span>Voir le scan de la facture</span>
-                </a>
-              )}
             </div>
           </div>
 
-          {/* Footer avec boutons simplifiés */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50/50">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => exportFacture(invoice)}
-                disabled={loading}
-                className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    <span>Génération...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    <span>Télécharger PDF</span>
-                  </>
+          {/* Footer avec boutons */}
+          <div className="p-6 border-t border-gray-200 bg-gray-50">
+            <div className="space-y-4">
+              
+              {/* Section: Documents */}
+              <ActionSection title="Documents">
+                <ActionButton
+                  icon={Download}
+                  label="Télécharger PDF"
+                  description="Générer la facture"
+                  onClick={() => exportFacture(invoice)}
+                  variant="indigo"
+                  loading={loading}
+                />
+                
+                {invoice.receipt_url && (
+                  <ActionButton
+                    icon={ExternalLink}
+                    label="Voir le scan"
+                    description="Ouvrir le document"
+                    onClick={() => window.open(invoice.receipt_url, '_blank')}
+                    variant="primary"
+                  />
                 )}
-              </button>
+              </ActionSection>
 
+              {/* Section: Actions */}
               {invoice.status === InvoiceStatus.DISPUTED && (
-                <button
-                  onClick={() => setCorrectOpen(true)}
-                  className="flex-1 min-w-[180px] flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
-                >
-                  <Pencil className="h-4 w-4" />
-                  <span>Corriger / Résoudre</span>
-                </button>
+                <ActionSection title="Résolution">
+                  <ActionButton
+                    icon={Pencil}
+                    label="Corriger / Résoudre"
+                    description="Modifier la facture"
+                    onClick={() => setCorrectOpen(true)}
+                    variant="warning"
+                  />
+                </ActionSection>
               )}
-
-              <button
-                onClick={onClose}
-                className="flex-1 min-w-[120px] px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors text-sm font-medium"
-              >
-                Fermer
-              </button>
             </div>
           </div>
         </div>

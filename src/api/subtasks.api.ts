@@ -24,8 +24,8 @@ export const subtasksApi = {
     return response.data;
   },
 
-  async markCompleteByTeamMember(id: string): Promise<Subtask> {
-    const response = await axiosInstance.post(`${API_BASE}/${id}/mark-complete`);
+  async markCompleteByTeamMember(id: string, businessId: string): Promise<Subtask> {
+    const response = await axiosInstance.post(`${API_BASE}/${id}/mark-complete`, { businessId });
     return response.data;
   },
 

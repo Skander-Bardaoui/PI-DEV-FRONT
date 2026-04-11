@@ -1,6 +1,14 @@
 import { Category } from './category';
 import { Warehouse } from './warehouse';
 
+// ==================== Alaa change for service type ====================
+export enum ProductType {
+  PHYSICAL = 'PHYSICAL',
+  SERVICE = 'SERVICE',
+  DIGITAL = 'DIGITAL',
+}
+// ====================================================================
+
 export interface StockProduct {
   sku: string;
   price: any;
@@ -26,6 +34,9 @@ export interface StockProduct {
   is_stockable: boolean;
   is_active: boolean;
   barcode: string | null;
+  // ==================== Alaa change for service type ====================
+  type: ProductType;
+  // ====================================================================
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +58,9 @@ export interface CreateProductDto {
   min_stock_threshold?: number;
   is_stockable?: boolean;
   barcode?: string;
+  // ==================== Alaa change for service type ====================
+  type?: ProductType;
+  // ====================================================================
 }
 
 export interface UpdateProductDto {
@@ -64,6 +78,9 @@ export interface UpdateProductDto {
   is_stockable?: boolean;
   is_active?: boolean;
   barcode?: string;
+  // ==================== Alaa change for service type ====================
+  type?: ProductType;
+  // ====================================================================
 }
 
 export interface QueryProductsDto {
@@ -71,4 +88,7 @@ export interface QueryProductsDto {
   category_id?: string;
   is_active?: boolean;
   low_stock?: boolean;
+  // ==================== Alaa change for service type ====================
+  type?: ProductType;
+  // ====================================================================
 }

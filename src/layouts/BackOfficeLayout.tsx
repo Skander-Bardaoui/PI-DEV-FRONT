@@ -9,6 +9,10 @@ import {
   Wallet,
   ArrowRightLeft,
   Warehouse,
+  // ==================== Alaa change for service type ====================
+  Briefcase,
+  // ====================================================================
+  AlertTriangle,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
@@ -62,6 +66,7 @@ export default function BackOfficeLayout() {
       name: t('nav.sales'), href: '/app/sales', icon: ShoppingCart,
       subItems: [
         { name: t('nav.dashboard'),  href: '/app/sales/dashboard',          icon: LayoutDashboard },
+        { name: t('nav.clients'),    href: '/app/sales/clients',            icon: Users           },
         { name: t('nav.quotes'),     href: '/app/sales/quotes',             icon: FileCheck       },
         { name: t('nav.orders'),     href: '/app/sales/orders',             icon: ClipboardList   },
         { name: t('nav.deliveries'), href: '/app/sales/delivery-notes',     icon: Truck           },
@@ -88,7 +93,11 @@ export default function BackOfficeLayout() {
       subItems: [
         { name: t('nav.overview'),    href: '/app/stock',            icon: LayoutDashboard },
         { name: t('nav.products'),    href: '/app/stock/products',   icon: Box             },
-        { name: t('nav.categories'),  href: '/app/stock/categories', icon: Tag             },
+        // ==================== Alaa change for service type ====================
+        { name: t('nav.services'),    href: '/app/stock/services',   icon: Briefcase       },
+        { name: t('nav.serviceCategories'), href: '/app/stock/service-categories', icon: Tag },
+        { name: t('nav.productCategories'), href: '/app/stock/categories', icon: Tag },
+        // ====================================================================
         { name: t('nav.movements'),   href: '/app/stock/movements',  icon: TrendingUp      },
         { name: t('nav.warehouses'),  href: '/app/warehouses',       icon: Warehouse       },
       ],

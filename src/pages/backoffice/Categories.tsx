@@ -29,10 +29,13 @@ export default function Categories() {
   const loadCategories = async () => {
     try {
       setLoading(true);
+      // ==================== Alaa change for service type ====================
       const data = await categoriesApi.getAll(businessId!, {
         search: searchTerm || undefined,
         is_active: showActiveOnly ? true : undefined,
+        category_type: 'PRODUCT',
       });
+      // ====================================================================
       setCategories(data);
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -44,11 +47,14 @@ export default function Categories() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // ==================== Alaa change for service type ====================
+      const dataToSend = { ...formData, category_type: 'PRODUCT' };
       if (editingCategory) {
-        await categoriesApi.update(businessId!, editingCategory.id, formData);
+        await categoriesApi.update(businessId!, editingCategory.id, dataToSend);
       } else {
-        await categoriesApi.create(businessId!, formData);
+        await categoriesApi.create(businessId!, dataToSend);
       }
+      // ====================================================================
       setShowModal(false);
       setEditingCategory(null);
       setFormData({ name: '', description: '' });
@@ -104,7 +110,9 @@ export default function Categories() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Categories</h1>
+        {/* ==================== Alaa change for service type ==================== */}
+        <h1 className="text-2xl font-bold">Product Categories</h1>
+        {/* ==================================================================== */}
         <button
           onClick={() => {
             setEditingCategory(null);

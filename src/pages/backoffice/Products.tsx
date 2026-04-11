@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { productsApi } from '../../api/products.api';
 import { categoriesApi } from '../../api/categories.api';
 import { warehousesApi } from '../../api/warehouses.api';
-import { Product, CreateProductDto } from '../../types/product';
+import { Product, CreateProductDto, ProductType } from '../../types/product';
 import { Category } from '../../types/category';
 import { Warehouse } from '../../types/warehouse';
 import { Plus, Edit, Trash2, Search, AlertTriangle, Camera, Upload, X, RefreshCw, CheckCircle, Barcode, Printer, Eye } from 'lucide-react';
@@ -71,12 +71,15 @@ export default function Products() {
   const loadProducts = async () => {
     try {
       setLoading(true);
+      // ==================== Alaa change for service type ====================
       const data = await productsApi.getAll(businessId!, {
         search: searchTerm || undefined,
         category_id: selectedCategory || undefined,
         is_active: showActiveOnly ? true : undefined,
         low_stock: showLowStock ? true : undefined,
+        type: ProductType.PHYSICAL, // Only show PHYSICAL products
       });
+      // ====================================================================
       setProducts(data);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -87,7 +90,9 @@ export default function Products() {
 
   const loadCategories = async () => {
     try {
-      const data = await categoriesApi.getAll(businessId!, { is_active: true });
+      // ==================== Alaa change for service type ====================
+      const data = await categoriesApi.getAll(businessId!, { is_active: true, category_type: 'PRODUCT' });
+      // ====================================================================
       setCategories(data);
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -106,11 +111,14 @@ export default function Products() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // ==================== Alaa change for service type ====================
+      const productData = { ...formData, type: ProductType.PHYSICAL };
+      // ====================================================================
       if (editingProduct) {
-        await productsApi.update(businessId!, editingProduct.id, formData);
+        await productsApi.update(businessId!, editingProduct.id, productData);
         toast.success('Product updated successfully');
       } else {
-        await productsApi.create(businessId!, formData);
+        await productsApi.create(businessId!, productData);
         toast.success('Product created successfully');
       }
       setShowModal(false);
@@ -336,13 +344,16 @@ export default function Products() {
         categoryName = selectedCategory?.name || null;
       }
 
+      // ==================== Alaa change for service type ====================
       const result = await productsApi.generateSku(businessId!, {
         category_name: categoryName,
         brand: null, // No brand field yet
         name: formData.name || null,
         unit: formData.unit || null,
         extra_attribute: null, // For future use
+        type: 'PHYSICAL', // Pass PHYSICAL type for product SKU generation
       });
+      // ====================================================================
 
       setFormData(prev => ({ ...prev, reference: result.sku }));
     } catch (error: any) {
@@ -446,7 +457,10 @@ export default function Products() {
   const handleSaveScannedProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await productsApi.create(businessId!, formData);
+      // ==================== Alaa change for service type ====================
+      const productData = { ...formData, type: ProductType.PHYSICAL };
+      await productsApi.create(businessId!, productData);
+      // ====================================================================
       toast.success('Product created successfully');
       setShowScanModal(false);
       resetScanModal();

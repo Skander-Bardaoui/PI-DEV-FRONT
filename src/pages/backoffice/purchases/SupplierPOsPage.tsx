@@ -2,7 +2,7 @@
 // VERSION MISE À JOUR — filtres avancés + tri colonnes + ConfirmModal + Toast
 
 import { useState } from 'react';
-import { Plus, Eye, Send, Check, X, ChevronUp, ChevronDown, Filter, Sparkles } from 'lucide-react';
+import { Plus, Eye, Send, Check, X, ChevronUp, ChevronDown, Filter, Sparkles, ShoppingCart } from 'lucide-react';
 import { useAuth }            from '../../../hooks/useAuth';
 import {
   useSupplierPOs, useSendSupplierPO,
@@ -15,6 +15,9 @@ import ConfirmModal, { useApiError }          from '@/components/ui/ConfirmModal
 import SupplierPOModal       from '@/components/purchases/SupplierPOModal';
 import SupplierPODetailModal from '@/components/purchases/SupplierPODetailModal';
 import AiPOGeneratorModal    from '@/components/purchases/AiPOGeneratorModal';
+// ==================== Alaa change for product reservations ====================
+import ReservationsModal     from '@/components/purchases/ReservationsModal';
+// ====================================================================
 import PDFButton             from '@/components/purchases/PDFButton';
 import { usePDFExport }      from '@/hooks/usePDFExport';
 import { formatAmount, formatDate, PO_STATUS_COLORS, PO_STATUS_LABELS, POStatus, SupplierPO } from '@/types';
@@ -56,6 +59,9 @@ export default function SupplierPOsPage() {
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [detailPO,    setDetailPO]    = useState<SupplierPO | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<SupplierPO | null>(null);
+  // ==================== Alaa change for product reservations ====================
+  const [reservationsModalOpen, setReservationsModalOpen] = useState(false);
+  // ====================================================================
 
   const { data, isLoading } = useSupplierPOs(businessId, {
     status:      statusFilter   || undefined,
@@ -147,12 +153,21 @@ export default function SupplierPOsPage() {
             <Filter className="h-4 w-4" />
             Filtres {hasActiveFilters && `(actifs)`}
           </button>
+          {/* ==================== Alaa change for product reservations ==================== */}
+          <button
+            onClick={() => setReservationsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-amber-400 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Réservations
+          </button>
+          {/* ==================================================================== */}
           <button
             onClick={() => setAiModalOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/30"
           >
             <Sparkles className="h-5 w-5" />
-            Générer par IA
+            Créer avec l'Assistant IA
           </button>
           <button
             onClick={() => setModalOpen(true)}
@@ -350,6 +365,9 @@ export default function SupplierPOsPage() {
       {modalOpen && <SupplierPOModal businessId={businessId} onClose={() => setModalOpen(false)} />}
       {aiModalOpen && <AiPOGeneratorModal businessId={businessId} onClose={() => setAiModalOpen(false)} onSuccess={() => toast.success('BC créé', 'Le bon de commande a été généré avec succès')} />}
       {detailPO  && <SupplierPODetailModal businessId={businessId} po={detailPO} onClose={() => setDetailPO(null)} />}
+      {/* ==================== Alaa change for product reservations ==================== */}
+      {reservationsModalOpen && <ReservationsModal businessId={businessId} onClose={() => setReservationsModalOpen(false)} />}
+      {/* ==================================================================== */}
       {confirmCancel && (
         <ConfirmModal
           title="Annuler le bon de commande ?"
