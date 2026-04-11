@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useBusinessId } from '../../hooks/useBusinessId';
 import { useNavigate } from 'react-router-dom';
 import { warehousesApi } from '../../api/warehouses.api';
 import { Warehouse, CreateWarehouseDto } from '../../types/warehouse';
@@ -15,7 +16,7 @@ import {
 export default function Warehouses() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const businessId = user?.business_id;
+  const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useBusinessId } from '../../hooks/useBusinessId';
 import { stockMovementsApi } from '../../api/stock-movements.api';
 import { productsApi } from '../../api/products.api';
 import { warehousesApi } from '../../api/warehouses.api';
@@ -25,7 +26,7 @@ import { format } from 'date-fns';
 
 export default function StockMovements() {
   const { user } = useAuth();
-  const businessId = user?.business_id;
+  const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
 
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -469,7 +470,7 @@ export default function StockMovements() {
                   }
                   className="w-full px-3 py-2 border rounded-lg"
                   rows={3}
-                />
+                />v2/PI-DEV-FRONT/src/pages/backoffice/Archive.tsx:9:22A
               </div>
 
               <div className="flex justify-end gap-2">

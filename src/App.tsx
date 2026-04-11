@@ -47,6 +47,7 @@ import Categories     from './pages/backoffice/Categories';
 import StockMovements from './pages/backoffice/StockMovements';
 import Warehouses from './pages/backoffice/Warehouses';
 import WarehouseDetail from './pages/backoffice/WarehouseDetail';
+import Archive from './pages/backoffice/Archive';
 
 // ── Module 3 — Gestion Fournisseurs & Achats ──────────────────────────────
 import SuppliersPage          from './pages/backoffice/purchases/SuppliersPage';
@@ -168,6 +169,15 @@ function AppContent() {
           {/* ==================================================================== */}
           <Route path="stock/categories"  element={<Categories />}     />
           <Route path="stock/movements"   element={<StockMovements />} />
+          {/* Archive - Only for BUSINESS_OWNER and BUSINESS_ADMIN */}
+          <Route 
+            path="stock/archive" 
+            element={
+              <ProtectedRoute allowedRoles={[Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN]}>
+                <Archive />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="warehouses"        element={<Warehouses />}     />
           <Route path="warehouses/:id"    element={<WarehouseDetail />} />
 

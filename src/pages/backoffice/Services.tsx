@@ -1,6 +1,7 @@
 // ==================== Alaa change for service type ====================
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useBusinessId } from '../../hooks/useBusinessId';
 import { productsApi } from '../../api/products.api';
 import { categoriesApi } from '../../api/categories.api';
 import { Product, CreateProductDto, ProductType } from '../../types/product';
@@ -10,7 +11,7 @@ import { toast } from 'sonner';
 
 export default function Services() {
   const { user } = useAuth();
-  const businessId = user?.business_id;
+  const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
   const [services, setServices] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);

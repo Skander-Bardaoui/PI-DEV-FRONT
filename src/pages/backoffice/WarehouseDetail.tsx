@@ -16,7 +16,7 @@ export default function WarehouseDetail() {
   const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const businessId = user?.business_id;
+  const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
 
   const [warehouse, setWarehouse] = useState<Warehouse | null>(null);
   const [products, setProducts] = useState<StockProduct[]>([]);

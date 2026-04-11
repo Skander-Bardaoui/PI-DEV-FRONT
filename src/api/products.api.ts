@@ -28,20 +28,16 @@ export const productsApi = {
     const response = await axios.post(
       `${API_URL}/businesses/${businessId}/products`,
       data,
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return response.data;
   },
 
-  update: async (
-    businessId: string,
-    id: string,
-    data: UpdateProductDto
-  ): Promise<Product> => {
+  update: async (businessId: string, id: string, data: UpdateProductDto): Promise<Product> => {
     const response = await axios.put(
       `${API_URL}/businesses/${businessId}/products/${id}`,
       data,
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return response.data;
   },
@@ -50,6 +46,29 @@ export const productsApi = {
     await axios.delete(`${API_URL}/businesses/${businessId}/products/${id}`, {
       withCredentials: true,
     });
+  },
+
+  softDelete: async (businessId: string, id: string): Promise<Product> => {
+    const response = await axios.delete(`${API_URL}/businesses/${businessId}/products/${id}`, {
+      withCredentials: true,
+    });
+    return response.data;
+  },
+
+  restore: async (businessId: string, id: string): Promise<Product> => {
+    const response = await axios.post(
+      `${API_URL}/businesses/${businessId}/products/${id}/restore`,
+      {},
+      { withCredentials: true },
+    );
+    return response.data;
+  },
+
+  getArchived: async (businessId: string): Promise<Product[]> => {
+    const response = await axios.get(`${API_URL}/businesses/${businessId}/products/archived`, {
+      withCredentials: true,
+    });
+    return response.data;
   },
 
   getAlerts: async (businessId: string): Promise<Product[]> => {
@@ -71,21 +90,14 @@ export const productsApi = {
   }> => {
     const formData = new FormData();
     formData.append('image', imageFile);
-
     const response = await axios.post(
       `${API_URL}/businesses/${businessId}/products/scan-image`,
       formData,
-      {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
+      { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data;
   },
 
-  // ==================== Alaa change for service type ====================
   generateSku: async (
     businessId: string,
     data: {
@@ -94,23 +106,22 @@ export const productsApi = {
       name?: string | null;
       unit?: string | null;
       extra_attribute?: string | null;
-      type?: 'PHYSICAL' | 'SERVICE' | 'DIGITAL'; // Added type parameter for service SKU generation
-    }
+      type?: 'PHYSICAL' | 'SERVICE' | 'DIGITAL';
+    },
   ): Promise<{ sku: string }> => {
     const response = await axios.post(
       `${API_URL}/businesses/${businessId}/products/generate-sku`,
       data,
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return response.data;
   },
-  // ====================================================================
 
   generateBarcode: async (businessId: string, productId: string): Promise<Product> => {
     const response = await axios.post(
       `${API_URL}/businesses/${businessId}/products/${productId}/generate-barcode`,
       {},
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return response.data;
   },
@@ -118,10 +129,7 @@ export const productsApi = {
   downloadLabel: async (businessId: string, productId: string): Promise<Blob> => {
     const response = await axios.get(
       `${API_URL}/businesses/${businessId}/products/${productId}/label`,
-      {
-        withCredentials: true,
-        responseType: 'blob',
-      }
+      { withCredentials: true, responseType: 'blob' },
     );
     return response.data;
   },
@@ -130,19 +138,12 @@ export const productsApi = {
     const response = await axios.post(
       `${API_URL}/businesses/${businessId}/products/labels/bulk`,
       { product_ids: productIds },
-      {
-        withCredentials: true,
-        responseType: 'blob',
-      }
+      { withCredentials: true, responseType: 'blob' },
     );
     return response.data;
   },
 
-  // ==================== Alaa change for service type ====================
-  scanServiceDescription: async (
-    businessId: string,
-    description: string
-  ): Promise<{
+  scanServiceDescription: async (businessId: string, description: string): Promise<{
     name: string | null;
     description: string | null;
     suggested_category_name: string | null;
@@ -153,9 +154,29 @@ export const productsApi = {
     const response = await axios.post(
       `${API_URL}/businesses/${businessId}/products/scan-service-description`,
       { description },
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return response.data;
   },
-  // ====================================================================
+
+  // ==================== Product image ====================
+  uploadImage: async (businessId: string, productId: string, imageFile: File): Promise<Product> => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    const response = await axios.post(
+      `${API_URL}/businesses/${businessId}/products/${productId}/image`,
+      formData,
+      { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  },
+
+  removeImage: async (businessId: string, productId: string): Promise<Product> => {
+    const response = await axios.delete(
+      `${API_URL}/businesses/${businessId}/products/${productId}/image`,
+      { withCredentials: true },
+    );
+    return response.data;
+  },
+  // ======================================================
 };

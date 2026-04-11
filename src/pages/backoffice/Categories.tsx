@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useBusinessId } from '../../hooks/useBusinessId';
 import { categoriesApi } from '../../api/categories.api';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../types/category';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 
 export default function Categories() {
   const { user } = useAuth();
-  const businessId = user?.business_id;
+  const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);

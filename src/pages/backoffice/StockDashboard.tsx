@@ -1,6 +1,7 @@
 // ==================== Alaa change for stock dashboard ====================
 // src/pages/backoffice/StockDashboard.tsx
 import { useState, useEffect } from 'react';
+import { useBusinessId } from '../../hooks/useBusinessId';
 import { Package, AlertTriangle, Tag, TrendingUp, Wallet, RefreshCw, ShoppingCart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -32,7 +33,7 @@ interface Supplier {
 
 export default function StockDashboard() {
   const { user } = useAuth();
-  const businessId = user?.business_id;
+  const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
   const navigate = useNavigate();
   const [data, setData] = useState<StockDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
