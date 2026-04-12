@@ -42,6 +42,8 @@ import DroppableColumn from '../../components/DroppableColumn';
 import DraggableTaskCard from '../../components/DraggableTaskCard';
 import SubtaskList from '../../components/SubtaskList';
 import SubtaskViewModal from '../../components/SubtaskViewModal';
+import DailyCheckinBanner from '../../components/DailyCheckinBanner';
+import TodayCheckinsSection from '../../components/TodayCheckinsSection';
 import { toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
 import { activitiesApi, Activity } from '../../api/activities.api';
@@ -315,8 +317,16 @@ export default function Collaboration() {
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
 
+  // Daily check-in state
+  const [refreshCheckins, setRefreshCheckins] = useState(0);
+
   // Check if user can manage tasks
   const canManageTasks = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
+
+  // Filter tasks assigned to current user
+  const myAssignedTasks = tasks.filter(
+    (task) => task.assignedTo?.some((u) => u.id === currentUser?.id)
+  );
 
   // ── Load current user, businesses, members, and tasks on mount ─────────────
   useEffect(() => {
@@ -882,6 +892,18 @@ export default function Collaboration() {
 
   return (
     <div className="space-y-6">
+      {/* Daily Check-in Banner - Only for TEAM_MEMBER and ACCOUNTANT */}
+      {currentUser && 
+       (currentUser.role === 'TEAM_MEMBER' || currentUser.role === 'ACCOUNTANT') && 
+       currentBusiness && (
+        <DailyCheckinBanner
+          businessId={currentBusiness.id}
+          userFirstName={currentUser.firstName}
+          assignedTasks={myAssignedTasks}
+          onCheckinComplete={() => setRefreshCheckins(prev => prev + 1)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex-1">
@@ -1200,7 +1222,16 @@ export default function Collaboration() {
 
           {/* ── Activity Tab ─────────────────────────────────────────────────── */}
           {activeTab === 'activity' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Today's Check-ins Section - Only for OWNER and ADMIN */}
+              {currentBusiness && 
+               (currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN') && (
+                <TodayCheckinsSection 
+                  businessId={currentBusiness.id} 
+                  key={refreshCheckins}
+                />
+              )}
+
               {loadingActivities ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
