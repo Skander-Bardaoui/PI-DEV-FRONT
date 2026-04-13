@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { usePresenceContext } from '../../context/PresenceContext';
 import { toast } from 'sonner';
 import {
   getBusinessMembers,
@@ -61,6 +62,7 @@ const roleLabels: Record<string, string> = {
 
 export default function Team() {
   const { user } = useAuth();
+  const { userStatuses } = usePresenceContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [showInvite, setShowInvite] = useState(false);
   const [selectedMember, setSelectedMember] = useState<BusinessMember | null>(
@@ -345,6 +347,9 @@ export default function Team() {
                   Date d'ajout
                 </th>
                 <th className="text-center px-6 py-4 text-sm font-medium text-gray-500">
+                  Présence
+                </th>
+                <th className="text-center px-6 py-4 text-sm font-medium text-gray-500">
                   Statut
                 </th>
                 {canManageTeam && (
@@ -358,12 +363,13 @@ export default function Team() {
               {filteredMembers.map((member) => {
                 const fullName = `${member.user.firstName} ${member.user.lastName}`;
                 const initials = `${member.user.firstName[0]}${member.user.lastName[0]}`.toUpperCase();
+                const isOnline = userStatuses.get(member.user_id) === 'online';
 
                 return (
                   <tr key={member.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                        <div className="relative h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
                           {member.user.avatarUrl ? (
                             <img
                               src={`http://localhost:3001${member.user.avatarUrl}`}
@@ -375,6 +381,12 @@ export default function Team() {
                               {initials}
                             </span>
                           )}
+                          {/* Presence indicator on avatar */}
+                          <div className="absolute -bottom-0.5 -right-0.5">
+                            <div className={`w-3 h-3 rounded-full border-2 border-white ${
+                              isOnline ? 'bg-green-500' : 'bg-gray-400'
+                            }`} />
+                          </div>
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{fullName}</p>
@@ -403,8 +415,22 @@ export default function Team() {
                     <td className="px-6 py-4 text-center">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-                          member.is_active
+                          isOnline
                             ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${
+                          isOnline ? 'bg-green-500' : 'bg-gray-400'
+                        }`} />
+                        {isOnline ? 'En ligne' : 'Hors ligne'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                          member.is_active
+                            ? 'bg-blue-100 text-blue-700'
                             : 'bg-gray-100 text-gray-700'
                         }`}
                       >

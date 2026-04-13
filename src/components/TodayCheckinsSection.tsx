@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock, Loader2, RefreshCw } from 'lucide-react';
 import { checkinsApi, BusinessCheckinsResponse } from '../api/checkins.api';
+import { usePresenceContext } from '../context/PresenceContext';
+import { PresenceIndicator } from './PresenceIndicator';
 
 interface TodayCheckinsSectionProps {
   businessId: string;
@@ -25,6 +27,9 @@ export default function TodayCheckinsSection({ businessId }: TodayCheckinsSectio
   const [data, setData] = useState<BusinessCheckinsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Real-time presence from global context
+  const { userStatuses, isConnected } = usePresenceContext();
 
   useEffect(() => {
     loadCheckinsData();
@@ -114,12 +119,18 @@ export default function TodayCheckinsSection({ businessId }: TodayCheckinsSectio
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+      <div
+        className="w-full px-6 py-4 flex items-center justify-between"
       >
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Today's Check-ins</h3>
+          {/* WebSocket connection indicator */}
+          {isConnected && (
+            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+              Live
+            </span>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -137,13 +148,18 @@ export default function TodayCheckinsSection({ businessId }: TodayCheckinsSectio
             <span className="text-gray-500 font-semibold">{data.summary.skipped}</span> skipped •{' '}
             <span className="text-orange-500 font-semibold">{data.summary.pending}</span> pending
           </div>
-          {collapsed ? (
-            <ChevronDown className="h-5 w-5 text-gray-400" />
-          ) : (
-            <ChevronUp className="h-5 w-5 text-gray-400" />
-          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+          >
+            {collapsed ? (
+              <ChevronDown className="h-5 w-5 text-gray-400" />
+            ) : (
+              <ChevronUp className="h-5 w-5 text-gray-400" />
+            )}
+          </button>
         </div>
-      </button>
+      </div>
 
       {!collapsed && (
         <div className="px-6 pb-6 space-y-3">
@@ -154,7 +170,7 @@ export default function TodayCheckinsSection({ businessId }: TodayCheckinsSectio
             >
               <div className="flex items-start gap-3">
                 {/* Avatar */}
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 relative">
                   {member.avatarUrl ? (
                     <img
                       src={member.avatarUrl}
@@ -166,6 +182,13 @@ export default function TodayCheckinsSection({ businessId }: TodayCheckinsSectio
                       {member.firstName?.[0]}{member.lastName?.[0]}
                     </div>
                   )}
+                  {/* Real-time presence indicator */}
+                  <div className="absolute -bottom-0.5 -right-0.5">
+                    <PresenceIndicator 
+                      isOnline={userStatuses.get(member.userId) === 'online'} 
+                      size="sm" 
+                    />
+                  </div>
                 </div>
 
                 {/* Content */}
@@ -174,6 +197,14 @@ export default function TodayCheckinsSection({ businessId }: TodayCheckinsSectio
                     <h4 className="font-semibold text-gray-900">
                       {member.firstName} {member.lastName}
                     </h4>
+                    {/* Online/Offline status text */}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      userStatuses.get(member.userId) === 'online' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {userStatuses.get(member.userId) === 'online' ? 'Online' : 'Offline'}
+                    </span>
                     <div className="flex items-center gap-1.5">
                       {getStatusIcon(member.status)}
                       <span className="text-sm text-gray-600">{getStatusText(member.status)}</span>

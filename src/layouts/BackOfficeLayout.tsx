@@ -15,6 +15,7 @@ import { useAuth }               from '../hooks/useAuth';
 import { usePurchaseAlerts }     from '@/hooks/usePurchaseAlerts';
 import AlertsPanel               from '@/components/purchases/AlertsPanel';
 import LanguageSwitcher          from '@/components/LanguageSwitcher';
+import { PresenceProvider }      from '../context/PresenceContext';
 
 export default function BackOfficeLayout() {
   const { t, i18n } = useTranslation();
@@ -239,7 +240,8 @@ export default function BackOfficeLayout() {
   const avatarUrl = user?.avatarUrl;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PresenceProvider>
+      <div className="min-h-screen bg-gray-50">
 
       {/* ── Mobile sidebar ──────────────────────────────────────────────────── */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? '' : 'hidden'}`}>
@@ -439,6 +441,7 @@ export default function BackOfficeLayout() {
           <Outlet />
         </main>
       </div>
-    </div>
+      </div>
+    </PresenceProvider>
   );
 }

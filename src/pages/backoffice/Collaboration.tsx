@@ -44,6 +44,8 @@ import SubtaskList from '../../components/SubtaskList';
 import SubtaskViewModal from '../../components/SubtaskViewModal';
 import DailyCheckinBanner from '../../components/DailyCheckinBanner';
 import TodayCheckinsSection from '../../components/TodayCheckinsSection';
+import { PresenceIndicator } from '../../components/PresenceIndicator';
+import { usePresenceContext } from '../../context/PresenceContext';
 import { toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
 import { activitiesApi, Activity } from '../../api/activities.api';
@@ -319,6 +321,9 @@ export default function Collaboration() {
 
   // Daily check-in state
   const [refreshCheckins, setRefreshCheckins] = useState(0);
+
+  // Real-time presence from global context
+  const { userStatuses, isConnected: presenceConnected } = usePresenceContext();
 
   // Check if user can manage tasks
   const canManageTasks = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
@@ -1080,6 +1085,16 @@ export default function Collaboration() {
           {/* ── Team Tab ────────────────────────────────────────────────────── */}
           {activeTab === 'team' && (
             <div className="space-y-4">
+              {/* WebSocket connection status */}
+              {presenceConnected && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                  <span className="text-sm text-green-700 font-medium">
+                    Statut de présence en temps réel activé
+                  </span>
+                </div>
+              )}
+
               {/* Toolbar */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div className="relative flex-1 max-w-md w-full">
@@ -1145,6 +1160,7 @@ export default function Collaboration() {
                         <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Nom</th>
                         <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Rôle</th>
                         <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Email</th>
+                        <th className="text-center px-6 py-3 text-sm font-medium text-gray-500">Présence</th>
                         <th className="text-center px-6 py-3 text-sm font-medium text-gray-500">Statut</th>
                         <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Rejoint le</th>
                         <th className="text-right px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
@@ -1167,10 +1183,19 @@ export default function Collaboration() {
                           <tr key={member.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div
-                                  className={`h-10 w-10 rounded-full ${color} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}
-                                >
-                                  {initials}
+                                <div className="relative">
+                                  <div
+                                    className={`h-10 w-10 rounded-full ${color} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}
+                                  >
+                                    {initials}
+                                  </div>
+                                  {/* Real-time presence indicator */}
+                                  <div className="absolute -bottom-0.5 -right-0.5">
+                                    <PresenceIndicator 
+                                      isOnline={userStatuses.get(member.user_id) === 'online'} 
+                                      size="sm" 
+                                    />
+                                  </div>
                                 </div>
                                 <span className="font-medium text-gray-900">{name}</span>
                               </div>
@@ -1186,16 +1211,27 @@ export default function Collaboration() {
                             <td className="px-6 py-4 text-center">
                               <span
                                 className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full ${
-                                  member.is_active
+                                  userStatuses.get(member.user_id) === 'online'
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-gray-100 text-gray-600'
                                 }`}
                               >
                                 <span
                                   className={`h-1.5 w-1.5 rounded-full ${
-                                    member.is_active ? 'bg-green-500' : 'bg-gray-400'
+                                    userStatuses.get(member.user_id) === 'online' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
                                   }`}
                                 />
+                                {userStatuses.get(member.user_id) === 'online' ? 'En ligne' : 'Hors ligne'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full ${
+                                  member.is_active
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
                                 {member.is_active ? 'Actif' : 'Inactif'}
                               </span>
                             </td>
