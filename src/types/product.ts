@@ -1,18 +1,16 @@
 import { Category } from './category';
 import { Warehouse } from './warehouse';
 
-// ==================== Alaa change for service type ====================
 export enum ProductType {
   PHYSICAL = 'PHYSICAL',
   SERVICE = 'SERVICE',
   DIGITAL = 'DIGITAL',
 }
-// ====================================================================
 
 export interface StockProduct {
   sku: string;
   price: any;
-  cost: import("react/jsx-runtime").JSX.Element;
+  cost: any;
   quantity: any;
   minQuantity: any;
   isActive: any;
@@ -34,14 +32,14 @@ export interface StockProduct {
   is_stockable: boolean;
   is_active: boolean;
   barcode: string | null;
-  // ==================== Alaa change for service type ====================
   type: ProductType;
-  // ====================================================================
+  // ==================== Product image ====================
+  image_url: string | null;
+  // ======================================================
   created_at: string;
   updated_at: string;
 }
 
-// Keep Product as alias for backward compatibility
 export type Product = StockProduct;
 
 export interface CreateProductDto {
@@ -58,9 +56,10 @@ export interface CreateProductDto {
   min_stock_threshold?: number;
   is_stockable?: boolean;
   barcode?: string;
-  // ==================== Alaa change for service type ====================
   type?: ProductType;
-  // ====================================================================
+  // ==================== Product image ====================
+  image_url?: string;
+  // ======================================================
 }
 
 export interface UpdateProductDto {
@@ -78,9 +77,10 @@ export interface UpdateProductDto {
   is_stockable?: boolean;
   is_active?: boolean;
   barcode?: string;
-  // ==================== Alaa change for service type ====================
   type?: ProductType;
-  // ====================================================================
+  // ==================== Product image ====================
+  image_url?: string;
+  // ======================================================
 }
 
 export interface QueryProductsDto {
@@ -88,7 +88,5 @@ export interface QueryProductsDto {
   category_id?: string;
   is_active?: boolean;
   low_stock?: boolean;
-  // ==================== Alaa change for service type ====================
   type?: ProductType;
-  // ====================================================================
 }

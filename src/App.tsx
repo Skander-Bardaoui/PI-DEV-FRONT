@@ -16,6 +16,9 @@ import { Toaster } from 'sonner';
 import LandingPage   from './pages/frontoffice/LandingPage';
 import LoginPage     from './pages/frontoffice/LoginPage';
 import RegisterPage  from './pages/frontoffice/RegisterPage';
+import ForgotPasswordPage from './pages/frontoffice/ForgotPasswordPage';
+import ResetPasswordPage from './pages/frontoffice/ResetPasswordPage';
+import VerifyEmailPage from './pages/frontoffice/VerifyEmailPage';
 import PricingPage   from './pages/frontoffice/PricingPage';
 import ClientPortal  from './pages/frontoffice/ClientPortal';
 import AcceptInvitationPage from './pages/frontoffice/AcceptInvitationPage';
@@ -44,6 +47,7 @@ import Categories     from './pages/backoffice/Categories';
 import StockMovements from './pages/backoffice/StockMovements';
 import Warehouses from './pages/backoffice/Warehouses';
 import WarehouseDetail from './pages/backoffice/WarehouseDetail';
+import Archive from './pages/backoffice/Archive';
 
 // ── Module 3 — Gestion Fournisseurs & Achats ──────────────────────────────
 import SuppliersPage          from './pages/backoffice/purchases/SuppliersPage';
@@ -111,6 +115,9 @@ function AppContent() {
         <Route path="/"        element={<LandingPage />}  />
         <Route path="/login"   element={<LoginPage />}    />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/pricing" element={<PricingPage />}  />
         <Route path="/supplier-portal" element={<SupplierPortalPage />} />
         <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
@@ -165,6 +172,15 @@ function AppContent() {
           {/* ==================================================================== */}
           <Route path="stock/categories"  element={<Categories />}     />
           <Route path="stock/movements"   element={<StockMovements />} />
+          {/* Archive - Only for BUSINESS_OWNER and BUSINESS_ADMIN */}
+          <Route 
+            path="stock/archive" 
+            element={
+              <ProtectedRoute allowedRoles={[Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN]}>
+                <Archive />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="warehouses"        element={<Warehouses />}     />
           <Route path="warehouses/:id"    element={<WarehouseDetail />} />
 

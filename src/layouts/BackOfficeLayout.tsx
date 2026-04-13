@@ -9,6 +9,7 @@ import {
   Wallet,
   ArrowRightLeft,
   Warehouse,
+  Archive,
   // ==================== Alaa change for service type ====================
   Briefcase,
   // ====================================================================
@@ -101,6 +102,10 @@ export default function BackOfficeLayout() {
         // ====================================================================
         { name: t('nav.movements'),   href: '/app/stock/movements',  icon: TrendingUp      },
         { name: t('nav.warehouses'),  href: '/app/warehouses',       icon: Warehouse       },
+        // Only show Archive to BUSINESS_OWNER and BUSINESS_ADMIN
+        ...(user?.role === 'BUSINESS_OWNER' || user?.role === 'BUSINESS_ADMIN' 
+          ? [{ name: t('nav.archive', { defaultValue: 'Archive' }), href: '/app/stock/archive', icon: Archive }] 
+          : []),
       ],
     },
     {

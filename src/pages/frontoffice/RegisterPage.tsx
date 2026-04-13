@@ -1,5 +1,5 @@
 // src/pages/frontoffice/RegisterPage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Building2, 
@@ -14,16 +14,19 @@ import {
   AlertCircle, 
   Globe, 
   Briefcase, 
-  FileText 
+  FileText,
+  XCircle
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [passwordStrength, setPasswordStrength] = useState(0);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -55,6 +58,21 @@ export default function RegisterPage() {
 
     acceptTerms: false
   });
+
+  // Calculate password strength
+  const calculatePasswordStrength = (password: string) => {
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (password.length >= 12) strength++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+    if (/\d/.test(password)) strength++;
+    if (/[^a-zA-Z0-9]/.test(password)) strength++;
+    return Math.min(strength, 4);
+  };
+
+  useEffect(() => {
+    setPasswordStrength(calculatePasswordStrength(formData.password));
+  }, [formData.password]);
 
   const validateTaxId = (taxId: string): boolean => {
     if (!taxId) return true;
@@ -170,64 +188,85 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex">
       {/* Left Panel - Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <Link to="/" className="flex items-center gap-2 mb-8">
-            <Building2 className="h-8 w-8 text-indigo-600" />
-            <span className="text-xl font-bold text-gray-900">NovEntra</span>
+      <div className="flex-1 flex items-center justify-center p-8 relative overflow-hidden">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(99 102 241) 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }}></div>
+        </div>
+
+        <div className="w-full max-w-md relative z-10">
+          <Link to="/" className="inline-flex items-center gap-2 mb-8 group">
+            <div className="h-10 w-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
+              <Building2 className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              NovEntra
+            </span>
           </Link>
 
-          {/* Progress Steps */}
+          {/* Progress Steps - Enhanced */}
           <div className="flex items-center gap-2 mb-8">
             <div className={`flex items-center gap-2 ${step >= 1 ? 'text-indigo-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                step >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-lg transition-all ${
+                step >= 1 ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white scale-110' : 'bg-gray-200 text-gray-500'
               }`}>
                 {step > 1 ? <CheckCircle className="h-5 w-5" /> : '1'}
               </div>
-              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Compte</span>
+              <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Compte</span>
             </div>
-            <div className="flex-1 h-0.5 bg-gray-200">
-              <div className={`h-full bg-indigo-600 transition-all ${step > 1 ? 'w-full' : 'w-0'}`} />
+            <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div className={`h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-500 ${step > 1 ? 'w-full' : 'w-0'}`} />
             </div>
             <div className={`flex items-center gap-2 ${step >= 2 ? 'text-indigo-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                step >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-lg transition-all ${
+                step >= 2 ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white scale-110' : 'bg-gray-200 text-gray-500'
               }`}>
                 {step > 2 ? <CheckCircle className="h-5 w-5" /> : '2'}
               </div>
-              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Tenant</span>
+              <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Tenant</span>
             </div>
-            <div className="flex-1 h-0.5 bg-gray-200">
-              <div className={`h-full bg-indigo-600 transition-all ${step > 2 ? 'w-full' : 'w-0'}`} />
+            <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div className={`h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-500 ${step > 2 ? 'w-full' : 'w-0'}`} />
             </div>
             <div className={`flex items-center gap-2 ${step >= 3 ? 'text-indigo-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                step >= 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-lg transition-all ${
+                step >= 3 ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white scale-110' : 'bg-gray-200 text-gray-500'
               }`}>
                 3
               </div>
-              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Entreprise</span>
+              <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Entreprise</span>
             </div>
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {step === 1 ? 'Créez votre compte' : step === 2 ? 'Configuration Tenant' : 'Informations entreprise'}
-          </h1>
-          <p className="text-gray-600 mb-8">
-            {step === 1
-              ? 'Commencez votre essai gratuit de 14 jours.'
-              : step === 2
-              ? 'Configurez votre espace de travail.'
-              : 'Finalisez les détails de votre entreprise.'
-            }
-          </p>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">
+              {step === 1 ? 'Créez votre compte' : step === 2 ? 'Configuration Tenant' : 'Informations entreprise'}
+            </h1>
+            <p className="text-lg text-gray-600">
+              {step === 1
+                ? 'Commencez votre essai gratuit de 14 jours.'
+                : step === 2
+                ? 'Configurez votre espace de travail.'
+                : 'Finalisez les détails de votre entreprise.'
+              }
+            </p>
+          </div>
 
-          {/* Error Message */}
+          {/* Error Message - Enhanced */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="mb-6 relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl opacity-50 group-hover:opacity-75 blur transition duration-300"></div>
+              <div className="relative p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 shadow-lg">
+                <div className="h-8 w-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-800">{error}</p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -236,14 +275,14 @@ export default function RegisterPage() {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Prénom</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Prénom</label>
+                    <div className="relative group">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                       <input
                         type="text"
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         placeholder="Jean"
                         required
                         minLength={2}
@@ -254,14 +293,14 @@ export default function RegisterPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Nom</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Nom</label>
+                    <div className="relative group">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                       <input
                         type="text"
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         placeholder="Dupont"
                         required
                         minLength={2}
@@ -273,14 +312,14 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="vous@exemple.com"
                       required
                       disabled={isLoading}
@@ -289,14 +328,14 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone (optionnel)</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Téléphone (optionnel)</label>
+                  <div className="relative group">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="tel"
                       value={formData.phone_number}
                       onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="+216 XX XXX XXX"
                       disabled={isLoading}
                     />
@@ -304,14 +343,14 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mot de passe</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-12 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Minimum 8 caractères"
                       required
                       minLength={8}
@@ -320,87 +359,148 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                       disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  {/* Password Strength Indicator */}
+                  {formData.password && (
+                    <div className="mt-2">
+                      <div className="flex gap-1 mb-1">
+                        {[1, 2, 3, 4].map((level) => (
+                          <div
+                            key={level}
+                            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                              level <= passwordStrength
+                                ? passwordStrength === 1
+                                  ? 'bg-red-500'
+                                  : passwordStrength === 2
+                                  ? 'bg-orange-500'
+                                  : passwordStrength === 3
+                                  ? 'bg-yellow-500'
+                                  : 'bg-green-500'
+                                : 'bg-gray-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className={`text-xs font-medium ${
+                        passwordStrength === 1
+                          ? 'text-red-600'
+                          : passwordStrength === 2
+                          ? 'text-orange-600'
+                          : passwordStrength === 3
+                          ? 'text-yellow-600'
+                          : 'text-green-600'
+                      }`}>
+                        {passwordStrength === 0 && 'Entrez un mot de passe'}
+                        {passwordStrength === 1 && 'Faible'}
+                        {passwordStrength === 2 && 'Moyen'}
+                        {passwordStrength === 3 && 'Bon'}
+                        {passwordStrength === 4 && 'Excellent'}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirmer le mot de passe</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Confirmer le mot de passe</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
-                      type={showPassword ? 'text' : 'password'}
+                      type={showConfirmPassword ? 'text' : 'password'}
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-12 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Confirmez votre mot de passe"
                       required
                       disabled={isLoading}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      disabled={isLoading}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
+                  {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                    <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                      <XCircle className="h-3 w-3" />
+                      Les mots de passe ne correspondent pas
+                    </p>
+                  )}
+                  {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                    <p className="mt-1.5 text-xs text-green-600 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Les mots de passe correspondent
+                    </p>
+                  )}
                 </div>
               </>
             ) : step === 2 ? (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom du Tenant</label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nom du Tenant</label>
+                  <div className="relative group">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="text"
                       value={formData.tenantName}
                       onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Mon Organisation"
                       required
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">Le nom de votre espace de travail</p>
+                  <p className="mt-1.5 text-xs text-gray-500 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3 text-indigo-500" />
+                    Le nom de votre espace de travail
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Domaine (optionnel)</label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Domaine (optionnel)</label>
+                  <div className="relative group">
+                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="text"
                       value={formData.domain}
                       onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="monentreprise"
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">Sous-domaine personnalisé pour votre tenant</p>
+                  <p className="mt-1.5 text-xs text-gray-500">Sous-domaine personnalisé pour votre tenant</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email de contact (optionnel)</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email de contact (optionnel)</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="email"
                       value={formData.contactEmail}
                       onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="contact@exemple.com"
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">Par défaut, votre email sera utilisé</p>
+                  <p className="mt-1.5 text-xs text-gray-500">Par défaut, votre email sera utilisé</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description (optionnel)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description (optionnel)</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     placeholder="Décrivez votre organisation..."
                     rows={3}
                     disabled={isLoading}
@@ -410,14 +510,14 @@ export default function RegisterPage() {
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom de l'entreprise</label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nom de l'entreprise</label>
+                  <div className="relative group">
+                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="text"
                       value={formData.businessName}
                       onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Ma Société SARL"
                       required
                       minLength={2}
@@ -426,48 +526,50 @@ export default function RegisterPage() {
                     />
                   </div>
                 </div>
-                  <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email de l'entreprise (optionnel)
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={formData.businessEmail}
-                    onChange={(e) => setFormData({ ...formData, businessEmail: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                    placeholder="contact@mon-entreprise.tn"
-                    disabled={isLoading}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Affiché dans les bons de commande envoyés aux fournisseurs
-                </p>
-              </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Matricule Fiscal (optionnel)</label>
-                  <div className="relative">
-                    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email de l'entreprise (optionnel)
+                  </label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                    <input
+                      type="email"
+                      value={formData.businessEmail}
+                      onChange={(e) => setFormData({ ...formData, businessEmail: e.target.value })}
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      placeholder="contact@mon-entreprise.tn"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Affiché dans les bons de commande envoyés aux fournisseurs
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Matricule Fiscal (optionnel)</label>
+                  <div className="relative group">
+                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="text"
                       value={formData.tax_id}
                       onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="1234567/A/M/E/000"
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">Format: NNNNNNN/X/A/E/NNN</p>
+                  <p className="mt-1.5 text-xs text-gray-500">Format: NNNNNNN/X/A/E/NNN</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Devise</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Devise</label>
                     <select
                       value={formData.currency}
                       onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       disabled={isLoading}
                     >
                       <option value="TND">TND - Dinar Tunisien</option>
@@ -477,12 +579,12 @@ export default function RegisterPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Taux TVA (%)</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Taux TVA (%)</label>
                     <input
                       type="number"
                       value={formData.taxRate}
                       onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="19"
                       min={0}
                       max={100}
@@ -493,7 +595,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Adresse</label>
                   <input
                     type="text"
                     value={formData.address.street}
@@ -501,7 +603,7 @@ export default function RegisterPage() {
                       ...formData, 
                       address: { ...formData.address, street: e.target.value } 
                     })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mb-3"
+                    className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all mb-3"
                     placeholder="Rue et numéro"
                     disabled={isLoading}
                   />
@@ -513,7 +615,7 @@ export default function RegisterPage() {
                         ...formData, 
                         address: { ...formData.address, city: e.target.value } 
                       })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Ville (ex: Sousse)"
                       disabled={isLoading}
                     />
@@ -524,13 +626,13 @@ export default function RegisterPage() {
                         ...formData, 
                         address: { ...formData.address, postalCode: e.target.value } 
                       })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Code postal (ex: 4000)"
                       maxLength={4}
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1.5 text-xs text-gray-500">
                     Le code postal tunisien doit contenir exactement 4 chiffres
                   </p>
                 </div>
@@ -558,19 +660,30 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative w-full group overflow-hidden rounded-xl font-semibold py-4 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Création en cours...
-                </>
-              ) : (
-                <>
-                  {step < 3 ? 'Continuer' : 'Créer mon compte'}
-                  <ArrowRight className="h-5 w-5" />
-                </>
-              )}
+              {/* Gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 transition-all duration-300 group-hover:scale-105"></div>
+              
+              {/* Animated shine effect */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+              </div>
+              
+              {/* Button content */}
+              <span className="relative flex items-center justify-center gap-2 text-white">
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Création en cours...
+                  </>
+                ) : (
+                  <>
+                    {step < 3 ? 'Continuer' : 'Créer mon compte'}
+                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </span>
             </button>
 
             {step > 1 && (
@@ -594,40 +707,88 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right Panel */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-indigo-600 to-purple-700 items-center justify-center p-12">
-        <div className="max-w-lg">
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-white">
-            <h2 className="text-2xl font-bold mb-6">Pourquoi choisir NovEntra ?</h2>
-            <div className="space-y-6">
-              {[
-                {
-                  title: 'Configuration en 5 minutes',
-                  desc: 'Commencez à facturer vos clients immédiatement'
-                },
-                {
-                  title: 'Données sécurisées en Tunisie',
-                  desc: 'Vos données restent sur des serveurs tunisiens'
-                },
-                {
-                  title: 'Support en français et arabe',
-                  desc: 'Une équipe locale à votre écoute'
-                },
-                {
-                  title: 'Essai gratuit 14 jours',
-                  desc: 'Sans carte bancaire requise'
-                }
-              ].map((item) => (
-                <div key={item.title} className="flex gap-4">
-                  <div className="h-10 w-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <CheckCircle className="h-5 w-5" />
+      {/* Right Panel - Enhanced */}
+      <div className="hidden lg:flex flex-1 relative overflow-hidden">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600"></div>
+        
+        {/* Animated shapes */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-500/10 rounded-full blur-2xl animate-pulse delay-500"></div>
+        </div>
+
+        {/* Content */}
+        <div className="relative flex items-center justify-center p-12 w-full">
+          <div className="max-w-lg w-full">
+            {/* Main card */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 text-white shadow-2xl border border-white/20">
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-white to-indigo-100 bg-clip-text text-transparent">
+                  Pourquoi choisir NovEntra ?
+                </h2>
+                <p className="text-indigo-100 text-lg">
+                  La solution complète pour votre entreprise
+                </p>
+              </div>
+
+              <div className="space-y-5">
+                {[
+                  {
+                    icon: '⚡',
+                    title: 'Configuration en 5 minutes',
+                    desc: 'Commencez à facturer vos clients immédiatement'
+                  },
+                  {
+                    icon: '🔒',
+                    title: 'Données sécurisées en Tunisie',
+                    desc: 'Vos données restent sur des serveurs tunisiens'
+                  },
+                  {
+                    icon: '🌍',
+                    title: 'Support en français et arabe',
+                    desc: 'Une équipe locale à votre écoute'
+                  },
+                  {
+                    icon: '🎁',
+                    title: 'Essai gratuit 14 jours',
+                    desc: 'Sans carte bancaire requise'
+                  }
+                ].map((item, index) => (
+                  <div 
+                    key={item.title} 
+                    className="flex gap-4 group hover:translate-x-2 transition-transform duration-300"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="h-12 w-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0 text-2xl group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300 shadow-lg">
+                      {item.icon}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg mb-1">{item.title}</h3>
+                      <p className="text-indigo-100 text-sm leading-relaxed">{item.desc}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">{item.title}</h3>
-                    <p className="text-indigo-200 text-sm">{item.desc}</p>
+                ))}
+              </div>
+
+              {/* Stats section */}
+              <div className="mt-8 pt-8 border-t border-white/20">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="group hover:scale-105 transition-transform">
+                    <div className="text-3xl font-bold mb-1">2.5K+</div>
+                    <div className="text-indigo-100 text-xs">Entreprises</div>
+                  </div>
+                  <div className="group hover:scale-105 transition-transform">
+                    <div className="text-3xl font-bold mb-1">50K+</div>
+                    <div className="text-indigo-100 text-xs">Factures</div>
+                  </div>
+                  <div className="group hover:scale-105 transition-transform">
+                    <div className="text-3xl font-bold mb-1">99.9%</div>
+                    <div className="text-indigo-100 text-xs">Satisfaction</div>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </div>
