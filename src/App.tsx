@@ -76,6 +76,7 @@ import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingP
 import SupplierRegisterPage from './pages/frontoffice/SupplierRegisterPage';
 import SalaryToPayPage from './components/treasury/SalaryToPayPage';
 import SalaryRespondPage from './pages/frontoffice/SalaryRespondPage';
+import SupplierScheduleResponsePage from './pages/frontoffice/SupplierScheduleResponsePage';
 
 // Inner component to access accessibility context
 function AppContent() {
@@ -117,6 +118,8 @@ function AppContent() {
         <Route path="/quote-portal" element={<QuotePortal />} />
         <Route path="/supplier-register" element={<SupplierRegisterPage />} />
         <Route path="/salary-respond/:token" element={<SalaryRespondPage />}  />
+        <Route path="/supplier/schedule/:token/:action" element={<SupplierScheduleResponsePage />}/>
+
         <Route path="/client-onboarding/:token" element={<ClientOnboarding />} />
 
         {/* ─── Client Portal (CLIENT role only) ───────────────────── */}
@@ -180,7 +183,7 @@ function AppContent() {
           <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
           <Route path="purchases/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="purchases/three-way-matching" element={<ThreeWayMatchingPage />} />
-          <Route path="purchases/three-way-matching/:invoiceId" element={<ThreeWayMatchingPage />} />
+
 
           {/*treasury*/}
           <Route path="/app/treasury/accounts" element={<AccountsPage />} />
@@ -191,6 +194,7 @@ function AppContent() {
           <Route path="treasury/expenses" element={<ExpensesToPayPage />} />
           <Route path="treasury/transactions" element={<Transactions />} />
           <Route path="treasury/salaries" element={<SalaryToPayPage />} />
+
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
           <Route path="sales/dashboard"          element={<SalesDashboardPage />}     />
