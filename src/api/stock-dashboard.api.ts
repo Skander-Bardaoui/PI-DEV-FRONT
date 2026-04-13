@@ -68,5 +68,21 @@ export const stockDashboardApi = {
     );
     return response.data;
   },
+  
+  getProductsDashboard: async (businessId: string): Promise<StockDashboardResponse> => {
+    const response = await axios.get(
+      `${API_URL}/businesses/${businessId}/stock/dashboard/products`,
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+  
+  getServicesDashboard: async (businessId: string): Promise<StockDashboardResponse> => {
+    const response = await axios.get(
+      `${API_URL}/businesses/${businessId}/stock/dashboard/services`,
+      { withCredentials: true }
+    );
+    return response.data;
+  },
 };
 // ====================================================================
