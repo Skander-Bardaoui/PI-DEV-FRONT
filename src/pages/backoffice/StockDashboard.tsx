@@ -1,3 +1,212 @@
+skander
+bardaoui
+•
+je reviens vite
+
+Achraf_07 [HK],  — 28/03/2026 22:22
+tesma3 fiya
+skander — 28/03/2026 23:51
+INSERT INTO clients (
+    id,
+    business_id,
+    name,
+    email,
+    phone,
+    address,
+    billing_details,
+    communication_history,
+    payment_terms,
+    created_at,
+    updated_at,
+    has_portal_access
+) VALUES (
+    uuid_generate_v4(),
+    '580b934a-eac1-4415-bd8f-8b6ab74f2554', -- ✅ new business_id
+    'Skander Bardaoui',
+    'skonbardaoui@gmail.com', -- ✅ same email
+    '+21612345678',
+    '"Sousse, Tunisia"', -- JSON string
+    '{"company": "Personal 2"}',
+    '{"note": "second client same email"}',
+    30,
+    NOW(),
+    NOW(),
+    true
+);
+skander — 29/03/2026 12:50
+NODE_TLS_REJECT_UNAUTHORIZED=0
+.env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+DB_NAME=saas
+
+JWT_ACCESS_SECRET=3a035305bb7a7bb7bc230fe83557d4cd5ab0c739698a0ccc44db38f598e288ff
+JWT_REFRESH_SECRET=9f6c2e8a4b7d1f3a5c0e9b8d4a2f7c1e6b5d0a3f8e1c9b7a2d6e4f0b1c5a8
+JWT_ACCESS_EXPIRY=60m
+JWT_REFRESH_EXPIRY=7d
+JWT_PORTAL_SECRET=9f3c1d8e5a7b4f2c6d0e9a3b8c1f7d4e6a2b5c9d3f8a1e0c7b4d6f2a9c3e1b
+ADMIN_NOTIFICATION_EMAIL=novaentra2026@gmail.com  # reçoit les alertes critiques
+TESSERACT_PATH=C:\Program Files\Tesseract-OCR\tesseract.exe
+TESSERACT_LANG=eng
+
+GOOGLE_VISION_API_KEY=AIzaSyCH_JsRcE4hZGe6AFJtxVtoxd2OeKQcrCA
+POPPLER_PATH=C:\poppler\poppler-25.12.0\Library\bin
+Email Configuration
+GMAIL_USER=novaentra2026@gmail.com
+GMAIL_PASS=enrqztjhkqbryrar
+
+#FRONTEND_URL=http://localhost:5173/
+
+GEMINI_API_KEY=AIzaSyDkhhzGs1C1mZ6OPQiOB3wsHzeqGwAM73k
+Email (used by Nodemailer)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+
+SMTP_USER=codingfamilycodefam@gmail.com
+SMTP_PASS=zfvi dyjj sjvg igcl
+
+SMTP_FROM="BizManage codingfamilycodefam@gmail.com"
+FRONTEND_URL=http://localhost:5173/
+Achraf_07 [HK],  — 29/03/2026 16:20
+recurring invoices
+Elaa — 07/04/2026 20:19
+-- =============================================================================
+-- STOCK MODULE SEED DATA — CLEAN SLATE (FULLY FIXED)
+-- Business: 0d5c8643-d660-40e1-904c-5873fdfece17
+-- This will CLEAR old demo data and insert fresh realistic stock data
+-- =============================================================================
+BEGIN;
+
+message.txt
+33 Ko
+skander — 07/04/2026 20:42
+494ae7d3-65c9-46dd-bb51-8d4049cbb8ed
+Elaa — 08/04/2026 09:37
+we fix laptops and phones, screen replacement keyboard repair etc, we charge around 150dt depends on the problem, takes usually 1 to 2 days
+Elaa — 08/04/2026 10:03
+Image
+nouhaattafi — Hier à 18:06
+Image
+Achraf_07 [HK],  — Hier à 18:07
+Achraf_07 [HK],  — 18:01
+// src/components/treasury/InstallmentScheduleModal.tsx
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  X, Plus, Trash2, CalendarDays, CreditCard,
+  CheckCircle2, Clock, AlertCircle,
+  Banknote, Loader2, MailCheck,
+} from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import {
+  Elements, CardElement,
+  useStripe, useElements,
+} from '@stripe/react-stripe-js';
+import { usePaymentSchedules } from '@/hooks/usePaymentSchedules';
+import { useAccounts }         from '@/hooks/useAccounts';
+import { PurchaseInvoice, formatAmount, formatDate } from '@/types';
+import { PaymentMethod }       from '@/types/PaymentMethod';
+import axiosInstance           from '@/api/axiosInstance';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface InstallmentLine {
+  due_date:       string;
+  amount:         number;
+  payment_method: PaymentMethod;
+  reference:      string;
+  notes:          string;
+}
+
+interface Installment {
+  id:                 string;
+  installment_number: number;
+  due_date:           string;
+  amount:             number;
+  status:             'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+  payment_method:     PaymentMethod;
+  paid_at:            string | null;
+  reference:          string | null;
+}
+
+type ScheduleStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED';
+
+interface Schedule {
+  id:               string;
+  total_amount:     number;
+  status:           ScheduleStatus;
+  rejection_reason: string | null;
+  installments:     Installment[];
+}
+
+interface Props {
+  businessId: string;
+  invoice:    PurchaseInvoice;
+  onClose:    () => void;
+  onSuccess?: () => void;
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const STATUS_CFG = {
+  PENDING:   { label: 'En attente', classes: 'bg-amber-100 text-amber-700',  icon: <Clock        className="h-3 w-3" /> },
+  PAID:      { label: 'Payée',      classes: 'bg-green-100 text-green-700',  icon: <CheckCircle2 className="h-3 w-3" /> },
+  OVERDUE:   { label: 'En retard',  classes: 'bg-red-100   text-red-600',    icon: <AlertCircle  className="h-3 w-3" /> },
+  CANCELLED: { label: 'Annulée',    classes: 'bg-gray-100  text-gray-500',   icon: <X            className="h-3 w-3" /> },
+};
+
+const PAYMENT_METHODS = [
+  { value: PaymentMethod.VIREMENT, label: 'Virement' },
+  { value: PaymentMethod.CHEQUE,   label: 'Chèque'   },
+  { value: PaymentMethod.ESPECES,  label: 'Espèces'  },
+  { value: PaymentMethod.CARTE,    label: 'Carte'    },
+];
+
+const emptyLine = (): InstallmentLine => ({
+  due_date: '', amount: 0,
+  payment_method: PaymentMethod.VIREMENT,
+  reference: '', notes: '',
+});
+
+// ── Stripe card sub-form ──────────────────────────────────────────────────────
+
+function StripeInstallmentForm({
+  businessId, installment, form, onPay, onError, loading,
+}: {
+  businessId:  string;
+  installment: Installment;
+  form:        any;
+  onPay:       (data: any) => void;
+  onError:     (msg: string) => void;
+  loading:     boolean;
+}) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [stripeLoading, setStripeLoading] = useState(false);
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return;
+    setStripeLoading(true);
+... (685lignes restantes)
+
+message.txt
+34 Ko
+Elaa — 18:06
+import { useState, useEffect } from 'react';
+import { useBusinessId } from '../../hooks/useBusinessId';
+import { Package, AlertTriangle, Tag, TrendingUp, Wallet, RefreshCw, ShoppingCart, Briefcase } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+message.txt
+25 Ko
+﻿
 import { useState, useEffect } from 'react';
 import { useBusinessId } from '../../hooks/useBusinessId';
 import { Package, AlertTriangle, Tag, TrendingUp, Wallet, RefreshCw, ShoppingCart, Briefcase } from 'lucide-react';
@@ -41,7 +250,6 @@ export default function StockDashboard() {
   const [reservationQuantities, setReservationQuantities] = useState<Record<string, number>>({});
   const [reservationSuppliers, setReservationSuppliers] = useState<Record<string, string>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [switching, setSwitching] = useState(false);
 
   const fetchDashboard = async (mode?: ViewMode) => {
     if (!businessId) return;
@@ -78,10 +286,9 @@ export default function StockDashboard() {
   }, [businessId, viewMode]);
 
   const handleViewModeChange = async (mode: ViewMode) => {
-    setSwitching(true);
+    if (mode === viewMode) return;
     setViewMode(mode);
-    await fetchDashboard(mode);
-    setSwitching(false);
+    fetchDashboard(mode);
   };
 
   const handleReserve = async (productId: string) => {
@@ -224,7 +431,7 @@ export default function StockDashboard() {
         </div>
       </div>
 
-      <div className={`transition-opacity duration-300 ${switching ? 'opacity-0' : 'opacity-100'}`}>
+      <div key={viewMode} className="animate-fadeIn">
         {viewMode === 'products' ? (
           <ProductsView
             data={data}

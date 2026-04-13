@@ -1,69 +1,76 @@
+// src/components/treasury/InstallmentScheduleModal.tsx
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Plus, Trash2, CalendarDays, CreditCard,
   CheckCircle2, Clock, AlertCircle,
-  Banknote, Loader2,
+  Banknote, Loader2, MailCheck,
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
-  Elements,
-  CardElement,
-  useStripe,
-  useElements,
+  Elements, CardElement,
+  useStripe, useElements,
 } from '@stripe/react-stripe-js';
 import { usePaymentSchedules } from '@/hooks/usePaymentSchedules';
-import { useAccounts } from '@/hooks/useAccounts';
+import { useAccounts }         from '@/hooks/useAccounts';
 import { PurchaseInvoice, formatAmount, formatDate } from '@/types';
-import { PaymentMethod } from '@/types/PaymentMethod';
-import axiosInstance from '@/api/axiosInstance';
+import { PaymentMethod }       from '@/types/PaymentMethod';
+import axiosInstance           from '@/api/axiosInstance';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 interface InstallmentLine {
-  due_date: string;
-  amount: number;
+  due_date:       string;
+  amount:         number;
   payment_method: PaymentMethod;
-  reference: string;
-  notes: string;
+  reference:      string;
+  notes:          string;
 }
 
 interface Installment {
-  id: string;
+  id:                 string;
   installment_number: number;
-  due_date: string;
-  amount: number;
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
-  payment_method: PaymentMethod;
-  paid_at: string | null;
-  reference: string | null;
+  due_date:           string;
+  amount:             number;
+  status:             'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+  payment_method:     PaymentMethod;
+  paid_at:            string | null;
+  reference:          string | null;
 }
 
+type ScheduleStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED';
+
 interface Schedule {
-  id: string;
-  total_amount: number;
-  installments: Installment[];
+  id:               string;
+  total_amount:     number;
+  status:           ScheduleStatus;
+  rejection_reason: string | null;
+  installments:     Installment[];
 }
 
 interface Props {
   businessId: string;
-  invoice: PurchaseInvoice;
-  onClose: () => void;
+  invoice:    PurchaseInvoice;
+  onClose:    () => void;
   onSuccess?: () => void;
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const STATUS_CFG = {
-  PENDING:   { label: 'En attente', classes: 'bg-amber-100 text-amber-700', icon: <Clock className="h-3 w-3" /> },
-  PAID:      { label: 'Payée',      classes: 'bg-green-100 text-green-700', icon: <CheckCircle2 className="h-3 w-3" /> },
-  OVERDUE:   { label: 'En retard',  classes: 'bg-red-100 text-red-600',     icon: <AlertCircle className="h-3 w-3" /> },
-  CANCELLED: { label: 'Annulée',    classes: 'bg-gray-100 text-gray-500',   icon: <X className="h-3 w-3" /> },
+  PENDING:   { label: 'En attente', classes: 'bg-amber-100 text-amber-700',  icon: <Clock        className="h-3 w-3" /> },
+  PAID:      { label: 'Payée',      classes: 'bg-green-100 text-green-700',  icon: <CheckCircle2 className="h-3 w-3" /> },
+  OVERDUE:   { label: 'En retard',  classes: 'bg-red-100   text-red-600',    icon: <AlertCircle  className="h-3 w-3" /> },
+  CANCELLED: { label: 'Annulée',    classes: 'bg-gray-100  text-gray-500',   icon: <X            className="h-3 w-3" /> },
 };
 
 const PAYMENT_METHODS = [
   { value: PaymentMethod.VIREMENT, label: 'Virement' },
-  { value: PaymentMethod.CHEQUE,   label: 'Chèque' },
-  { value: PaymentMethod.ESPECES,  label: 'Espèces' },
-  { value: PaymentMethod.CARTE,    label: 'Carte' },
+  { value: PaymentMethod.CHEQUE,   label: 'Chèque'   },
+  { value: PaymentMethod.ESPECES,  label: 'Espèces'  },
+  { value: PaymentMethod.CARTE,    label: 'Carte'    },
 ];
 
 const emptyLine = (): InstallmentLine => ({
@@ -72,23 +79,19 @@ const emptyLine = (): InstallmentLine => ({
   reference: '', notes: '',
 });
 
-// ── Stripe card form for installment payment ──────────────────────────────
+// ── Stripe card sub-form ──────────────────────────────────────────────────────
+
 function StripeInstallmentForm({
-  businessId,
-  installment,
-  form,
-  onPay,
-  onError,
-  loading,
+  businessId, installment, form, onPay, onError, loading,
 }: {
-  businessId: string;
+  businessId:  string;
   installment: Installment;
-  form: any;
-  onPay: (data: any) => void;
-  onError: (msg: string) => void;
-  loading: boolean;
+  form:        any;
+  onPay:       (data: any) => void;
+  onError:     (msg: string) => void;
+  loading:     boolean;
 }) {
-  const stripe = useStripe();
+  const stripe   = useStripe();
   const elements = useElements();
   const [stripeLoading, setStripeLoading] = useState(false);
 
@@ -105,10 +108,7 @@ function StripeInstallmentForm({
         data.clientSecret,
         { payment_method: { card: elements.getElement(CardElement)! } },
       );
-      if (error) {
-        onError(error.message ?? 'Erreur Stripe');
-        return;
-      }
+      if (error) { onError(error.message ?? 'Erreur Stripe'); return; }
       if (paymentIntent?.status === 'succeeded') {
         onPay({ ...form, reference: paymentIntent.id });
       }
@@ -131,8 +131,7 @@ function StripeInstallmentForm({
           options={{
             style: {
               base: {
-                fontSize: '15px',
-                color: '#1f2937',
+                fontSize: '15px', color: '#1f2937',
                 fontFamily: 'ui-sans-serif, system-ui, sans-serif',
                 '::placeholder': { color: '#9ca3af' },
               },
@@ -144,7 +143,9 @@ function StripeInstallmentForm({
       <button
         onClick={handlePay}
         disabled={stripeLoading || loading || !stripe}
-        className="w-full px-4 py-2.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+        className="w-full px-4 py-2.5 bg-green-500 hover:bg-green-600
+                   disabled:opacity-50 text-white rounded-lg text-sm font-medium
+                   transition-colors flex items-center justify-center gap-2"
       >
         {stripeLoading || loading
           ? <><Loader2 className="h-4 w-4 animate-spin" /> Traitement...</>
@@ -155,21 +156,17 @@ function StripeInstallmentForm({
   );
 }
 
-// ── Pay sub-modal — rendered via portal into document.body ────────────────
+// ── Pay sub-modal (portal) ────────────────────────────────────────────────────
+
 function PayInstallmentModal({
-  businessId,
-  installment,
-  accounts,
-  onPay,
-  onClose,
-  loading,
+  businessId, installment, accounts, onPay, onClose, loading,
 }: {
-  businessId: string;
+  businessId:  string;
   installment: Installment;
-  accounts: any[];
-  onPay: (data: any) => void;
-  onClose: () => void;
-  loading: boolean;
+  accounts:    any[];
+  onPay:       (data: any) => void;
+  onClose:     () => void;
+  loading:     boolean;
 }) {
   const [form, setForm] = useState({
     account_id:     accounts[0]?.id ?? '',
@@ -179,15 +176,15 @@ function PayInstallmentModal({
     notes:          '',
   });
   const [stripeError, setStripeError] = useState('');
-
   const isCard = form.payment_method === PaymentMethod.CARTE;
 
-  // ✅ createPortal escapes the parent modal's overflow/stacking context
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center
+                    bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
 
-        <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600
+                        px-6 py-4 flex items-center justify-between">
           <div>
             <h3 className="text-white font-semibold text-lg">
               Payer l'échéance #{installment.installment_number}
@@ -211,7 +208,8 @@ function PayInstallmentModal({
             <select
               value={form.account_id}
               onChange={(e) => setForm((f) => ({ ...f, account_id: e.target.value }))}
-              className="mt-1.5 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="mt-1.5 w-full border rounded-lg px-3 py-2 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-green-400"
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -244,7 +242,7 @@ function PayInstallmentModal({
             </div>
           </div>
 
-          {/* Date + Reference — only for non-card methods */}
+          {/* Date + Reference for non-card methods */}
           {!isCard && (
             <>
               <div>
@@ -255,7 +253,8 @@ function PayInstallmentModal({
                   type="date"
                   value={form.paid_at}
                   onChange={(e) => setForm((f) => ({ ...f, paid_at: e.target.value }))}
-                  className="mt-1.5 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                  className="mt-1.5 w-full border rounded-lg px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-green-400"
                 />
               </div>
               <div>
@@ -267,18 +266,19 @@ function PayInstallmentModal({
                   value={form.reference}
                   onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
                   placeholder="N° chèque, virement…"
-                  className="mt-1.5 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                  className="mt-1.5 w-full border rounded-lg px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-green-400"
                 />
               </div>
             </>
           )}
 
-          {/* Stripe error */}
           {stripeError && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{stripeError}</p>
+            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+              {stripeError}
+            </p>
           )}
 
-          {/* Stripe card form OR classic confirm button */}
           {isCard ? (
             <Elements stripe={stripePromise}>
               <StripeInstallmentForm
@@ -294,14 +294,17 @@ function PayInstallmentModal({
             <div className="flex gap-3 pt-2">
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 border rounded-lg text-sm
+                           text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 Annuler
               </button>
               <button
                 onClick={() => onPay(form)}
                 disabled={!form.account_id || loading}
-                className="flex-1 px-4 py-2.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-green-500 hover:bg-green-600
+                           disabled:opacity-50 text-white rounded-lg text-sm font-medium
+                           transition-colors flex items-center justify-center gap-2"
               >
                 {loading
                   ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -311,31 +314,34 @@ function PayInstallmentModal({
               </button>
             </div>
           )}
-
         </div>
       </div>
     </div>,
-    document.body  // ✅ teleports outside parent modal DOM tree
+    document.body,
   );
 }
 
-// ── Main modal ────────────────────────────────────────────────────────────
-export default function InstallmentScheduleModal({ businessId, invoice, onClose, onSuccess }: Props) {
-  const { loading, error, createSchedule, getByInvoice, payInstallment } = usePaymentSchedules(businessId);
+// ── Main modal ────────────────────────────────────────────────────────────────
+
+export default function InstallmentScheduleModal({
+  businessId, invoice, onClose, onSuccess,
+}: Props) {
+  const { loading, error, createSchedule, getByInvoice, payInstallment } =
+    usePaymentSchedules(businessId);
   const { accounts } = useAccounts();
 
   const remaining = Number(invoice.net_amount) - Number(invoice.paid_amount);
 
-  const [tab, setTab]                     = useState<'create' | 'view'>('create');
-  const [schedule, setSchedule]           = useState<Schedule | null>(null);
-  const [lines, setLines]                 = useState<InstallmentLine[]>([emptyLine(), emptyLine()]);
-  const [scheduleNotes, setScheduleNotes] = useState('');
-  const [payTarget, setPayTarget]         = useState<Installment | null>(null);
-  const [submitError, setSubmitError]     = useState<string | null>(null);
+  const [tab,            setTab]            = useState<'create' | 'view'>('create');
+  const [schedule,       setSchedule]       = useState<Schedule | null>(null);
+  const [lines,          setLines]          = useState<InstallmentLine[]>([emptyLine(), emptyLine()]);
+  const [scheduleNotes,  setScheduleNotes]  = useState('');
+  const [payTarget,      setPayTarget]      = useState<Installment | null>(null);
+  const [submitError,    setSubmitError]    = useState<string | null>(null);
 
   useEffect(() => {
     getByInvoice(invoice.id).then((data) => {
-      if (data) { setSchedule(data); setTab('view'); }
+      if (data) { setSchedule(data as Schedule); setTab('view'); }
     });
   }, [invoice.id]);
 
@@ -350,8 +356,12 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
 
   const handleCreate = async () => {
     setSubmitError(null);
-    if (!linesValid) return setSubmitError('Veuillez remplir toutes les dates et montants.');
-    if (overBudget)  return setSubmitError(`Le total (${formatAmount(linesTotal)}) dépasse le solde restant (${formatAmount(remaining)}).`);
+    if (!linesValid)
+      return setSubmitError('Veuillez remplir toutes les dates et montants.');
+    if (overBudget)
+      return setSubmitError(
+        `Le total (${formatAmount(linesTotal)}) dépasse le solde restant (${formatAmount(remaining)}).`,
+      );
     try {
       const data = await createSchedule({
         purchase_invoice_id: invoice.id,
@@ -360,10 +370,10 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
           ...l,
           amount:    Number(l.amount),
           reference: l.reference || null,
-          notes:     l.notes || null,
+          notes:     l.notes     || null,
         })),
       });
-      setSchedule(data);
+      setSchedule(data as Schedule);
       setTab('view');
     } catch (e: any) {
       setSubmitError(e.response?.data?.message ?? 'Erreur lors de la création.');
@@ -375,7 +385,7 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
     try {
       await payInstallment(schedule.id, payTarget.id, formData);
       const updated = await getByInvoice(invoice.id);
-      if (updated) setSchedule(updated);
+      if (updated) setSchedule(updated as Schedule);
       setPayTarget(null);
       onSuccess?.();
     } catch {}
@@ -387,13 +397,64 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
     .filter((i) => i.status === 'PAID')
     .reduce((s, i) => s + Number(i.amount), 0) ?? 0;
 
+  // ── Approval status banner ─────────────────────────────────────────
+  const ApprovalBanner = () => {
+    if (!schedule) return null;
+    if (schedule.status === 'PENDING_APPROVAL') return (
+      <div className="flex items-start gap-3 p-4 bg-amber-50
+                      border border-amber-200 rounded-xl">
+        <MailCheck className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-amber-700">
+            En attente de validation fournisseur
+          </p>
+          <p className="text-xs text-amber-600 mt-0.5">
+            Un email a été envoyé au fournisseur. Les paiements seront
+            débloqués dès son accord.
+          </p>
+        </div>
+      </div>
+    );
+    if (schedule.status === 'REJECTED') return (
+      <div className="flex items-start gap-3 p-4 bg-red-50
+                      border border-red-200 rounded-xl">
+        <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-red-700">
+            Plan refusé par le fournisseur
+          </p>
+          {schedule.rejection_reason && (
+            <p className="text-xs text-red-500 mt-0.5">
+              {schedule.rejection_reason}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+    if (schedule.status === 'ACTIVE') return (
+      <div className="flex items-center gap-3 p-4 bg-green-50
+                      border border-green-200 rounded-xl">
+        <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+        <p className="text-sm font-semibold text-green-700">
+          Plan accepté — paiements débloqués
+        </p>
+      </div>
+    );
+    return null;
+  };
+
+  // ─────────────────────────────────────────────────────────────────
+
   return (
     <>
-      <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="fixed inset-0 z-[50] flex items-center justify-center
+                      bg-black/40 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl
+                        max-h-[90vh] flex flex-col overflow-hidden">
 
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 flex items-start justify-between shrink-0">
+          <div className="bg-gradient-to-r from-indigo-600 to-violet-600
+                          px-6 py-5 flex items-start justify-between shrink-0">
             <div>
               <h2 className="text-white font-bold text-xl">Paiement échelonné</h2>
               <p className="text-indigo-200 text-sm mt-1">
@@ -401,10 +462,14 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
               </p>
               <div className="flex items-center gap-4 mt-2 text-sm">
                 <span className="text-indigo-100">
-                  Total : <span className="text-white font-semibold">{formatAmount(invoice.net_amount)}</span>
+                  Total : <span className="text-white font-semibold">
+                    {formatAmount(invoice.net_amount)}
+                  </span>
                 </span>
                 <span className="text-indigo-100">
-                  Restant : <span className="text-white font-semibold">{formatAmount(remaining)}</span>
+                  Restant : <span className="text-white font-semibold">
+                    {formatAmount(remaining)}
+                  </span>
                 </span>
               </div>
             </div>
@@ -413,7 +478,7 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
             </button>
           </div>
 
-          {/* Tabs */}
+          {/* Tabs — only shown when a schedule exists */}
           {schedule && (
             <div className="flex border-b shrink-0">
               {(['view', 'create'] as const).map((t) => (
@@ -435,19 +500,28 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
           {/* Body */}
           <div className="overflow-y-auto flex-1 p-6">
 
-            {/* VIEW TAB */}
+            {/* ── VIEW TAB ── */}
             {tab === 'view' && schedule && (
               <div className="space-y-4">
+
+                {/* Approval banner */}
+                <ApprovalBanner />
+
+                {/* Progress bar */}
                 <div className="bg-indigo-50 rounded-xl p-4 flex items-center gap-6">
                   <div className="flex-1">
                     <div className="flex justify-between text-sm mb-1.5">
                       <span className="text-gray-600">Progression</span>
-                      <span className="font-semibold text-indigo-700">{paidCount}/{totalCount} échéances</span>
+                      <span className="font-semibold text-indigo-700">
+                        {paidCount}/{totalCount} échéances
+                      </span>
                     </div>
                     <div className="bg-indigo-100 rounded-full h-2">
                       <div
                         className="bg-indigo-500 h-2 rounded-full transition-all"
-                        style={{ width: `${totalCount > 0 ? (paidCount / totalCount) * 100 : 0}%` }}
+                        style={{
+                          width: `${totalCount > 0 ? (paidCount / totalCount) * 100 : 0}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -457,6 +531,7 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                   </div>
                 </div>
 
+                {/* Installment rows */}
                 <div className="space-y-2">
                   {schedule.installments.map((inst) => {
                     const cfg    = STATUS_CFG[inst.status];
@@ -466,22 +541,30 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                         key={inst.id}
                         className={`flex items-center gap-4 p-4 rounded-xl border transition-colors ${
                           inst.status === 'PAID'    ? 'bg-green-50/50 border-green-100' :
-                          inst.status === 'OVERDUE' ? 'bg-red-50/50 border-red-100'    :
+                          inst.status === 'OVERDUE' ? 'bg-red-50/50   border-red-100'  :
                           'bg-white border-gray-100 hover:border-indigo-100'
                         }`}
                       >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                        {/* Number / check icon */}
+                        <div className={`w-8 h-8 rounded-full flex items-center
+                                         justify-center text-sm font-bold shrink-0 ${
                           inst.status === 'PAID'    ? 'bg-green-500 text-white' :
-                          inst.status === 'OVERDUE' ? 'bg-red-500 text-white'   :
+                          inst.status === 'OVERDUE' ? 'bg-red-500   text-white' :
                           'bg-indigo-100 text-indigo-700'
                         }`}>
-                          {inst.status === 'PAID' ? <CheckCircle2 className="h-4 w-4" /> : inst.installment_number}
+                          {inst.status === 'PAID'
+                            ? <CheckCircle2 className="h-4 w-4" />
+                            : inst.installment_number}
                         </div>
 
+                        {/* Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-gray-900">{formatAmount(inst.amount)}</span>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.classes}`}>
+                            <span className="font-semibold text-gray-900">
+                              {formatAmount(inst.amount)}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5
+                                             rounded-full text-xs font-medium ${cfg.classes}`}>
                               {cfg.icon}{cfg.label}
                             </span>
                           </div>
@@ -499,14 +582,25 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                           </div>
                         </div>
 
-                        {canPay && (
+                        {/* Pay button — only when ACTIVE */}
+                        {canPay && schedule.status === 'ACTIVE' && (
                           <button
                             onClick={() => setPayTarget(inst)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors shrink-0"
+                            className="flex items-center gap-1.5 px-3 py-1.5
+                                       bg-indigo-600 hover:bg-indigo-700 text-white
+                                       text-xs font-medium rounded-lg transition-colors shrink-0"
                           >
                             <CreditCard className="h-3.5 w-3.5" />
                             Payer
                           </button>
+                        )}
+
+                        {/* Locked hint when pending approval */}
+                        {canPay && schedule.status === 'PENDING_APPROVAL' && (
+                          <span className="flex items-center gap-1 text-xs text-amber-500 shrink-0">
+                            <Clock className="h-3.5 w-3.5" />
+                            En attente
+                          </span>
                         )}
                       </div>
                     );
@@ -515,11 +609,15 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
               </div>
             )}
 
-            {/* CREATE TAB */}
+            {/* ── CREATE TAB ── */}
             {tab === 'create' && (
               <div className="space-y-4">
+
+                {/* Budget indicator */}
                 <div className={`rounded-xl p-3 flex items-center justify-between text-sm ${
-                  overBudget ? 'bg-red-50 border border-red-200' : 'bg-gray-50 border border-gray-100'
+                  overBudget
+                    ? 'bg-red-50 border border-red-200'
+                    : 'bg-gray-50 border border-gray-100'
                 }`}>
                   <span className="text-gray-600">
                     Total planifié :
@@ -528,10 +626,14 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                     </span>
                   </span>
                   <span className="text-gray-500">
-                    Disponible : <span className="font-semibold text-gray-700">{formatAmount(remaining)}</span>
+                    Disponible :
+                    <span className="font-semibold text-gray-700 ml-1">
+                      {formatAmount(remaining)}
+                    </span>
                   </span>
                 </div>
 
+                {/* Installment lines */}
                 <div className="space-y-3">
                   {lines.map((line, idx) => (
                     <div key={idx} className="border rounded-xl p-4 space-y-3 bg-gray-50/50">
@@ -540,7 +642,10 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                           Échéance #{idx + 1}
                         </span>
                         {lines.length > 2 && (
-                          <button onClick={() => removeLine(idx)} className="text-gray-400 hover:text-red-500 transition-colors">
+                          <button
+                            onClick={() => removeLine(idx)}
+                            className="text-gray-400 hover:text-red-500 transition-colors"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </button>
                         )}
@@ -548,16 +653,21 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-xs text-gray-500 mb-1 block">Date d'échéance *</label>
+                          <label className="text-xs text-gray-500 mb-1 block">
+                            Date d'échéance *
+                          </label>
                           <input
                             type="date"
                             value={line.due_date}
                             onChange={(e) => updateLine(idx, 'due_date', e.target.value)}
-                            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            className="w-full border rounded-lg px-3 py-2 text-sm
+                                       focus:outline-none focus:ring-2 focus:ring-indigo-400"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 mb-1 block">Montant *</label>
+                          <label className="text-xs text-gray-500 mb-1 block">
+                            Montant *
+                          </label>
                           <input
                             type="number"
                             min="0"
@@ -565,7 +675,8 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                             value={line.amount || ''}
                             onChange={(e) => updateLine(idx, 'amount', e.target.value)}
                             placeholder="0.000"
-                            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            className="w-full border rounded-lg px-3 py-2 text-sm
+                                       focus:outline-none focus:ring-2 focus:ring-indigo-400"
                           />
                         </div>
                       </div>
@@ -595,7 +706,8 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                         value={line.reference}
                         onChange={(e) => updateLine(idx, 'reference', e.target.value)}
                         placeholder="Référence (optionnel)"
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border rounded-lg px-3 py-2 text-sm
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-400"
                       />
                     </div>
                   ))}
@@ -603,7 +715,10 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
 
                 <button
                   onClick={addLine}
-                  className="w-full py-2.5 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-500 hover:border-indigo-400 hover:bg-indigo-50 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                  className="w-full py-2.5 border-2 border-dashed border-indigo-200
+                             rounded-xl text-indigo-500 hover:border-indigo-400
+                             hover:bg-indigo-50 transition-colors text-sm font-medium
+                             flex items-center justify-center gap-2"
                 >
                   <Plus className="h-4 w-4" /> Ajouter une échéance
                 </button>
@@ -617,12 +732,14 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                     onChange={(e) => setScheduleNotes(e.target.value)}
                     rows={2}
                     placeholder="Accord de paiement, conditions…"
-                    className="mt-1.5 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                    className="mt-1.5 w-full border rounded-lg px-3 py-2 text-sm
+                               focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
                   />
                 </div>
 
                 {(submitError || error) && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                  <div className="flex items-center gap-2 p-3 bg-red-50
+                                  border border-red-200 rounded-lg text-sm text-red-600">
                     <AlertCircle className="h-4 w-4 shrink-0" />
                     {submitError || error}
                   </div>
@@ -631,20 +748,28 @@ export default function InstallmentScheduleModal({ businessId, invoice, onClose,
                 <button
                   onClick={handleCreate}
                   disabled={loading || !linesValid || overBudget}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700
+                             disabled:opacity-50 text-white rounded-xl font-medium
+                             transition-colors flex items-center justify-center gap-2"
                 >
                   {loading
                     ? <><Loader2 className="h-4 w-4 animate-spin" /> Création…</>
                     : <><Banknote className="h-4 w-4" /> Créer l'échéancier</>
                   }
                 </button>
+
+                {/* Info note about email approval */}
+                <p className="text-xs text-center text-gray-400 flex items-center justify-center gap-1">
+                  <MailCheck className="h-3.5 w-3.5" />
+                  Un email de validation sera envoyé au fournisseur après création.
+                </p>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* ✅ Portal renders sub-modal directly into document.body */}
+      {/* Pay sub-modal via portal */}
       {payTarget && (
         <PayInstallmentModal
           businessId={businessId}
