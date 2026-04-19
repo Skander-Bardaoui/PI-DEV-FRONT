@@ -24,6 +24,7 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
   const [expectedDelivery, setExpectedDelivery] = useState(po.expected_delivery?.split('T')[0] ?? '');
   const [notes,            setNotes]            = useState(po.notes ?? '');
   const [lines,            setLines]            = useState<CreateSupplierPOItemDto[]>([]);
+  const [errors,           setErrors]           = useState<{ [key: string]: string }>({});
 
   // Initialiser les lignes depuis le BC existant
   useEffect(() => {
@@ -57,7 +58,8 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
     if (product) {
       setLine(index, 'product_id', product.id);
       setLine(index, 'description', product.name);
-      setLine(index, 'unit_price_ht', product.purchase_price_ht);
+      // Ne pas pré-remplir le prix - l'utilisateur doit saisir le prix d'achat
+      // car product.purchase_price_ht est le prix de vente, pas le prix d'achat
     } else {
       setLine(index, 'product_id', undefined);
       setLine(index, 'description', '');
@@ -67,19 +69,42 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (lines.some(l => !l.description.trim())) {
-      toast.error('Validation', 'Toutes les lignes doivent avoir une description');
+    
+    // Validation
+    const newErrors: { [key: string]: string } = {};
+    
+    if (lines.length === 0) {
+      newErrors.lines = 'Au moins une ligne est requise';
+    }
+    
+    lines.forEach((line, i) => {
+      if (!line.description.trim()) {
+        newErrors[`line_${i}_description`] = 'La description est obligatoire';
+      }
+      if (line.quantity_ordered <= 0) {
+        newErrors[`line_${i}_quantity`] = 'La quantité doit être supérieure à 0';
+      }
+      if (line.unit_price_ht <= 0) {
+        newErrors[`line_${i}_price`] = 'Le prix unitaire doit être supérieur à 0';
+      }
+    });
+    
+    setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
       return;
     }
+    
     try {
       await update.mutateAsync({
         expected_delivery: expectedDelivery || undefined,
         notes:             notes || undefined,
         items:             lines.map((l, i) => ({ ...l, sort_order: i })),
       });
-      toast.success('BC modifié', `${po.po_number} a été mis à jour`);
       onClose();
-    } catch (err) { handleError(err, 'Impossible de modifier ce BC'); }
+    } catch (err) {
+      // L'erreur est gérée par le hook avec toast
+    }
   };
 
   return (
@@ -99,6 +124,38 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          
+          {/* Message informatif sur la modification */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-blue-800 mb-1">Modification en mode brouillon</h3>
+                <p className="text-sm text-blue-700">Ce BC est en statut "Brouillon" et peut être modifié. Une fois envoyé, il ne pourra plus être modifié.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Message d'erreur global */}
+          {Object.keys(errors).length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-800 mb-1">Erreurs de validation</h3>
+                  <p className="text-sm text-red-700">Veuillez corriger les erreurs ci-dessous avant de continuer.</p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Livraison souhaitée</label>

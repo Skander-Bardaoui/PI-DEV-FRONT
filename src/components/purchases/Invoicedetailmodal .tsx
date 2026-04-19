@@ -181,14 +181,23 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
                 </div>
               </div>
 
-              {/* Motif litige - simplifié */}
+              {/* Motif litige - avec bouton de résolution */}
               {invoice.status === InvoiceStatus.DISPUTED && invoice.dispute_reason && (
-                <div className="bg-orange-50/50 border border-orange-200 rounded-lg p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                <div className="bg-orange-50/50 border-2 border-orange-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-orange-900 mb-1">Motif du litige</h3>
-                      <p className="text-sm text-orange-800">{invoice.dispute_reason}</p>
+                      <h3 className="text-sm font-semibold text-orange-900 mb-2">Motif du litige</h3>
+                      <p className="text-sm text-orange-800 mb-3">{invoice.dispute_reason}</p>
+                      
+                      {/* Bouton de résolution visible */}
+                      <button
+                        onClick={() => setCorrectOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium text-sm shadow-sm"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        Résoudre ce litige
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -221,19 +230,6 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
                   />
                 )}
               </ActionSection>
-
-              {/* Section: Actions */}
-              {invoice.status === InvoiceStatus.DISPUTED && (
-                <ActionSection title="Résolution">
-                  <ActionButton
-                    icon={Pencil}
-                    label="Corriger / Résoudre"
-                    description="Modifier la facture"
-                    onClick={() => setCorrectOpen(true)}
-                    variant="warning"
-                  />
-                </ActionSection>
-              )}
             </div>
           </div>
         </div>

@@ -14,6 +14,7 @@ import {
   Briefcase,
   // ====================================================================
   AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
@@ -84,8 +85,8 @@ export default function BackOfficeLayout() {
         { name: t('nav.supplierOrders'),   href: '/app/purchases/orders',           icon: ClipboardList   },
         { name: t('nav.goodsReceipts'),    href: '/app/purchases/goods-receipts',   icon: Truck           },
         { name: t('nav.supplierInvoices'), href: '/app/purchases/invoices',         icon: FileText        },
-        { name: t('nav.supplierPayments'), href: '/app/purchases/payments',         icon: Receipt         },
         { name: t('nav.supplierIntelligence'),  href: '/app/purchases/supplier-intelligence', icon: Award           },
+        { name: 'Prédictions ML',          href: '/app/purchases/ml-predictions',   icon: Sparkles        },
       ],
     },
     { name: t('nav.expenses'),      href: '/app/expenses',      icon: Receipt      },
