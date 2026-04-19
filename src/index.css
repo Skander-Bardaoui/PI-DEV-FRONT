@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import des styles pour la navigation au clavier */
+@import './styles/keyboard-navigation.css';
+
+/* Import des styles pour le mode lecture - APRÈS Tailwind pour priorité */
+@import './styles/reading-mode.css';
+
+/* Import des thèmes de couleur pour daltonisme */
+@import './styles/color-themes.css';
+
+/* Screen Reader Only - Masquer visuellement mais garder accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

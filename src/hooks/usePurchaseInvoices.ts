@@ -1,6 +1,7 @@
 // src/hooks/usePurchaseInvoices.ts
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { getApprovedOrPartialInvoices } from '@/api/purchase-invoices';
 
 import {
@@ -89,6 +90,18 @@ export function useCreatePurchaseInvoice(businessId: string) {
       qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
       // Invalider les matches 3-voies
       qc.invalidateQueries({ queryKey: ['three-way-match-all', businessId] });
+      
+      // Toast de succès
+      toast.success('Facture créée avec succès', {
+        description: 'La facture fournisseur a été enregistrée',
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast.error('Erreur lors de la création', {
+        description: error?.response?.data?.message || 'Impossible de créer la facture',
+        duration: 5000,
+      });
     },
   });
 }
@@ -101,6 +114,17 @@ export function useUpdatePurchaseInvoice(businessId: string, id: string) {
       updatePurchaseInvoice(businessId, id, dto),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PURCHASE_INVOICES_KEY, businessId] });
+      
+      toast.success('Facture modifiée', {
+        description: 'Les modifications ont été enregistrées',
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast.error('Erreur lors de la modification', {
+        description: error?.response?.data?.message || 'Impossible de modifier la facture',
+        duration: 5000,
+      });
     },
   });
 }
@@ -138,6 +162,17 @@ export function useDisputePurchaseInvoice(businessId: string) {
       qc.invalidateQueries({ queryKey: ['three-way-match-all', businessId] });
       // Invalider les réponses aux litiges
       qc.invalidateQueries({ queryKey: ['dispute-responses', businessId] });
+      
+      toast.warning('Litige créé', {
+        description: 'Le litige a été enregistré et le fournisseur sera notifié',
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast.error('Erreur lors de la création du litige', {
+        description: error?.response?.data?.message || 'Impossible de créer le litige',
+        duration: 5000,
+      });
     },
   });
 }
@@ -149,6 +184,17 @@ export function useResolveDispute(businessId: string) {
     mutationFn: (id: string) => resolveDisputePurchaseInvoice(businessId, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [PURCHASE_INVOICES_KEY, businessId] });
+      
+      toast.success('Litige résolu', {
+        description: 'Le litige a été résolu avec succès',
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast.error('Erreur lors de la résolution', {
+        description: error?.response?.data?.message || 'Impossible de résoudre le litige',
+        duration: 5000,
+      });
     },
   });
 }
@@ -167,6 +213,17 @@ export function useUpdatePayment(businessId: string) {
       qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
       // Invalider les données de trésorerie
       qc.invalidateQueries({ queryKey: ['treasury', businessId] });
+      
+      toast.success('Paiement enregistré', {
+        description: 'Le paiement a été enregistré avec succès',
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast.error('Erreur lors du paiement', {
+        description: error?.response?.data?.message || 'Impossible d\'enregistrer le paiement',
+        duration: 5000,
+      });
     },
   });
 }

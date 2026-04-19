@@ -150,32 +150,50 @@ export function PurchaseInvoiceModal({ businessId, onClose }: Props) {
   };
 
   const onSubmit = async (values: PurchaseInvoiceFormValues) => {
-    await create.mutateAsync({
-      invoice_number_supplier: values.invoice_number_supplier,
-      supplier_id:    values.supplier_id,
-      supplier_po_id: values.supplier_po_id || undefined,
-      invoice_date:   values.invoice_date,
-      due_date:       values.due_date || undefined,
-      subtotal_ht:    Number(values.subtotal_ht)   || 0,
-      tax_amount:     Number(values.tax_amount)    || 0,
-      timbre_fiscal:  Number(values.timbre_fiscal) || TIMBRE_FISCAL,
-      receipt_url:    values.receipt_url || undefined,
-    });
-    onClose();
+    try {
+      // Nettoyer et valider les données avant envoi
+      const cleanedData = {
+        invoice_number_supplier: values.invoice_number_supplier,
+        supplier_id:    values.supplier_id,
+        supplier_po_id: values.supplier_po_id || undefined,
+        invoice_date:   values.invoice_date,
+        due_date:       values.due_date || undefined,
+        subtotal_ht:    Number(values.subtotal_ht) || 0,
+        tax_amount:     Number(values.tax_amount) || 0,
+        timbre_fiscal:  Number(values.timbre_fiscal) || TIMBRE_FISCAL,
+        receipt_url:    values.receipt_url || undefined,
+      };
+
+      // Vérifier qu'il n'y a pas de NaN
+      if (isNaN(cleanedData.subtotal_ht) || isNaN(cleanedData.tax_amount) || isNaN(cleanedData.timbre_fiscal)) {
+        console.error('Valeurs numériques invalides détectées');
+        return;
+      }
+
+      await create.mutateAsync(cleanedData);
+      onClose();
+    } catch (error) {
+      console.error('Erreur lors de la soumission:', error);
+    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Déclencher la validation de tous les champs
     const isValid = await trigger();
+    
     if (!isValid) {
+      // Scroll vers la première erreur
       const firstErrorField = Object.keys(errors)[0];
       if (firstErrorField) {
-        const element = document.querySelector(`[name="${firstErrorField}"]`);
+        const element = document.querySelector(`[name="${firstErrorField}"]`) as HTMLElement;
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }
     } else {
+      // Si valide, soumettre
       handleSubmit(onSubmit)();
     }
   };
@@ -530,8 +548,12 @@ export function PurchaseInvoiceModal({ businessId, onClose }: Props) {
                   </label>
                   <input
                     type="number" step="0.001" min="0"
-                    {...register('subtotal_ht', { valueAsNumber: true })}
+                    {...register('subtotal_ht', { 
+                      valueAsNumber: true,
+                      setValueAs: (v) => v === '' ? 0 : Number(v)
+                    })}
                     className={inputCls(errors.subtotal_ht?.message) + ' text-right font-mono'}
+                    placeholder="0.000"
                   />
                   <FieldError msg={errors.subtotal_ht?.message} />
                 </div>
@@ -564,8 +586,12 @@ export function PurchaseInvoiceModal({ businessId, onClose }: Props) {
                   </div>
                   <input
                     type="number" step="0.001" min="0"
-                    {...register('tax_amount', { valueAsNumber: true })}
+                    {...register('tax_amount', { 
+                      valueAsNumber: true,
+                      setValueAs: (v) => v === '' ? 0 : Number(v)
+                    })}
                     className={inputCls(errors.tax_amount?.message) + ' text-right font-mono'}
+                    placeholder="0.000"
                   />
                   <FieldError msg={errors.tax_amount?.message} />
                 </div>
@@ -578,8 +604,12 @@ export function PurchaseInvoiceModal({ businessId, onClose }: Props) {
                   </label>
                   <input
                     type="number" step="0.001" min="0"
-                    {...register('timbre_fiscal', { valueAsNumber: true })}
+                    {...register('timbre_fiscal', { 
+                      valueAsNumber: true,
+                      setValueAs: (v) => v === '' ? TIMBRE_FISCAL : Number(v)
+                    })}
                     className={inputCls(errors.timbre_fiscal?.message) + ' text-right font-mono'}
+                    placeholder="1.000"
                   />
                   <FieldError msg={errors.timbre_fiscal?.message} />
                 </div>

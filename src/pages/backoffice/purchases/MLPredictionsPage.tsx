@@ -66,9 +66,9 @@ const MLPredictionsPage: React.FC = () => {
     };
 
     const labels = {
-      urgent: '🔴 URGENT',
-      soon: '🟠 BIENTÔT',
-      planned: '🟢 PLANIFIÉ',
+      urgent: '🔴 À COMMANDER MAINTENANT',
+      soon: '🟠 COMMANDER BIENTÔT',
+      planned: '🟢 PRÉVOIR LA COMMANDE',
     };
 
     return (
@@ -122,10 +122,10 @@ const MLPredictionsPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <SparklesIcon className="h-8 w-8 text-indigo-600" />
-            Prédictions ML - Besoins d'Achat
+            Recommandations d'Achat Intelligentes
           </h1>
           <p className="text-gray-600 mt-2">
-            Intelligence artificielle pour optimiser vos commandes
+            L'IA analyse vos ventes et vous suggère quand et combien commander
           </p>
         </div>
 
@@ -136,14 +136,42 @@ const MLPredictionsPage: React.FC = () => {
           ) : health?.model_loaded ? (
             <div className="flex items-center gap-2 bg-green-50 border border-green-200 px-4 py-2 rounded-lg">
               <CheckCircleIcon className="h-5 w-5 text-green-600" />
-              <span className="text-sm font-medium text-green-800">ML Actif</span>
+              <span className="text-sm font-medium text-green-800">IA Active</span>
             </div>
           ) : (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 px-4 py-2 rounded-lg">
               <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
-              <span className="text-sm font-medium text-red-800">ML Inactif</span>
+              <span className="text-sm font-medium text-red-800">IA Inactive</span>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Guide d'utilisation */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-5">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <SparklesIcon className="h-6 w-6 text-indigo-600" />
+            </div>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-bold text-indigo-900 mb-2">💡 Comment ça marche ?</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-indigo-800">
+              <div className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-6 h-6 bg-indigo-200 rounded-full flex items-center justify-center text-xs font-bold text-indigo-900">1</span>
+                <p>L'IA analyse vos ventes passées et prédit vos besoins futurs</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-6 h-6 bg-indigo-200 rounded-full flex items-center justify-center text-xs font-bold text-indigo-900">2</span>
+                <p>Consultez les recommandations avec leur niveau d'urgence</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-6 h-6 bg-indigo-200 rounded-full flex items-center justify-center text-xs font-bold text-indigo-900">3</span>
+                <p>Cliquez sur "Créer BC" pour commander en un clic</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -153,7 +181,7 @@ const MLPredictionsPage: React.FC = () => {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Recommandations</p>
+                <p className="text-sm text-gray-600">Recommandations Actives</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
                   {recommendations.recommendations.filter(r => !r.is_processed).length}
                 </p>
@@ -165,7 +193,7 @@ const MLPredictionsPage: React.FC = () => {
           <div className="bg-white border border-red-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Commandes Urgentes</p>
+                <p className="text-sm text-gray-600">À Commander Maintenant</p>
                 <p className="text-2xl font-bold text-red-600 mt-1">
                   {recommendations.recommendations.filter(r => !r.is_processed && r.urgency_level === 'urgent').length}
                 </p>
@@ -177,7 +205,7 @@ const MLPredictionsPage: React.FC = () => {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Valeur Estimée</p>
+                <p className="text-sm text-gray-600">Valeur Totale Estimée</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">
                   {recommendations.recommendations
                     .filter(r => !r.is_processed)
@@ -192,7 +220,7 @@ const MLPredictionsPage: React.FC = () => {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Horizon</p>
+                <p className="text-sm text-gray-600">Période Analysée</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
                   {predictionDays} jours
                 </p>
@@ -208,7 +236,7 @@ const MLPredictionsPage: React.FC = () => {
         <div className="flex items-center justify-between gap-4">
           {/* Filtre d'urgence */}
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">Filtrer par urgence:</span>
+            <span className="text-sm font-medium text-gray-700">Afficher:</span>
             <div className="flex gap-2">
               {['all', 'urgent', 'soon', 'planned', 'processed'].map((level) => (
                 <button
@@ -220,7 +248,7 @@ const MLPredictionsPage: React.FC = () => {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {level === 'all' ? 'Tous' : level === 'urgent' ? 'Urgent' : level === 'soon' ? 'Bientôt' : level === 'planned' ? 'Planifié' : 'Traités'}
+                  {level === 'all' ? 'Toutes' : level === 'urgent' ? 'Urgentes' : level === 'soon' ? 'Prochaines' : level === 'planned' ? 'À prévoir' : 'Commandées'}
                 </button>
               ))}
             </div>
@@ -228,17 +256,17 @@ const MLPredictionsPage: React.FC = () => {
 
           {/* Horizon de prédiction */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Horizon:</label>
+            <label className="text-sm font-medium text-gray-700">Période:</label>
             <select
               value={predictionDays}
               onChange={(e) => setPredictionDays(Number(e.target.value))}
               className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
-              <option value={7}>7 jours</option>
-              <option value={14}>14 jours</option>
-              <option value={30}>30 jours</option>
-              <option value={60}>60 jours</option>
-              <option value={90}>90 jours</option>
+              <option value={7}>7 prochains jours</option>
+              <option value={14}>14 prochains jours</option>
+              <option value={30}>30 prochains jours</option>
+              <option value={60}>60 prochains jours</option>
+              <option value={90}>90 prochains jours</option>
             </select>
           </div>
 

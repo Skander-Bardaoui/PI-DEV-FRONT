@@ -1,6 +1,8 @@
 // src/components/AccessibilityPanel.tsx
-import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Zap, Link as LinkIcon, Hand, Volume2, Target } from 'lucide-react';
+import { X, Plus, Minus, RotateCcw, Eye, Type, Contrast, MousePointer, BookOpen, Zap, Link as LinkIcon, Hand, Volume2, Target, Palette } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useReadingMode } from '../hooks/useReadingMode';
+import { useColorTheme, ColorTheme } from '../hooks/useColorTheme';
 
 export default function AccessibilityPanel() {
   const {
@@ -8,6 +10,9 @@ export default function AccessibilityPanel() {
     isAccessibilityPanelOpen, toggleAccessibilityPanel,
     isFingerScrollActive, toggleFingerScroll,
   } = useAccessibility();
+
+  const { isReadingMode, toggleReadingMode } = useReadingMode();
+  const { colorTheme, changeColorTheme } = useColorTheme();
 
   if (!isAccessibilityPanelOpen) return null;
 
@@ -105,6 +110,42 @@ export default function AccessibilityPanel() {
             </div>
           </div>
 
+          {/* ── Section: Thèmes de Couleur (Daltonisme) ───────────────── */}
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+            <label className="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4">
+              <div className="p-2 bg-pink-100 rounded-lg">
+                <Palette className="h-5 w-5 text-pink-600" />
+              </div>
+              Thème de Couleur
+            </label>
+            <p className="text-xs text-gray-600 mb-4">Palettes adaptées au daltonisme</p>
+            <div className="space-y-2">
+              {([
+                { value: 'normal', label: 'Normal', desc: 'Couleurs standard' },
+                { value: 'protanopia', label: 'Protanopie', desc: 'Rouge-vert (rouge)' },
+                { value: 'deuteranopia', label: 'Deutéranopie', desc: 'Rouge-vert (vert)' },
+                { value: 'tritanopia', label: 'Tritanopie', desc: 'Bleu-jaune' },
+                { value: 'monochrome', label: 'Monochrome', desc: 'Noir et blanc' },
+              ] as const).map(theme => (
+                <button
+                  key={theme.value}
+                  onClick={() => changeColorTheme(theme.value)}
+                  className={`w-full p-3 border-2 rounded-xl transition-all text-left ${
+                    colorTheme === theme.value
+                      ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                      : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
+                  aria-pressed={colorTheme === theme.value}
+                >
+                  <div className={`text-sm font-semibold ${colorTheme === theme.value ? 'text-indigo-600' : 'text-gray-700'}`}>
+                    {theme.label}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">{theme.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* ── Section: Hauteur de ligne ─────────────────────────────── */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
             <label htmlFor="line-height" className="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4">
@@ -175,11 +216,27 @@ export default function AccessibilityPanel() {
             <div className="space-y-3">
               <ModernToggle
                 icon={<Target className="h-5 w-5" />}
+                label="Mode Simplifié"
+                description="Interface ultra-simple avec gros boutons et moins d'options"
+                checked={settings.simplifiedMode}
+                onChange={v => updateSetting('simplifiedMode', v)}
+                color="teal"
+              />
+              <ModernToggle
+                icon={<Target className="h-5 w-5" />}
                 label="Mode Focus"
                 description="Assombrit tout sauf l'élément actif"
                 checked={settings.focusMode}
                 onChange={v => updateSetting('focusMode', v)}
                 color="orange"
+              />
+              <ModernToggle
+                icon={<BookOpen className="h-5 w-5" />}
+                label="Mode Lecture"
+                description="Simplifie la page pour une lecture confortable"
+                checked={isReadingMode}
+                onChange={toggleReadingMode}
+                color="yellow"
               />
               <ModernToggle
                 icon={<Volume2 className="h-5 w-5" />}

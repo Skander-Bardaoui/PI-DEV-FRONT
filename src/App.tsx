@@ -90,7 +90,15 @@ function AppContent() {
   return (
     <>
       {/* Sonner Toast Notifications */}
-      <Toaster position="bottom-right" richColors closeButton />
+      <Toaster 
+        position="bottom-right" 
+        richColors 
+        closeButton 
+        toastOptions={{
+          ariaLive: 'polite',
+          role: 'status',
+        }}
+      />
 
 
       {/* Accessibility Components - Available on all pages */}
