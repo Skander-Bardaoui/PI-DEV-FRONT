@@ -16,6 +16,7 @@ interface AccessibilitySettings {
   handScrollMode: boolean;
   cameraGestureControl: boolean;
   voiceInput: boolean;
+  simplifiedMode: boolean;
 }
 
 interface AccessibilityContextType {
@@ -47,6 +48,7 @@ const defaultSettings: AccessibilitySettings = {
   handScrollMode: false,
   cameraGestureControl: false,
   voiceInput: false,
+  simplifiedMode: false,
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
@@ -63,6 +65,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
           handScrollMode: parsed.handScrollMode ?? false,
           cameraGestureControl: parsed.cameraGestureControl ?? false,
           focusMode: parsed.focusMode ?? false,
+          simplifiedMode: parsed.simplifiedMode ?? false,
         };
       } catch (e) {
         return defaultSettings;
@@ -98,6 +101,9 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
 
     // Hand Scroll Mode
     root.setAttribute('data-hand-scroll', (settings.handScrollMode ?? false).toString());
+
+    // Simplified Mode
+    root.setAttribute('data-simplified-mode', settings.simplifiedMode.toString());
 
     // Reduce animations
     if (settings.reduceAnimations) {

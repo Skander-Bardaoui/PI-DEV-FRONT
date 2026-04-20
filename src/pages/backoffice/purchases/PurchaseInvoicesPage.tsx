@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   Plus,
   Eye,
-  Check,
   AlertTriangle,
   CheckCircle,
   CreditCard,
@@ -14,7 +13,6 @@ import {
   ChevronUp,
   ChevronDown,
   FileSearch,
-  Wrench,
   MessageSquare,
   Clock,
   XCircle,
@@ -26,7 +24,6 @@ import { useAuth } from '../../../hooks/useAuth';
 
 import {
   usePurchaseInvoices,
-  useApprovePurchaseInvoice,
   useDisputePurchaseInvoice,
   useResolveDispute,
   useUpdatePayment,
@@ -76,6 +73,17 @@ export default function PurchaseInvoicesPage() {
   const [sortField, setSortField] = useState<SortField>('invoice_date');
   const [sortDir,   setSortDir]   = useState<SortDir>('desc');
 
+  // Ordre de priorité des statuts pour le tri (urgent en haut)
+  const STATUS_ORDER: Record<InvoiceStatus, number> = {
+    [InvoiceStatus.OVERDUE]: 1,        // En retard - URGENT
+    [InvoiceStatus.DISPUTED]: 2,       // Litige - Nécessite attention
+    [InvoiceStatus.PENDING]: 3,        // En attente - À traiter
+    [InvoiceStatus.APPROVED]: 4,       // Approuvée - À payer
+    [InvoiceStatus.PARTIALLY_PAID]: 5, // Partiellement payée - À finaliser
+    [InvoiceStatus.PAID]: 6,           // Payée - Terminé
+    [InvoiceStatus.CANCELLED]: 7,      // Annulée - Archivé
+  };
+
   const { data, isLoading } = usePurchaseInvoices(businessId, {
     page,
     limit: 20,
@@ -84,7 +92,6 @@ export default function PurchaseInvoicesPage() {
   const { data: pendingResponses } = usePendingDisputeResponses(businessId);
   const hasResponses = pendingResponses && pendingResponses.length > 0;
 
-  const approve = useApprovePurchaseInvoice(businessId);
   const dispute = useDisputePurchaseInvoice(businessId);
   const resolveDisp = useResolveDispute(businessId);
   const updatePayment = useUpdatePayment(businessId);
@@ -93,6 +100,15 @@ export default function PurchaseInvoicesPage() {
 
   // ── Tri local ─────────────────────────────────────────────────────────────
   const sorted = [...(data?.data ?? [])].sort((a, b) => {
+    // Tri par statut en priorité (urgent en haut)
+    const statusA = STATUS_ORDER[a.status] || 999;
+    const statusB = STATUS_ORDER[b.status] || 999;
+    
+    if (statusA !== statusB) {
+      return statusA - statusB; // Tri croissant par statut
+    }
+
+    // Ensuite tri selon le champ sélectionné
     let va: any, vb: any;
     if (sortField === 'supplier') { 
       va = a.supplier?.name ?? ''; 
@@ -209,7 +225,7 @@ export default function PurchaseInvoicesPage() {
                     <span className="font-semibold">Facture sans BC</span>
                   </div>
                   <p className="text-blue-700 leading-relaxed">
-                    Si pas de BC, vérifiez manuellement puis cliquez sur <span className="font-semibold">Approuver</span> pour valider la facture.
+                    Si pas de BC, vérifiez manuellement les détails de la facture puis procédez au paiement via le bouton <span className="font-semibold">Payer</span>.
                   </p>
                 </div>
                 <div className="bg-white/60 rounded-lg p-3 border border-blue-200">
@@ -218,7 +234,7 @@ export default function PurchaseInvoicesPage() {
                     <span className="font-semibold">En cas de litige</span>
                   </div>
                   <p className="text-blue-700 leading-relaxed">
-                    Si un litige est détecté, vous pouvez <span className="font-semibold">Approuver</span> la facture malgré le litige après vérification, ou <span className="font-semibold">Contacter</span> le fournisseur depuis la page de contrôle.
+                    Si un litige est détecté, cliquez sur le bouton <span className="font-semibold">⚠️ Résoudre</span> pour corriger la facture, ou accédez aux détails pour plus d'options.
                   </p>
                 </div>
               </div>
@@ -373,39 +389,18 @@ export default function PurchaseInvoicesPage() {
                               </button>
                             )}
 
-                            {/* 3. APPROUVER - Si PENDING et PAS de BC */}
-                            {inv.status === InvoiceStatus.PENDING && !inv.supplier_po_id && (
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`Voulez-vous approuver la facture ${inv.invoice_number_supplier} ?\n\nCette facture sera marquée comme validée.`)) {
-                                    approve.mutate(inv.id);
-                                  }
-                                }}
-                                disabled={approve.isPending}
-                                title="Approuver"
-                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                              >
-                                <Check className="h-4 w-4" />
-                              </button>
-                            )}
-
-                            {/* 4. APPROUVER MALGRÉ LITIGE - Si EN LITIGE */}
+                            {/* 3. RÉSOUDRE LITIGE - Si EN LITIGE */}
                             {inv.status === InvoiceStatus.DISPUTED && (
                               <button
-                                onClick={() => {
-                                  if (window.confirm(`Voulez-vous approuver la facture ${inv.invoice_number_supplier} malgré le litige ?\n\nLe litige sera marqué comme résolu et la facture sera approuvée.`)) {
-                                    approve.mutate(inv.id);
-                                  }
-                                }}
-                                disabled={approve.isPending}
-                                title="Approuver malgré le litige"
-                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                                onClick={() => setCorrectInvoice(inv)}
+                                title="Résoudre le litige"
+                                className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                               >
-                                <Check className="h-4 w-4" />
+                                <AlertTriangle className="h-4 w-4" />
                               </button>
                             )}
 
-                            {/* 5. PAYER - Si APPROVED ou PARTIALLY_PAID */}
+                            {/* 4. PAYER - Si APPROVED ou PARTIALLY_PAID */}
                             {(inv.status === InvoiceStatus.APPROVED || inv.status === InvoiceStatus.PARTIALLY_PAID) && (
                               <button
                                 onClick={() => setPaymentInvoice(inv)}

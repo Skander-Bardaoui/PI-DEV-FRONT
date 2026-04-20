@@ -1,5 +1,6 @@
 // src/hooks/useSupplierPOs.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 import {
   CreateSupplierPODto,
@@ -35,11 +36,16 @@ export const useCreateSupplierPO = (businessId: string) => {
   return useMutation({
     mutationFn: (dto: CreateSupplierPODto) => createSupplierPO(businessId, dto),
     onSuccess:  () => {
+      toast.success('Bon de commande créé avec succès');
       // Invalider la liste des BCs
       qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
       // Invalider aussi les stats et scores fournisseurs
       qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
       qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erreur lors de la création du BC';
+      toast.error(message);
     },
   });
 };
@@ -48,7 +54,16 @@ export const useUpdateSupplierPO = (businessId: string, id: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: UpdateSupplierPODto) => updateSupplierPO(businessId, id, dto),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] }),
+    onSuccess:  () => {
+      toast.success('BC modifié avec succès');
+      qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erreur lors de la modification du BC';
+      toast.error(message, {
+        duration: 5000,
+      });
+    },
   });
 };
 
@@ -57,11 +72,16 @@ export const useSendSupplierPO = (businessId: string) => {
   return useMutation({
     mutationFn: (id: string) => sendSupplierPO(businessId, id),
     onSuccess:  () => {
+      toast.success('BC envoyé au fournisseur avec succès');
       // Invalider la liste des BCs
       qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
       // Invalider aussi les stats et scores fournisseurs
       qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
       qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erreur lors de l\'envoi du BC';
+      toast.error(message);
     },
   });
 };
@@ -71,11 +91,16 @@ export const useConfirmSupplierPO = (businessId: string) => {
   return useMutation({
     mutationFn: (id: string) => confirmSupplierPO(businessId, id),
     onSuccess:  () => {
+      toast.success('BC confirmé avec succès');
       // Invalider la liste des BCs
       qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
       // Invalider aussi les stats et scores fournisseurs
       qc.invalidateQueries({ queryKey: ['supplier-score', businessId] });
       qc.invalidateQueries({ queryKey: ['supplier-ranking', businessId] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erreur lors de la confirmation du BC';
+      toast.error(message);
     },
   });
 };
@@ -84,6 +109,18 @@ export const useCancelSupplierPO = (businessId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => cancelSupplierPO(businessId, id),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] }),
+    onSuccess:  () => {
+      toast.success('BC annulé avec succès', {
+        description: 'Un email d\'annulation a été envoyé au fournisseur si le BC était en statut "Envoyé"',
+        duration: 5000,
+      });
+      qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erreur lors de l\'annulation du BC';
+      toast.error(message, {
+        duration: 5000,
+      });
+    },
   });
 };

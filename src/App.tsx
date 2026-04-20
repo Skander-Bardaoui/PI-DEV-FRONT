@@ -53,7 +53,6 @@ import Archive from './pages/backoffice/Archive';
 import SuppliersPage          from './pages/backoffice/purchases/SuppliersPage';
 import SupplierPOsPage        from './pages/backoffice/purchases/SupplierPOsPage';
 import PurchaseInvoicesPage   from './pages/backoffice/purchases/PurchaseInvoicesPage';
-import SupplierPaymentsPage   from './pages/backoffice/purchases/SupplierPaymentsPage';
 import PurchasesDashboardPage from './pages/backoffice/purchases/Purchasesdashboardpage';
 import GoodsReceiptsPage      from './pages/backoffice/purchases/Goodsreceiptspage';
 
@@ -78,6 +77,7 @@ import Transactions from './components/treasury/Transactions';
 import SupplierIntelligencePage from './pages/backoffice/purchases/SupplierIntelligencePage';
 import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingPage';
 import SupplierRegisterPage from './pages/frontoffice/SupplierRegisterPage';
+import MLPredictionsPage from './pages/backoffice/purchases/MLPredictionsPage';
 import SalaryToPayPage from './components/treasury/SalaryToPayPage';
 import SalaryRespondPage from './pages/frontoffice/SalaryRespondPage';
 import SupplierScheduleResponsePage from './pages/frontoffice/SupplierScheduleResponsePage';
@@ -90,7 +90,15 @@ function AppContent() {
   return (
     <>
       {/* Sonner Toast Notifications */}
-      <Toaster position="bottom-right" richColors closeButton />
+      <Toaster 
+        position="bottom-right" 
+        richColors 
+        closeButton 
+        toastOptions={{
+          ariaLive: 'polite',
+          role: 'status',
+        }}
+      />
 
 
       {/* Accessibility Components - Available on all pages */}
@@ -195,10 +203,10 @@ function AppContent() {
           <Route path="purchases/orders"          element={<SupplierPOsPage />}        />
           <Route path="purchases/goods-receipts"  element={<GoodsReceiptsPage />}      />
           <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
-          <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
           <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
           <Route path="purchases/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="purchases/three-way-matching" element={<ThreeWayMatchingPage />} />
+          <Route path="purchases/ml-predictions" element={<MLPredictionsPage />} />
 
 
           {/*treasury*/}

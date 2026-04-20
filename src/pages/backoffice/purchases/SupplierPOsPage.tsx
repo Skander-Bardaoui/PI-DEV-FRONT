@@ -1,7 +1,7 @@
 // src/pages/backoffice/purchases/SupplierPOsPage.tsx
 // VERSION MISE À JOUR — filtres avancés + tri colonnes + ConfirmModal + Toast
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Eye, Send, Check, X, ChevronUp, ChevronDown, Filter, Sparkles, ShoppingCart } from 'lucide-react';
 import { useAuth }            from '../../../hooks/useAuth';
 import {
@@ -54,6 +54,16 @@ export default function SupplierPOsPage() {
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir,   setSortDir]   = useState<SortDir>('desc');
 
+  // Ordre de priorité des statuts pour le tri par défaut
+  const STATUS_ORDER: Record<POStatus, number> = {
+    [POStatus.DRAFT]: 1,
+    [POStatus.SENT]: 2,
+    [POStatus.CONFIRMED]: 3,
+    [POStatus.PARTIALLY_RECEIVED]: 4,
+    [POStatus.FULLY_RECEIVED]: 5,
+    [POStatus.CANCELLED]: 6,
+  };
+
   // ── Modals ────────────────────────────────────────────────────────────────
   const [modalOpen,   setModalOpen]   = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -62,6 +72,26 @@ export default function SupplierPOsPage() {
   // ==================== Alaa change for product reservations ====================
   const [reservationsModalOpen, setReservationsModalOpen] = useState(false);
   // ====================================================================
+  const [mlPredictionData, setMlPredictionData] = useState<any>(null);
+
+  // Vérifier si des données ML sont présentes au chargement
+  useEffect(() => {
+    const mlData = sessionStorage.getItem('mlPrediction');
+    console.log('🔍 SupplierPOsPage - sessionStorage mlPrediction:', mlData);
+    if (mlData) {
+      try {
+        const parsedData = JSON.parse(mlData);
+        console.log('✅ SupplierPOsPage - Données ML parsées:', parsedData);
+        setMlPredictionData(parsedData);
+        setModalOpen(true);
+        // Nettoyer après lecture
+        sessionStorage.removeItem('mlPrediction');
+      } catch (error) {
+        console.error('❌ Erreur lors de la lecture des données ML:', error);
+        sessionStorage.removeItem('mlPrediction');
+      }
+    }
+  }, []);
 
   const { data, isLoading } = useSupplierPOs(businessId, {
     status:      statusFilter   || undefined,
@@ -80,10 +110,20 @@ export default function SupplierPOsPage() {
 
   // ── Tri local ─────────────────────────────────────────────────────────────
   const sorted = [...(data?.data ?? [])].sort((a, b) => {
+    // Tri par statut en priorité (toujours appliqué en premier)
+    const statusA = STATUS_ORDER[a.status] || 999;
+    const statusB = STATUS_ORDER[b.status] || 999;
+    
+    if (statusA !== statusB) {
+      return statusA - statusB; // Tri croissant par statut
+    }
+
+    // Ensuite tri selon le champ sélectionné
     let va: any, vb: any;
     if (sortField === 'supplier')    { va = a.supplier?.name ?? ''; vb = b.supplier?.name ?? ''; }
     else if (sortField === 'net_amount') { va = Number(a.net_amount); vb = Number(b.net_amount); }
     else { va = a[sortField]; vb = b[sortField]; }
+    
     if (va < vb) return sortDir === 'asc' ? -1 : 1;
     if (va > vb) return sortDir === 'asc' ?  1 : -1;
     return 0;
@@ -100,28 +140,11 @@ export default function SupplierPOsPage() {
       : <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
   const totalPages = data?.total_pages ?? 1;
 
-  // ── Actions avec toast ────────────────────────────────────────────────────
-  const handleSend = async (po: SupplierPO) => {
-    try {
-      await send.mutateAsync(po.id);
-      toast.success('BC envoyé', `${po.po_number} a été envoyé au fournisseur`);
-    } catch (err) { handleError(err, 'Impossible d\'envoyer ce BC'); }
-  };
-
-  const handleConfirm = async (po: SupplierPO) => {
-    try {
-      await confirm.mutateAsync(po.id);
-      toast.success('BC confirmé', `${po.po_number} est maintenant confirmé`);
-    } catch (err) { handleError(err, 'Impossible de confirmer ce BC'); }
-  };
-
+  // ── Actions ───────────────────────────────────────────────────────────────
   const handleCancel = async () => {
     if (!confirmCancel) return;
-    try {
-      await cancel.mutateAsync(confirmCancel.id);
-      toast.warning('BC annulé', `${confirmCancel.po_number} a été annulé`);
-      setConfirmCancel(null);
-    } catch (err) { handleError(err, 'Impossible d\'annuler ce BC'); }
+    await cancel.mutateAsync(confirmCancel.id);
+    setConfirmCancel(null);
   };
 
   const hasActiveFilters = statusFilter || supplierFilter || dateFrom || dateTo;
@@ -268,13 +291,13 @@ export default function SupplierPOsPage() {
                         </button>
                         <PDFButton variant="icon" loading={pdfLoading} onClick={() => exportBC(po)} label="PDF" />
                         {po.status === POStatus.DRAFT && (
-                          <button onClick={() => handleSend(po)} disabled={send.isPending} title="Envoyer"
+                          <button onClick={() => send.mutate(po.id)} disabled={send.isPending} title="Envoyer"
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                             <Send className="h-4 w-4" />
                           </button>
                         )}
                         {po.status === POStatus.SENT && (
-                          <button onClick={() => handleConfirm(po)} disabled={confirm.isPending} title="Confirmer"
+                          <button onClick={() => confirm.mutate(po.id)} disabled={confirm.isPending} title="Confirmer"
                             className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                             <Check className="h-4 w-4" />
                           </button>
@@ -362,7 +385,16 @@ export default function SupplierPOsPage() {
       </div>
 
       {/* Modals */}
-      {modalOpen && <SupplierPOModal businessId={businessId} onClose={() => setModalOpen(false)} />}
+      {modalOpen && (
+        <SupplierPOModal 
+          businessId={businessId} 
+          onClose={() => {
+            setModalOpen(false);
+            setMlPredictionData(null);
+          }}
+          mlPrediction={mlPredictionData}
+        />
+      )}
       {aiModalOpen && <AiPOGeneratorModal businessId={businessId} onClose={() => setAiModalOpen(false)} onSuccess={() => toast.success('BC créé', 'Le bon de commande a été généré avec succès')} />}
       {detailPO  && <SupplierPODetailModal businessId={businessId} po={detailPO} onClose={() => setDetailPO(null)} />}
       {/* ==================== Alaa change for product reservations ==================== */}
