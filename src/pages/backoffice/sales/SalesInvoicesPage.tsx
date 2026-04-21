@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, ScanLine, Bell, GitCompare } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, ScanLine, Bell, GitCompare, DollarSign, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useSalesInvoices, useDeleteSalesInvoice } from '@/hooks/useSalesInvoices';
 import { SALES_INVOICE_STATUS_COLORS, SALES_INVOICE_STATUS_LABELS, SalesInvoiceType } from '@/types/sales-invoice';
@@ -70,6 +70,18 @@ export default function SalesInvoicesPage() {
   const totalPages = data?.total_pages ?? 1;
   const total = data?.total ?? 0;
 
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const invoices = data?.data || [];
+    return {
+      total: total,
+      draft: invoices.filter(i => i.status === 'DRAFT').length,
+      paid: invoices.filter(i => i.status === 'PAID').length,
+      overdue: invoices.filter(i => i.status === 'OVERDUE').length,
+      totalAmount: invoices.reduce((sum, i) => sum + Number(i.net_amount || 0), 0),
+    };
+  }, [data, total]);
+
   // Calcul des numéros de pages à afficher
   const getPageNumbers = () => {
     if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -120,8 +132,8 @@ export default function SalesInvoicesPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Factures clients</h1>
         <div className="flex gap-3">
           <button
@@ -133,7 +145,7 @@ export default function SalesInvoicesPage() {
           </button>
           <button
             onClick={() => setModalOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
           >
             <Plus className="h-5 w-5" />
             Nouvelle facture
@@ -141,8 +153,59 @@ export default function SalesInvoicesPage() {
         </div>
       </div>
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-blue-50 rounded-lg border border-blue-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-700 text-sm font-medium">Total Factures</p>
+              <p className="text-3xl font-bold text-blue-900 mt-2">{stats.total}</p>
+            </div>
+            <div className="bg-blue-100 p-3 rounded-lg">
+              <FileText className="h-7 w-7 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-green-50 rounded-lg border border-green-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-700 text-sm font-medium">Payées</p>
+              <p className="text-3xl font-bold text-green-900 mt-2">{stats.paid}</p>
+            </div>
+            <div className="bg-green-100 p-3 rounded-lg">
+              <CheckCircle className="h-7 w-7 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-red-50 rounded-lg border border-red-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-700 text-sm font-medium">En Retard</p>
+              <p className="text-3xl font-bold text-red-900 mt-2">{stats.overdue}</p>
+            </div>
+            <div className="bg-red-100 p-3 rounded-lg">
+              <AlertCircle className="h-7 w-7 text-red-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-purple-50 rounded-lg border border-purple-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-700 text-sm font-medium">Montant Total</p>
+              <p className="text-2xl font-bold text-purple-900 mt-2">{formatAmount(stats.totalAmount)} DT</p>
+            </div>
+            <div className="bg-purple-100 p-3 rounded-lg">
+              <DollarSign className="h-7 w-7 text-purple-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Vérification automatique Notice */}
-      <div className="mb-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-4">
+      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 mt-0.5">
             <GitCompare className="h-5 w-5 text-indigo-600" />

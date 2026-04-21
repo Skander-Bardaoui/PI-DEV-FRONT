@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Import des styles pour la navigation au clavier */
 @import './styles/keyboard-navigation.css';
 
@@ -10,6 +6,10 @@
 
 /* Import des thèmes de couleur pour daltonisme */
 @import './styles/color-themes.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Screen Reader Only - Masquer visuellement mais garder accessible */
 .sr-only {
@@ -64,6 +64,22 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Prevent scroll reset on navigation */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Maintain scroll position in main content */
+  main {
+    overflow-anchor: auto;
+  }
+  
+  /* Prevent sidebar from scrolling to top on navigation */
+  nav[role="navigation"] {
+    overflow-anchor: auto;
+    scroll-behavior: auto;
   }
 }
 

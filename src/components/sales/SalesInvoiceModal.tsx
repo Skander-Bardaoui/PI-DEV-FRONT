@@ -1,6 +1,9 @@
 // src/components/sales/SalesInvoiceModal.tsx
 import { useFieldArray, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { salesInvoiceSchema } from '@/schemas/sales.schemas';
+import { z } from 'zod';
 import { useCreateSalesInvoice, useUpdateSalesInvoice } from '@/hooks/useSalesInvoices';
 import { useClients } from '@/hooks/useClients';
 import { CreateSalesInvoiceItemDto, SalesInvoiceType } from '@/types/sales-invoice';
@@ -11,13 +14,37 @@ import { Product } from '@/types/product';
 const TIMBRE_FISCAL = 1.000;
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
-interface SalesInvoiceFormValues {
-  client_id: string;
-  type: SalesInvoiceType;
-  original_invoice_id?: string;
-  date?: string;
-  due_date?: string;
-  notes?: string;
+// ── Composant Field avec erreur ───────────────────────────────────────────────
+const Field = ({
+  label, error, required, children,
+}: { label: string; error?: string; required?: boolean; children: React.ReactNode }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    {children}
+    {error && (
+      <div className="flex items-start gap-1.5 mt-1.5">
+        <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+        <p className="text-red-600 text-xs font-medium">{error}</p>
+      </div>
+    )}
+  </div>
+);
+
+const inputCls = (error?: string) =>
+  `w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm transition-colors ${
+    error ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200' : 'border-gray-300'
+  }`;
+
+const inputSmallCls = (error?: string) =>
+  `w-full px-2 py-1 border rounded text-sm transition-colors ${
+    error ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200' : 'border-gray-200'
+  }`;
+
+type SalesInvoiceFormValues = z.infer<typeof salesInvoiceSchema> & {
   items: {
     productId?: string;
     description: string;
@@ -25,7 +52,7 @@ interface SalesInvoiceFormValues {
     unit_price: number;
     tax_rate_value: number;
   }[];
-}
+};
 
 interface Props {
   businessId: string;
@@ -42,15 +69,18 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
 
   const isEdit = !!invoice;
 
-  const getInitialValues = () => {
+  const getInitialValues = (): SalesInvoiceFormValues => {
     if (isEdit) {
       return {
         client_id: invoice.client_id || '',
-        type: invoice.type || SalesInvoiceType.NORMAL,
-        original_invoice_id: invoice.original_invoice_id || '',
         date: invoice.date?.split('T')[0] || new Date().toISOString().split('T')[0],
         due_date: invoice.due_date?.split('T')[0] || '',
+        subtotal_ht: invoice.subtotal_ht || 0,
+        tax_amount: invoice.tax_amount || 0,
+        timbre_fiscal: invoice.timbre_fiscal || 1.000,
         notes: invoice.notes || '',
+        sales_order_id: invoice.sales_order_id || '',
+        quote_id: invoice.quote_id || '',
         items: invoice.items?.map((item: any) => ({
           productId: item.productId || undefined,
           description: item.description || '',
@@ -63,11 +93,14 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
 
     return {
       client_id: '',
-      type: SalesInvoiceType.NORMAL,
-      original_invoice_id: '',
       date: new Date().toISOString().split('T')[0],
       due_date: '',
+      subtotal_ht: 0,
+      tax_amount: 0,
+      timbre_fiscal: 1.000,
       notes: '',
+      sales_order_id: '',
+      quote_id: '',
       items: [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19 }],
     };
   };
@@ -80,22 +113,31 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<SalesInvoiceFormValues>({
+    resolver: zodResolver(salesInvoiceSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: getInitialValues(),
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const watchedItems = watch('items') || [];
-  const watchedType = watch('type');
 
   const computed = (watchedItems || []).map(l => {
-    const ht = round3((l?.quantity || 0) * (l?.unit_price || 0));
-    const tax = round3(ht * ((l?.tax_rate_value || 0) / 100));
+    const qty = Number(l?.quantity) || 0;
+    const price = Number(l?.unit_price) || 0;
+    const rate = Number(l?.tax_rate_value) || 0;
+    const ht = round3(qty * price);
+    const tax = round3(ht * (rate / 100));
     return { ht, tax };
   });
 
   const subtotal_ht = round3(computed.reduce((s, c) => s + (c?.ht || 0), 0));
   const tax_amount = round3(computed.reduce((s, c) => s + (c?.tax || 0), 0));
   const net_amount = round3(subtotal_ht + tax_amount + TIMBRE_FISCAL);
+
+  // Auto-update calculated fields
+  setValue('subtotal_ht', subtotal_ht);
+  setValue('tax_amount', tax_amount);
 
   const handleProductSelect = (index: number, product: Product | null) => {
     if (product) {
@@ -153,11 +195,14 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
 
       const payload = {
         client_id: values.client_id,
-        type: values.type || SalesInvoiceType.NORMAL,
-        original_invoice_id: values.type === SalesInvoiceType.AVOIR ? values.original_invoice_id : undefined,
         date: values.date || undefined,
         due_date: values.due_date || undefined,
+        subtotal_ht: values.subtotal_ht,
+        tax_amount: values.tax_amount,
+        timbre_fiscal: values.timbre_fiscal,
         notes: values.notes || undefined,
+        ...(values.sales_order_id ? { sales_order_id: values.sales_order_id } : {}),
+        ...(values.quote_id ? { quote_id: values.quote_id } : {}),
         items,
       };
 
@@ -191,15 +236,10 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Client <span className="text-red-500">*</span>
-              </label>
+            <Field label="Client" error={errors.client_id?.message} required>
               <select
-                {...register('client_id', { required: 'Client requis' })}
-                className={`w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 ${
-                  errors.client_id ? 'border-red-400 bg-red-50' : 'border-gray-300'
-                }`}
+                {...register('client_id')}
+                className={inputCls(errors.client_id?.message)}
               >
                 <option value="">Sélectionner un client</option>
                 {clientsData?.clients?.map((client) => (
@@ -208,65 +248,35 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
                   </option>
                 ))}
               </select>
-              {errors.client_id && (
-                <p className="text-red-500 text-xs mt-1">{errors.client_id.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type de facture <span className="text-red-500">*</span>
-              </label>
-              <select
-                {...register('type', { required: 'Type requis' })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value={SalesInvoiceType.NORMAL}>Facture normale</option>
-                <option value={SalesInvoiceType.AVOIR}>Avoir (remboursement)</option>
-                <option value={SalesInvoiceType.PROFORMA}>Facture proforma</option>
-                <option value={SalesInvoiceType.ACOMPTE}>Facture d'acompte</option>
-              </select>
-            </div>
-          </div>
+            </Field>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date de facture
-              </label>
+            <Field label="Date de facture" error={errors.date?.message} required>
               <input
                 type="date"
                 {...register('date')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                className={inputCls(errors.date?.message)}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date d'échéance
-              </label>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Date d'échéance" error={errors.due_date?.message}>
               <input
                 type="date"
                 {...register('due_date')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                className={inputCls(errors.due_date?.message)}
               />
-            </div>
-          </div>
+            </Field>
 
-          {watchedType === SalesInvoiceType.AVOIR && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Facture d'origine (pour avoir)
-              </label>
+            <Field label="Timbre fiscal (TND)" error={errors.timbre_fiscal?.message}>
               <input
-                type="text"
-                {...register('original_invoice_id')}
-                placeholder="ID de la facture d'origine"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                type="number"
+                step="0.001"
+                {...register('timbre_fiscal', { valueAsNumber: true })}
+                className={inputCls(errors.timbre_fiscal?.message)}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Optionnel : ID de la facture originale pour laquelle cet avoir est créé
-              </p>
-            </div>
-          )}
+            </Field>
+          </div>
 
           {/* Lignes */}
           <div>
@@ -302,17 +312,17 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
                         <ProductSelector
                           value={watchedItems[i]?.productId}
                           onChange={(product) => handleProductSelect(i, product)}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                          className={inputSmallCls()}
                         />
                         <input type="hidden" {...register(`items.${i}.productId`)} />
-                        <input type="hidden" {...register(`items.${i}.description`, { required: true })} />
+                        <input type="hidden" {...register(`items.${i}.description`)} />
                       </td>
                       <td className="px-4 py-2">
                         <input
                           type="number"
-                          step="0.01"
+                          step="0.001"
                           {...register(`items.${i}.quantity`, { valueAsNumber: true })}
-                          className={`w-full px-2 py-1 border rounded text-sm text-center ${stockWarning ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                          className={inputSmallCls(stockWarning)}
                         />
                         {stockWarning && (
                           <div className="text-xs text-red-600 mt-1">{stockWarning}</div>
@@ -323,13 +333,13 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
                           type="number"
                           step="0.001"
                           {...register(`items.${i}.unit_price`, { valueAsNumber: true })}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm text-right"
+                          className={`${inputSmallCls()} text-right`}
                         />
                       </td>
                       <td className="px-4 py-2">
                         <select
                           {...register(`items.${i}.tax_rate_value`, { valueAsNumber: true })}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm text-center"
+                          className={`${inputSmallCls()} text-center`}
                         >
                           <option value="0">0%</option>
                           <option value="7">7%</option>
@@ -363,31 +373,36 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
           <div className="bg-gray-50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Sous-total HT</span>
-              <span className="font-medium">{subtotal_ht.toFixed(3)} DT</span>
+              <span className="font-medium">{isNaN(subtotal_ht) ? '0.000' : subtotal_ht.toFixed(3)} DT</span>
             </div>
+            {errors.subtotal_ht && (
+              <p className="text-red-600 text-xs">{errors.subtotal_ht.message}</p>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">TVA</span>
-              <span className="font-medium">{tax_amount.toFixed(3)} DT</span>
+              <span className="font-medium">{isNaN(tax_amount) ? '0.000' : tax_amount.toFixed(3)} DT</span>
             </div>
+            {errors.tax_amount && (
+              <p className="text-red-600 text-xs">{errors.tax_amount.message}</p>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Timbre fiscal</span>
               <span className="font-medium">{TIMBRE_FISCAL.toFixed(3)} DT</span>
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
               <span>Net à payer</span>
-              <span className="text-indigo-600">{net_amount.toFixed(3)} DT</span>
+              <span className="text-indigo-600">{isNaN(net_amount) ? '0.000' : net_amount.toFixed(3)} DT</span>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <Field label="Notes" error={errors.notes?.message}>
             <textarea
               {...register('notes')}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+              className={inputCls(errors.notes?.message)}
               placeholder="Notes additionnelles..."
             />
-          </div>
+          </Field>
 
           <div className="flex gap-3 pt-4">
             <button
