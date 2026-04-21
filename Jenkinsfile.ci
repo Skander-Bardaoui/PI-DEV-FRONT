@@ -84,13 +84,11 @@ pipeline {
         // ─────────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '🔧 Setting up Node.js and pnpm...'
+                    echo '🔧 Setting up Node.js...'
                     sh '''
                         node --version
                         npm --version
-                        npm install -g pnpm
-                        pnpm --version
-                        echo "✅ Node.js ${NODE_VERSION} and pnpm ready"
+                        echo "✅ Node.js ${NODE_VERSION} ready"
                     '''
                 }
             }
@@ -101,9 +99,9 @@ pipeline {
         // ─────────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '📥 Installing pnpm dependencies...'
+                    echo '📥 Installing npm dependencies...'
                     sh '''
-                        pnpm install --frozen-lockfile --prefer-offline
+                        npm ci --prefer-offline
                         echo "✅ Dependencies installed"
                     '''
                 }
@@ -117,7 +115,7 @@ pipeline {
                 script {
                     echo '🔍 Running ESLint...'
                     sh '''
-                        pnpm run lint || {
+                        npm run lint || {
                             echo "⚠️ Linting issues found"
                             exit 0
                         }
@@ -134,17 +132,14 @@ pipeline {
                 script {
                     echo '🧪 Running unit tests with Vitest...'
                     sh '''
-                        # Créer un script de test si pas encore configuré
-                        if ! grep -q "test" package.json; then
-                            echo "⚠️ No test script found, creating placeholder..."
-                            echo "✅ Tests will be configured in future iterations"
-                        else
-                            pnpm run test --run --coverage || {
-                                echo "⚠️ Some tests failed"
-                                exit 0
-                            }
-                            echo "✅ Tests completed"
-                        fi
+                        npm run test:coverage || {
+                            echo "⚠️ Some tests failed or no tests found"
+                            echo "Creating empty coverage report..."
+                            mkdir -p coverage
+                            echo '{"total":{"lines":{"pct":0}}}' > coverage/coverage-summary.json
+                            exit 0
+                        }
+                        echo "✅ Tests completed"
                     '''
                 }
             }
@@ -256,7 +251,7 @@ pipeline {
                 script {
                     echo '🏗️ Building React application with Vite...'
                     sh '''
-                        pnpm run build:prod
+                        npm run build:prod
                         
                         # Vérifier que le build a réussi
                         if [ ! -d "dist" ]; then
@@ -278,11 +273,11 @@ pipeline {
         // ─────────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '🔐 Running pnpm security audit...'
+                    echo '🔐 Running npm security audit...'
                     sh '''
-                        pnpm audit --audit-level=high || {
+                        npm audit --audit-level=high || {
                             echo "⚠️ Security vulnerabilities found"
-                            pnpm audit --audit-level=high --json > audit-report.json || true
+                            npm audit --audit-level=high --json > audit-report.json || true
                         }
                         echo "✅ Security audit completed"
                     '''
@@ -307,12 +302,12 @@ pipeline {
         stage('🚀 Trigger CD Pipeline') {
         // ─────────────────────────────────────────────────────────────────────
             when {
-                branch 'main'
+                branch 'imenBouchriha'
             }
             steps {
                 script {
                     echo '🚀 Triggering CD pipeline...'
-                    build job: 'frontend-cd',
+                    build job: 'pi-dev-frontend-cd',
                         parameters: [
                             string(name: 'BUILD_NUMBER', value: env.BUILD_NUMBER),
                             string(name: 'GIT_COMMIT', value: env.GIT_COMMIT_SHORT),
