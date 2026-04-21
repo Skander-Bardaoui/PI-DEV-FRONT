@@ -15,6 +15,7 @@ import PDFButton from '../purchases/PDFButton';
 import { printDeliveryNote } from '@/utils/delivery-note-print';
 import { useAuth } from '@/hooks/useAuth';
 import { ActionButton, ActionSection } from '../ui/ActionButton';
+import { getBusinessInfo } from '@/utils/business-info.utils';
 
 interface Props {
   note: DeliveryNote;
@@ -348,7 +349,10 @@ export default function DeliveryNoteDetailModal({ note: initialNote, businessId,
                   icon={FileText}
                   label="Télécharger PDF"
                   description="Générer le document"
-                  onClick={() => printDeliveryNote(note, (user as any)?.business?.name || 'Entreprise', (user as any)?.business?.matricule_fiscal, (user as any)?.business?.address)}
+                  onClick={async () => {
+                    const info = await getBusinessInfo(user);
+                    printDeliveryNote(note, info.businessName, info.businessMF, info.businessAddress);
+                  }}
                   variant="danger"
                 />
               </ActionSection>

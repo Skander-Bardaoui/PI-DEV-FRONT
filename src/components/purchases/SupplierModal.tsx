@@ -93,12 +93,39 @@ export default function SupplierModal({ businessId, supplier, onClose }: Props) 
 
   const onSubmit = async (values: SupplierFormValues) => {
     try {
-      // Nettoyer les champs vides
-      const dto = Object.fromEntries(
-        Object.entries(values).filter(([, v]) => v !== '' && v !== undefined),
-      );
-      if (isEdit) await update.mutateAsync(dto as any);
-      else        await create.mutateAsync(dto as any);
+      // Prepare the DTO with proper data structure
+      const dto: any = {
+        name: values.name,
+        matricule_fiscal: values.matricule_fiscal,
+        email: values.email,
+        phone: values.phone,
+        rib: values.rib,
+        bank_name: values.bank_name,
+        payment_terms: values.payment_terms,
+        category: values.category,
+      };
+
+      // Only add notes if not empty
+      if (values.notes && values.notes.trim()) {
+        dto.notes = values.notes;
+      }
+
+      // Only add address if all required fields are present
+      if (values.address && 
+          values.address.street && 
+          values.address.city && 
+          values.address.postal_code && 
+          values.address.country) {
+        dto.address = {
+          street: values.address.street,
+          city: values.address.city,
+          postal_code: values.address.postal_code,
+          country: values.address.country,
+        };
+      }
+
+      if (isEdit) await update.mutateAsync(dto);
+      else        await create.mutateAsync(dto);
       onClose();
     } catch (error) {
       console.error('Erreur lors de la soumission:', error);

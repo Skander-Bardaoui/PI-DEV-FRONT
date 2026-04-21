@@ -1,7 +1,35 @@
 // src/components/sales/ClientInvitationModal.tsx
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { X, Mail, User, Copy, Check } from 'lucide-react';
+import { clientInviteSchema, ClientInviteFormValues } from '@/schemas/sales.schemas';
 import { useInviteClient } from '@/hooks/useClients';
+
+// ── Composant Field avec erreur ───────────────────────────────────────────────
+const Field = ({
+  label, error, required, children,
+}: { label: string; error?: string; required?: boolean; children: React.ReactNode }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    {children}
+    {error && (
+      <div className="flex items-start gap-1.5 mt-1.5">
+        <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+        <p className="text-red-600 text-xs font-medium">{error}</p>
+      </div>
+    )}
+  </div>
+);
+
+const inputWithIconCls = (error?: string) =>
+  `w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+    error ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200' : 'border-gray-300'
+  }`;
 
 interface ClientInvitationModalProps {
   businessId: string;
@@ -9,27 +37,38 @@ interface ClientInvitationModalProps {
 }
 
 export default function ClientInvitationModal({ businessId, onClose }: ClientInvitationModalProps) {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
   const [invitationLink, setInvitationLink] = useState('');
   const [copied, setCopied] = useState(false);
+  const [invitedEmail, setInvitedEmail] = useState('');
 
   const inviteClient = useInviteClient(businessId);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email.trim()) {
-      return;
-    }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<ClientInviteFormValues>({
+    resolver: zodResolver(clientInviteSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      email: '',
+      client_name: '',
+      message: '',
+    },
+  });
 
+  const onSubmit = async (values: ClientInviteFormValues) => {
     try {
       const result = await inviteClient.mutateAsync({
-        email: email.trim(),
-        name: name.trim() || undefined,
+        email: values.email,
+        name: values.client_name,
+        message: values.message || undefined,
       });
       
       setInvitationLink(result.invitationLink);
+      setInvitedEmail(values.email);
     } catch (error) {
       // Error handled by mutation
     }
@@ -42,10 +81,10 @@ export default function ClientInvitationModal({ businessId, onClose }: ClientInv
   };
 
   const handleClose = () => {
-    setEmail('');
-    setName('');
+    reset();
     setInvitationLink('');
     setCopied(false);
+    setInvitedEmail('');
     onClose();
   };
 
@@ -66,39 +105,41 @@ export default function ClientInvitationModal({ businessId, onClose }: ClientInv
         {/* Content */}
         <div className="p-6">
           {!invitationLink ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email du client *
-                </label>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              <Field label="Email du client" error={errors.email?.message} required>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    {...register('email')}
                     placeholder="client@example.com"
-                    required
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className={inputWithIconCls(errors.email?.message)}
                   />
                 </div>
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom du client (optionnel)
-                </label>
+              <Field label="Nom du client" error={errors.client_name?.message} required>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    {...register('client_name')}
                     placeholder="Nom de l'entreprise"
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className={inputWithIconCls(errors.client_name?.message)}
                   />
                 </div>
-              </div>
+              </Field>
+
+              <Field label="Message personnalisé" error={errors.message?.message}>
+                <textarea
+                  {...register('message')}
+                  rows={3}
+                  placeholder="Message optionnel à inclure dans l'invitation..."
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+                    errors.message?.message ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200' : 'border-gray-300'
+                  }`}
+                />
+              </Field>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
@@ -121,10 +162,10 @@ export default function ClientInvitationModal({ businessId, onClose }: ClientInv
                 </button>
                 <button
                   type="submit"
-                  disabled={inviteClient.isPending}
+                  disabled={isSubmitting || inviteClient.isPending}
                   className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {inviteClient.isPending ? 'Envoi...' : 'Envoyer l\'invitation'}
+                  {isSubmitting || inviteClient.isPending ? 'Envoi...' : 'Envoyer l\'invitation'}
                 </button>
               </div>
             </form>
@@ -133,7 +174,7 @@ export default function ClientInvitationModal({ businessId, onClose }: ClientInv
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <p className="text-green-800 font-medium mb-2">✅ Invitation envoyée avec succès !</p>
                 <p className="text-sm text-green-700">
-                  Un email a été envoyé à <strong>{email}</strong> avec le lien d'invitation.
+                  Un email a été envoyé à <strong>{invitedEmail}</strong> avec le lien d'invitation.
                 </p>
               </div>
 
