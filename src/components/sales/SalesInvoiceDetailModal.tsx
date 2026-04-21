@@ -15,6 +15,7 @@ import ConfirmModal from '../ui/ConfirmModal';
 import { ActionButton, ActionSection } from '../ui/ActionButton';
 import { printSalesInvoice } from '@/utils/sales-invoice-print';
 import { useAuth } from '@/hooks/useAuth';
+import { getBusinessInfo } from '@/utils/business-info.utils';
 
 interface Props {
   invoice: SalesInvoice;
@@ -173,7 +174,10 @@ export default function SalesInvoiceDetailModal({ invoice: initialInvoice, busin
                   icon={FileText}
                   label="Télécharger PDF"
                   description="Générer le document"
-                  onClick={() => printSalesInvoice(invoice, (user as any)?.business?.name || 'Entreprise', (user as any)?.business?.matricule_fiscal, (user as any)?.business?.address)}
+                  onClick={async () => {
+                    const info = await getBusinessInfo(user);
+                    printSalesInvoice(invoice, info.businessName, info.businessMF, info.businessAddress);
+                  }}
                   variant="danger"
                 />
 

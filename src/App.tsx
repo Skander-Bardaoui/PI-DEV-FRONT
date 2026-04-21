@@ -1,5 +1,5 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AccessibilityButton from './components/AccessibilityButton';
@@ -25,6 +25,7 @@ import AcceptInvitationPage from './pages/frontoffice/AcceptInvitationPage';
 import SalesOrderClientPortal from './pages/frontoffice/SalesOrderClientPortal';
 import QuotePortal from './pages/frontoffice/QuotePortal';
 import ClientOnboarding from './pages/frontoffice/ClientOnboarding';
+import SubscriptionManagePage from './pages/frontoffice/SubscriptionManagePage';
 
 // Back Office Pages
 import Dashboard     from './pages/backoffice/Dashboard';
@@ -94,10 +95,6 @@ function AppContent() {
         position="bottom-right" 
         richColors 
         closeButton 
-        toastOptions={{
-          ariaLive: 'polite',
-          role: 'status',
-        }}
       />
 
 
@@ -130,6 +127,7 @@ function AppContent() {
         <Route path="/supplier-portal" element={<SupplierPortalPage />} />
         <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
         <Route path="/client-portal" element={<SalesOrderClientPortal />} />
+        <Route path="/subscription-manage" element={<SubscriptionManagePage />} />
         <Route path="/quote-portal" element={<QuotePortal />} />
         <Route path="/supplier-register" element={<SupplierRegisterPage />} />
         <Route path="/salary-respond/:token" element={<SalaryRespondPage />}  />
@@ -206,6 +204,7 @@ function AppContent() {
           <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
           <Route path="purchases/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="purchases/three-way-matching" element={<ThreeWayMatchingPage />} />
+          <Route path="purchases/three-way-matching/:invoiceId" element={<ThreeWayMatchingPage />} />
           <Route path="purchases/ml-predictions" element={<MLPredictionsPage />} />
 
 
@@ -239,7 +238,7 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true }}>
       <AuthProvider>
         <AppContent />
       </AuthProvider>
