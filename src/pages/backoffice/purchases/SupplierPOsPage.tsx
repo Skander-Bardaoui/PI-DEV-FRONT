@@ -20,7 +20,11 @@ import ReservationsModal     from '@/components/purchases/ReservationsModal';
 // ====================================================================
 import PDFButton             from '@/components/purchases/PDFButton';
 import { usePDFExport }      from '@/hooks/usePDFExport';
-import { formatAmount, formatDate, PO_STATUS_COLORS, PO_STATUS_LABELS, POStatus, SupplierPO } from '@/types';
+import { PO_STATUS_COLORS, PO_STATUS_LABELS, POStatus, SupplierPO } from '@/types';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { EmptyState } from '@/components/common/EmptyState';
+import { formatCurrency, formatDate } from '@/utils/formatters';
+import { isNonEmptyArray } from '@/utils/validators';
 
 type SortField = 'po_number' | 'created_at' | 'net_amount' | 'supplier';
 type SortDir   = 'asc' | 'desc';
@@ -109,25 +113,27 @@ export default function SupplierPOsPage() {
   const cancel  = useCancelSupplierPO(businessId);
 
   // ── Tri local ─────────────────────────────────────────────────────────────
-  const sorted = [...(data?.data ?? [])].sort((a, b) => {
-    // Tri par statut en priorité (toujours appliqué en premier)
-    const statusA = STATUS_ORDER[a.status] || 999;
-    const statusB = STATUS_ORDER[b.status] || 999;
-    
-    if (statusA !== statusB) {
-      return statusA - statusB; // Tri croissant par statut
-    }
+  const sorted = isNonEmptyArray(data?.data)
+    ? [...data.data].sort((a, b) => {
+        // Tri par statut en priorité (toujours appliqué en premier)
+        const statusA = STATUS_ORDER[a.status] || 999;
+        const statusB = STATUS_ORDER[b.status] || 999;
+        
+        if (statusA !== statusB) {
+          return statusA - statusB; // Tri croissant par statut
+        }
 
-    // Ensuite tri selon le champ sélectionné
-    let va: any, vb: any;
-    if (sortField === 'supplier')    { va = a.supplier?.name ?? ''; vb = b.supplier?.name ?? ''; }
-    else if (sortField === 'net_amount') { va = Number(a.net_amount); vb = Number(b.net_amount); }
-    else { va = a[sortField]; vb = b[sortField]; }
-    
-    if (va < vb) return sortDir === 'asc' ? -1 : 1;
-    if (va > vb) return sortDir === 'asc' ?  1 : -1;
-    return 0;
-  });
+        // Ensuite tri selon le champ sélectionné
+        let va: any, vb: any;
+        if (sortField === 'supplier')    { va = a.supplier?.name ?? ''; vb = b.supplier?.name ?? ''; }
+        else if (sortField === 'net_amount') { va = Number(a.net_amount ?? 0); vb = Number(b.net_amount ?? 0); }
+        else { va = a[sortField] ?? ''; vb = b[sortField] ?? ''; }
+        
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ?  1 : -1;
+        return 0;
+      })
+    : [];
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -243,9 +249,14 @@ export default function SupplierPOsPage() {
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-          </div>
+          <LoadingSpinner size="lg" message="Chargement des bons de commande..." />
+        ) : !isNonEmptyArray(sorted) ? (
+          <EmptyState 
+            icon={ShoppingCart}
+            message="Aucun bon de commande"
+            description={hasActiveFilters ? "Essayez de modifier vos filtres" : "Commencez par créer votre premier bon de commande"}
+            action={!hasActiveFilters ? { label: "Nouveau BC", onClick: () => setModalOpen(true) } : undefined}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -268,15 +279,13 @@ export default function SupplierPOsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {!sorted.length ? (
-                  <tr><td colSpan={6} className="text-center py-12 text-gray-500">Aucun bon de commande</td></tr>
-                ) : sorted.map(po => (
+                {sorted.map(po => (
                   <tr key={po.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4 font-mono font-medium text-gray-900 text-sm">{po.po_number}</td>
                     <td className="px-4 py-4 text-gray-700 text-sm">{po.supplier?.name}</td>
                     <td className="px-4 py-4 text-gray-600 text-sm">{formatDate(po.created_at)}</td>
                     <td className="px-4 py-4 text-right font-semibold text-gray-900 text-sm">
-                      {formatAmount(po.net_amount)}
+                      {formatCurrency(po.net_amount ?? 0, 'TND')}
                     </td>
                     <td className="px-4 py-4 text-center">
                       <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${PO_STATUS_COLORS[po.status]}`}>

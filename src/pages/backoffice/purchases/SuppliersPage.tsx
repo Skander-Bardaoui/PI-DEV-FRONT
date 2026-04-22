@@ -22,8 +22,12 @@ import SupplierScoreModal      from '@/components/purchases/SupplierScoreModal';
 import SupplierAIInsightsModal from '@/components/purchases/SupplierAIInsightsModal';
 import PurchaseAIAssistant     from '@/components/purchases/PurchaseAIAssistant';
 import PDFButton               from '@/components/purchases/PDFButton';
-import { formatDate, Supplier } from '@/types';
+import { Supplier } from '@/types';
 import SupplierScoreBadge from './SupplierScoreBadge';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { EmptyState } from '@/components/common/EmptyState';
+import { formatDate } from '@/utils/formatters';
+import { isNonEmptyArray } from '@/utils/validators';
 
 type SortField = 'name' | 'payment_terms' | 'category' | 'created_at';
 type SortDir   = 'asc' | 'desc';
@@ -78,16 +82,18 @@ export default function SuppliersPage() {
   const openEdit   = (s: Supplier) => { setSelected(s); setModalOpen(true); };
   const openDetail = (s: Supplier) => { setDetailSupplier(s); setDetailOpen(true); };
 
-  const sorted = [...(data?.data ?? [])].sort((a, b) => {
-    let va: any, vb: any;
-    if      (sortField === 'payment_terms') { va = Number(a.payment_terms); vb = Number(b.payment_terms); }
-    else if (sortField === 'category')      { va = a.category ?? ''; vb = b.category ?? ''; }
-    else if (sortField === 'created_at')    { va = a.created_at; vb = b.created_at; }
-    else { va = a.name.toLowerCase(); vb = b.name.toLowerCase(); }
-    if (va < vb) return sortDir === 'asc' ? -1 : 1;
-    if (va > vb) return sortDir === 'asc' ?  1 : -1;
-    return 0;
-  });
+  const sorted = isNonEmptyArray(data?.data) 
+    ? [...data.data].sort((a, b) => {
+        let va: any, vb: any;
+        if      (sortField === 'payment_terms') { va = Number(a.payment_terms ?? 0); vb = Number(b.payment_terms ?? 0); }
+        else if (sortField === 'category')      { va = a.category ?? ''; vb = b.category ?? ''; }
+        else if (sortField === 'created_at')    { va = a.created_at ?? ''; vb = b.created_at ?? ''; }
+        else { va = (a.name ?? '').toLowerCase(); vb = (b.name ?? '').toLowerCase(); }
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ?  1 : -1;
+        return 0;
+      })
+    : [];
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -248,9 +254,14 @@ export default function SuppliersPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-          </div>
+          <LoadingSpinner size="lg" message="Chargement des fournisseurs..." />
+        ) : !isNonEmptyArray(sorted) ? (
+          <EmptyState 
+            icon={Building2}
+            message="Aucun fournisseur trouvé"
+            description={hasActiveFilters ? "Essayez de modifier vos filtres" : "Commencez par créer votre premier fournisseur"}
+            action={!hasActiveFilters ? { label: "Nouveau fournisseur", onClick: openCreate } : undefined}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -273,11 +284,7 @@ export default function SuppliersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {!sorted.length ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-12 text-gray-500">Aucun fournisseur trouvé</td>
-                  </tr>
-                ) : sorted.map(s => (
+                {sorted.map(s => (
                   <tr key={s.id} className={`hover:bg-gray-50 transition-colors ${!s.is_active ? 'opacity-60' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
