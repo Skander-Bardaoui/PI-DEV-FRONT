@@ -223,11 +223,6 @@ pipeline {
                             echo "📝 Recent Events:"
                             kubectl --kubeconfig="$KUBECONFIG_FILE" get events -n ${NAMESPACE} \
                                 --sort-by=.lastTimestamp | tail -10
-                            
-                            echo ""
-                            echo "🏥 Pod Health:"
-                            kubectl --kubeconfig="$KUBECONFIG_FILE" get pods -n ${NAMESPACE} -l app=frontend \
-                                -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,READY:.status.conditions[?\(@.type==\"Ready\"\)].status
                         '''
                     }
                 }
