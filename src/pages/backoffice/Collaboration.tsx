@@ -55,6 +55,7 @@ import { PermissionManagementModal } from '../../components/PermissionManagement
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TeamMember {
+  [x: string]: any;
   id: string;
   user_id: string;
   business_id: string;
@@ -1743,4 +1744,3 @@ export default function Collaboration() {
     </div>
   );
 }
-

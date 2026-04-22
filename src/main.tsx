@@ -6,7 +6,9 @@ import { AccessibilityProvider } from './context/AccessibilityContext.tsx'
 import './index.css'
 import './styles/accessibility.css'
 import './styles/simplified-mode.css'
+
 import './styles/reading-mode.css'
+
 import App from './App.tsx'
 import { ToastProvider } from './components/ui/Toast.tsx'
 import './i18n/index';

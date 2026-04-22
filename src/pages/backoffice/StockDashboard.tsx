@@ -148,6 +148,7 @@ export default function StockDashboard() {
   const canUpdateServiceCategory = isOwner || stock?.update_service_category === true;
   const canDeleteServiceCategory = isOwner || stock?.delete_service_category === true;
 
+
   const fetchDashboard = async (mode?: ViewMode) => {
     if (!businessId) return;
     

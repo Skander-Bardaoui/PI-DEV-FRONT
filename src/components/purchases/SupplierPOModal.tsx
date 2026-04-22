@@ -6,8 +6,7 @@ import { supplierPOSchema, SupplierPOFormValues } from '@/schemas/purchases.sche
 import { useSuppliers }        from '@/hooks/useSuppliers';
 import { useCreateSupplierPO } from '@/hooks/useSupplierPOs';
 import { CreateSupplierPOItemDto, formatAmount, round3, TIMBRE_FISCAL, TVA_RATES } from '@/types';
-import ProductSelectorPurchase from './ProductSelectorPurchase';
-import { Product } from '@/types/product';
+import ItemSelectorPurchase, { ItemType, SelectedItem } from './ItemSelectorPurchase';
 import SupplierRecommendationPanel from './SupplierRecommendationPanel';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -53,6 +52,10 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
       expected_delivery: '',
       notes:             `Recommandation ML: ${mlPrediction.recommendation}`,
       items: [{
+<<<<<<< HEAD
+=======
+        item_type: 'PRODUCT' as const,
+>>>>>>> 167a81b (added services in the BC and fixed warehouse error)
         product_id: mlPrediction.productId,
         description: mlPrediction.productName,
         quantity_ordered: mlPrediction.quantity,
@@ -63,7 +66,7 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
       supplier_id:       '',
       expected_delivery: '',
       notes:             '',
-      items: [{ description: '', quantity_ordered: 1, unit_price_ht: 0, tax_rate_value: 19 }],
+      items: [{ item_type: 'PRODUCT' as const, description: '', quantity_ordered: 1, unit_price_ht: 0, tax_rate_value: 19 }],
     },
   });
 
@@ -85,12 +88,24 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
   const tax_amount  = round3(computed.reduce((s, c) => s + c.tax, 0));
   const net_amount  = round3(subtotal_ht + tax_amount + TIMBRE_FISCAL);
 
+<<<<<<< HEAD
   const handleProductSelect = (index: number, product: Product | null) => {
     if (product) {
       setValue(`items.${index}.product_id`, product.id);
       setValue(`items.${index}.description`, product.name);
       // Ne pas pré-remplir le prix - l'utilisateur doit saisir le prix d'achat
       // car product.purchase_price_ht est le prix de vente, pas le prix d'achat
+=======
+  const handleItemSelect = (index: number, item: SelectedItem | null) => {
+    if (item) {
+      setValue(`items.${index}.product_id`, item.id);
+      setValue(`items.${index}.description`, item.name);
+      setValue(`items.${index}.unit_price_ht`, item.price_ht);
+      // For services, always set quantity to 1 (hidden field)
+      if (item.type === 'SERVICE') {
+        setValue(`items.${index}.quantity_ordered`, 1);
+      }
+>>>>>>> 167a81b (added services in the BC and fixed warehouse error)
     } else {
       setValue(`items.${index}.product_id`, undefined);
       setValue(`items.${index}.description`, '');
@@ -101,6 +116,10 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
   const onSubmit = async (values: SupplierPOFormValues) => {
     try {
       const items = values.items.map((item, i) => ({
+<<<<<<< HEAD
+=======
+        item_type:        item.item_type        as 'PRODUCT' | 'SERVICE',
+>>>>>>> 167a81b (added services in the BC and fixed warehouse error)
         description:      item.description      as string,
         quantity_ordered: Number(item.quantity_ordered) || 0,
         unit_price_ht:    Number(item.unit_price_ht)    || 0,
@@ -262,7 +281,7 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
               </div>
               <button
                 type="button"
-                onClick={() => append({ description: '', quantity_ordered: 1, unit_price_ht: 0, tax_rate_value: 19 })}
+                onClick={() => append({ item_type: 'PRODUCT', description: '', quantity_ordered: 1, unit_price_ht: 0, tax_rate_value: 19 })}
                 className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
               >
                 <Plus className="h-4 w-4" /> Ajouter
@@ -273,7 +292,8 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Produit *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 w-32">Type *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Article *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">Qté *</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 w-32">Prix HT *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">TVA</th>
@@ -282,6 +302,7 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
+<<<<<<< HEAD
                   {fields.map((field, i) => (
                     <tr key={field.id}>
                       <td className="px-4 py-2">
@@ -337,13 +358,104 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
                             type="button"
                             onClick={() => remove(i)}
                             className="p-1 text-gray-400 hover:text-red-500"
+=======
+                  {fields.map((field, i) => {
+                    const isService = watchedItems[i]?.item_type === 'SERVICE';
+                    return (
+                      <tr key={field.id}>
+                        <td className="px-4 py-2">
+                          <select
+                            {...register(`items.${i}.item_type`)}
+                            className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                            onChange={(e) => {
+                              const newType = e.target.value as 'PRODUCT' | 'SERVICE';
+                              setValue(`items.${i}.item_type`, newType);
+                              // Reset item selection when type changes
+                              setValue(`items.${i}.product_id`, undefined);
+                              setValue(`items.${i}.description`, '');
+                              setValue(`items.${i}.unit_price_ht`, 0);
+                              // Set quantity to 1 for services, keep current for products
+                              if (newType === 'SERVICE') {
+                                setValue(`items.${i}.quantity_ordered`, 1);
+                              }
+                            }}
+>>>>>>> 167a81b (added services in the BC and fixed warehouse error)
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                            <option value="PRODUCT">Produit</option>
+                            <option value="SERVICE">Service</option>
+                          </select>
+                        </td>
+                        <td className="px-4 py-2">
+                          <ItemSelectorPurchase
+                            itemType={watchedItems[i]?.item_type as ItemType || 'PRODUCT'}
+                            value={watchedItems[i]?.product_id}
+                            onChange={(item) => handleItemSelect(i, item)}
+                            className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                          />
+                          <input type="hidden" {...register(`items.${i}.product_id`)} />
+                          <input type="hidden" {...register(`items.${i}.description`, { required: true })} />
+                        </td>
+                        <td className="px-4 py-2">
+                          {isService ? (
+                            <>
+                              <input type="hidden" {...register(`items.${i}.quantity_ordered`, { valueAsNumber: true })} value={1} />
+                              <div className="text-center text-sm text-gray-500 py-1">-</div>
+                            </>
+                          ) : (
+                            <>
+                              <input
+                                type="number" step="0.001" min="0.001"
+                                {...register(`items.${i}.quantity_ordered`, { valueAsNumber: true })}
+                                className={inputCls(errors.items?.[i]?.quantity_ordered?.message) + ' text-center'}
+                                placeholder="Qté"
+                              />
+                              {errors.items?.[i]?.quantity_ordered && (
+                                <p className="text-red-500 text-xs mt-0.5">
+                                  {errors.items[i]?.quantity_ordered?.message}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </td>
+                        <td className="px-4 py-2">
+                          <input
+                            type="number" step="0.001" min="0"
+                            {...register(`items.${i}.unit_price_ht`, { valueAsNumber: true })}
+                            className={inputCls(errors.items?.[i]?.unit_price_ht?.message) + ' text-right'}
+                          />
+                          {errors.items?.[i]?.unit_price_ht && (
+                            <p className="text-red-500 text-xs mt-0.5">
+                              {errors.items[i]?.unit_price_ht?.message}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-2">
+                          <select
+                            {...register(`items.${i}.tax_rate_value`, { valueAsNumber: true })}
+                            className={inputCls(errors.items?.[i]?.tax_rate_value?.message)}
+                          >
+                            {TVA_RATES.map(r => (
+                              <option key={r} value={r}>{r}%</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-2 text-right text-sm font-medium text-gray-900">
+                          {computed[i]?.ht.toFixed(3)}
+                        </td>
+                        <td className="px-4 py-2">
+                          {fields.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => remove(i)}
+                              className="p-1 text-gray-400 hover:text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

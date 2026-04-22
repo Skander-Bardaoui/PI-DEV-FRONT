@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useBusinessId } from '../../hooks/useBusinessId';
 import { useParams, useNavigate } from 'react-router-dom';
 import { warehousesApi } from '../../api/warehouses.api';
 import { Warehouse } from '../../types/warehouse';
