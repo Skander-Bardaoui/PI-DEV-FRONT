@@ -44,6 +44,22 @@ Réduire les duplications de 9.4% à moins de 3% en utilisant les composants ré
 - Amélioration null safety dans le tri
 - Ajouté fallbacks pour valeurs nulles
 
+### ✅ SuppliersPage
+- Remplacé spinner custom par `<LoadingSpinner />`
+- Remplacé état vide par `<EmptyState />`
+- Ajouté validation avec `isNonEmptyArray`
+- Ajouté `formatDate` des utils
+- Amélioration null safety dans le tri
+- Ajouté test unitaire (SuppliersPage.test.tsx)
+
+### ✅ SupplierPOsPage
+- Remplacé spinner custom par `<LoadingSpinner />`
+- Remplacé état vide par `<EmptyState />`
+- Ajouté validation avec `isNonEmptyArray`
+- Remplacé `formatAmount` par `formatCurrency` des utils
+- Ajouté `formatDate` des utils
+- Amélioration null safety dans le tri
+
 ## Patterns de Duplication Identifiés
 
 ### 1. Spinners de Chargement (50+ occurrences)
