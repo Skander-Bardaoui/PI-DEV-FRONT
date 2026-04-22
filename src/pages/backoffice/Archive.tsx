@@ -60,18 +60,21 @@ export default function Archive() {
     setLoading(true);
     try {
       switch (activeTab) {
-        case 'products':
+        case 'products': {
           const products = await productsApi.getArchived(businessId);
           setArchivedProducts(products);
           break;
-        case 'categories':
+        }
+        case 'categories': {
           const categories = await categoriesApi.getArchived(businessId);
           setArchivedCategories(categories);
           break;
-        case 'movements':
+        }
+        case 'movements': {
           const movements = await stockMovementsApi.getArchived(businessId);
           setArchivedMovements(movements);
           break;
+        }
       }
     } catch (error: any) {
       console.error('Error fetching archived data:', error);

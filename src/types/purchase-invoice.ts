@@ -80,7 +80,7 @@ export interface CreatePurchaseInvoiceDto {
   receipt_url?:            string;
 }
 
-export interface UpdatePurchaseInvoiceDto extends Partial<Omit<CreatePurchaseInvoiceDto, 'supplier_id' | 'supplier_po_id'>> {}
+export type UpdatePurchaseInvoiceDto = Partial<Omit<CreatePurchaseInvoiceDto, 'supplier_id' | 'supplier_po_id'>>;
 
 export interface DisputeInvoiceDto {
   dispute_reason: string;

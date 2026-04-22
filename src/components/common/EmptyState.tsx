@@ -22,9 +22,11 @@ export function EmptyState({
   icon,
   action 
 }: EmptyStateProps) {
+  const IconComponent = icon || <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" aria-hidden="true" />;
+  
   return (
     <div className="flex flex-col items-center justify-center p-12 text-center">
-      {icon || <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" aria-hidden="true" />}
+      {IconComponent}
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground mb-4 max-w-md">{message}</p>
       {action && (

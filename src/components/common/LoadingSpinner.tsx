@@ -16,9 +16,10 @@ export function LoadingSpinner({ size = 'md', message }: LoadingSpinnerProps) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-8" role="status" aria-live="polite">
+    <div className="flex flex-col items-center justify-center p-8" aria-live="polite">
       <div 
         className={`animate-spin rounded-full border-b-2 border-primary ${sizeClasses[size]}`}
+        role="status"
         aria-label="Loading"
       />
       {message && (

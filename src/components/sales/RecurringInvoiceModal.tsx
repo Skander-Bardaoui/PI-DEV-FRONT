@@ -148,7 +148,8 @@ export default function RecurringInvoiceModal({ businessId, recurringInvoice, on
     try {
       const startDate = new Date(watchedStartDate);
       if (isNaN(startDate.getTime())) return [];
-      return getNextDates(startDate, watchedFrequency, 5);
+      const current = getNextDates(startDate, watchedFrequency, 5);
+      return current;
     } catch {
       return [];
     }

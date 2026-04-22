@@ -388,7 +388,9 @@ export default function InstallmentScheduleModal({
       if (updated) setSchedule(updated as Schedule);
       setPayTarget(null);
       onSuccess?.();
-    } catch {}
+    } catch (error) {
+      console.error('Error paying installment:', error);
+    }
   };
 
   const paidCount  = schedule?.installments.filter((i) => i.status === 'PAID').length ?? 0;
