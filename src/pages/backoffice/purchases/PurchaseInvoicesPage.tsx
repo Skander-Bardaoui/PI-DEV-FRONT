@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   CheckCircle,
   CreditCard,
-  Scale,
   ScanLine,
   Info,
   ChevronUp,
@@ -37,6 +36,9 @@ import CorrectInvoiceModal from '@/components/purchases/CorrectInvoiceModal';
 import PDFButton from '@/components/purchases/PDFButton';
 import OcrInvoiceModal from '@/components/purchases/OcrInvoiceModal';
 import { InvoiceProcessGuide } from '@/components/purchases/InvoiceProcessGuide';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { EmptyState } from '@/components/common/EmptyState';
+import { StatusBadge } from '@/components/common/StatusBadge';
 
 import {
   formatAmount,
@@ -51,6 +53,7 @@ import { PaymentModal } from '@/components/purchases/Paymentmodal';
 import DisputeModal from '@/components/purchases/Disputemodal ';
 import { DisputeResponsesPanel } from '@/components/purchases/DisputeResponsesPanel';
 import { usePendingDisputeResponses } from '@/hooks/useDisputeResponses';
+import { isNonEmptyArray } from '@/utils/validators';
 
 type SortField = 'invoice_number_supplier' | 'invoice_date' | 'net_amount' | 'supplier';
 type SortDir   = 'asc' | 'desc';
@@ -92,7 +95,7 @@ export default function PurchaseInvoicesPage() {
   });
 
   const { data: pendingResponses } = usePendingDisputeResponses(businessId);
-  const hasResponses = pendingResponses && pendingResponses.length > 0;
+  const hasResponses = isNonEmptyArray(pendingResponses);
 
   const dispute = useDisputePurchaseInvoice(businessId);
   const resolveDisp = useResolveDispute(businessId);
@@ -101,7 +104,10 @@ export default function PurchaseInvoicesPage() {
   const { exportFacture, loading: pdfLoading } = usePDFExport();
 
   // ── Tri local ─────────────────────────────────────────────────────────────
-  const sorted = [...(data?.data ?? [])].sort((a, b) => {
+  const invoices = data?.data ?? [];
+  const sorted = [...invoices].sort((a, b) => {
+    if (!a || !b) return 0;
+    
     // Tri par statut en priorité (urgent en haut)
     const statusA = STATUS_ORDER[a.status] || 999;
     const statusB = STATUS_ORDER[b.status] || 999;
@@ -116,11 +122,11 @@ export default function PurchaseInvoicesPage() {
       va = a.supplier?.name ?? ''; 
       vb = b.supplier?.name ?? ''; 
     } else if (sortField === 'net_amount') {
-      va = Number(a.net_amount);
-      vb = Number(b.net_amount);
+      va = Number(a.net_amount || 0);
+      vb = Number(b.net_amount || 0);
     } else { 
-      va = a[sortField]; 
-      vb = b[sortField]; 
+      va = a[sortField] ?? ''; 
+      vb = b[sortField] ?? ''; 
     }
     if (va < vb) return sortDir === 'asc' ? -1 : 1;
     if (va > vb) return sortDir === 'asc' ?  1 : -1;
@@ -248,10 +254,16 @@ export default function PurchaseInvoicesPage() {
       {/* TABLE avec meilleure lisibilité */}
       <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden shadow-sm">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mb-4" />
-            <p className="text-gray-500 text-sm">Chargement des factures...</p>
-          </div>
+          <LoadingSpinner size="lg" message="Chargement des factures..." />
+        ) : !isNonEmptyArray(sorted) ? (
+          <EmptyState
+            title="Aucune facture"
+            message="Vous n'avez pas encore de factures fournisseurs. Commencez par scanner ou saisir une facture."
+            action={{
+              label: 'Créer une facture',
+              onClick: () => setCreateOpen(true),
+            }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -277,148 +289,142 @@ export default function PurchaseInvoicesPage() {
               </thead>
 
               <tbody className="divide-y divide-gray-100">
-                {!sorted.length ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
-                      Aucune facture trouvée
-                    </td>
-                  </tr>
-                ) : (
-                  sorted.map(inv => {
-                    return (
-                      <tr key={inv.id} className="hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-purple-50/30 transition-all duration-200">
+                {sorted.map(inv => {
+                  if (!inv) return null;
+                  
+                  return (
+                    <tr key={inv.id} className="hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-purple-50/30 transition-all duration-200">
 
-                        <td className="px-4 py-4">
-                          <span className="font-mono text-sm font-medium text-gray-900">
-                            {inv.invoice_number_supplier}
-                          </span>
-                        </td>
+                      <td className="px-4 py-4">
+                        <span className="font-mono text-sm font-medium text-gray-900">
+                          {inv.invoice_number_supplier || '—'}
+                        </span>
+                      </td>
 
-                        <td className="px-4 py-4">
-                          <span className="text-sm text-gray-900 font-medium">
-                            {inv.supplier?.name}
-                          </span>
-                        </td>
+                      <td className="px-4 py-4">
+                        <span className="text-sm text-gray-900 font-medium">
+                          {inv.supplier?.name || '—'}
+                        </span>
+                      </td>
 
-                        <td className="px-4 py-4">
-                          <span className="text-sm text-gray-600">
-                            {formatDate(inv.invoice_date)}
-                          </span>
-                        </td>
+                      <td className="px-4 py-4">
+                        <span className="text-sm text-gray-600">
+                          {inv.invoice_date ? formatDate(inv.invoice_date) : '—'}
+                        </span>
+                      </td>
 
-                        <td className="px-4 py-4 text-right">
-                          <span className="text-sm font-bold text-gray-900">
-                            {formatAmount(inv.net_amount)}
-                          </span>
-                        </td>
+                      <td className="px-4 py-4 text-right">
+                        <span className="text-sm font-bold text-gray-900">
+                          {formatAmount(inv.net_amount)}
+                        </span>
+                      </td>
 
-                        <td className="px-4 py-4">
-                          <div className="flex flex-col items-center gap-2">
-                            {/* Badge de statut principal */}
-                            <div className="flex items-center gap-2">
-                              {/* Icône de statut */}
-                              {inv.status === InvoiceStatus.PENDING && (
-                                <Clock className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-                              )}
-                              {inv.status === InvoiceStatus.APPROVED && (
-                                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                              )}
-                              {inv.status === InvoiceStatus.DISPUTED && (
-                                <AlertTriangle className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                              )}
-                              {inv.status === InvoiceStatus.PAID && (
-                                <DollarSign className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                              )}
-                              {inv.status === InvoiceStatus.PARTIALLY_PAID && (
-                                <CreditCard className="h-4 w-4 text-cyan-600 flex-shrink-0" />
-                              )}
-                              {inv.status === InvoiceStatus.OVERDUE && (
-                                <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                              )}
-                              
-                              <span
-                                className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${INVOICE_STATUS_COLORS[inv.status]}`}
-                              >
-                                {INVOICE_STATUS_LABELS[inv.status]}
-                              </span>
-                            </div>
-                            
-                            {/* Badge BC si lié à un bon de commande */}
-                            {inv.supplier_po_id && (
-                              <span 
-                                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium border border-green-300"
-                                title="Cette facture est liée à un bon de commande"
-                              >
-                                <FileText className="h-3 w-3" />
-                                Liée au BC
-                              </span>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-col items-center gap-2">
+                          {/* Badge de statut principal */}
+                          <div className="flex items-center gap-2">
+                            {/* Icône de statut */}
+                            {inv.status === InvoiceStatus.PENDING && (
+                              <Clock className="h-4 w-4 text-yellow-600 flex-shrink-0" />
                             )}
-                            
-                            {/* Raison du litige si en litige */}
-                            {inv.status === InvoiceStatus.DISPUTED && inv.dispute_reason && (
-                              <div 
-                                className="text-xs text-orange-700 bg-orange-50 px-3 py-1.5 rounded-lg max-w-[200px] text-center border border-orange-200 leading-tight" 
-                                title={inv.dispute_reason}
-                              >
-                                {inv.dispute_reason.length > 50 
-                                  ? inv.dispute_reason.substring(0, 50) + '...' 
-                                  : inv.dispute_reason}
-                              </div>
+                            {inv.status === InvoiceStatus.APPROVED && (
+                              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
                             )}
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <div className="flex justify-center items-center gap-1">
-
-                            {/* 1. VOIR DÉTAILS - Toujours visible */}
-                            <button
-                              onClick={() => setDetailInvoice(inv)}
-                              title="Détails"
-                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-
-                            {/* 2. CONTRÔLER - Si BC existe ET statut PENDING */}
-                            {inv.supplier_po_id && inv.status === InvoiceStatus.PENDING && (
-                              <button
-                                onClick={() => navigate(`/app/purchases/three-way-matching/${inv.id}`)}
-                                title="Contrôler"
-                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              >
-                                <FileSearch className="h-4 w-4" />
-                              </button>
-                            )}
-
-                            {/* 3. RÉSOUDRE LITIGE - Si EN LITIGE */}
                             {inv.status === InvoiceStatus.DISPUTED && (
-                              <button
-                                onClick={() => setCorrectInvoice(inv)}
-                                title="Résoudre le litige"
-                                className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                              >
-                                <AlertTriangle className="h-4 w-4" />
-                              </button>
+                              <AlertTriangle className="h-4 w-4 text-orange-600 flex-shrink-0" />
                             )}
-
-                            {/* 4. PAYER - Si APPROVED ou PARTIALLY_PAID */}
-                            {(inv.status === InvoiceStatus.APPROVED || inv.status === InvoiceStatus.PARTIALLY_PAID) && (
-                              <button
-                                onClick={() => setPaymentInvoice(inv)}
-                                title="Payer"
-                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              >
-                                <CreditCard className="h-4 w-4" />
-                              </button>
+                            {inv.status === InvoiceStatus.PAID && (
+                              <DollarSign className="h-4 w-4 text-blue-600 flex-shrink-0" />
                             )}
-
+                            {inv.status === InvoiceStatus.PARTIALLY_PAID && (
+                              <CreditCard className="h-4 w-4 text-cyan-600 flex-shrink-0" />
+                            )}
+                            {inv.status === InvoiceStatus.OVERDUE && (
+                              <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                            )}
+                            
+                            <span
+                              className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${INVOICE_STATUS_COLORS[inv.status]}`}
+                            >
+                              {INVOICE_STATUS_LABELS[inv.status]}
+                            </span>
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                          
+                          {/* Badge BC si lié à un bon de commande */}
+                          {inv.supplier_po_id && (
+                            <span 
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium border border-green-300"
+                              title="Cette facture est liée à un bon de commande"
+                            >
+                              <FileText className="h-3 w-3" />
+                              Liée au BC
+                            </span>
+                          )}
+                          
+                          {/* Raison du litige si en litige */}
+                          {inv.status === InvoiceStatus.DISPUTED && inv.dispute_reason && (
+                            <div 
+                              className="text-xs text-orange-700 bg-orange-50 px-3 py-1.5 rounded-lg max-w-[200px] text-center border border-orange-200 leading-tight" 
+                              title={inv.dispute_reason}
+                            >
+                              {inv.dispute_reason.length > 50 
+                                ? inv.dispute_reason.substring(0, 50) + '...' 
+                                : inv.dispute_reason}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <div className="flex justify-center items-center gap-1">
+
+                          {/* 1. VOIR DÉTAILS - Toujours visible */}
+                          <button
+                            onClick={() => setDetailInvoice(inv)}
+                            title="Détails"
+                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+
+                          {/* 2. CONTRÔLER - Si BC existe ET statut PENDING */}
+                          {inv.supplier_po_id && inv.status === InvoiceStatus.PENDING && (
+                            <button
+                              onClick={() => navigate(`/app/purchases/three-way-matching/${inv.id}`)}
+                              title="Contrôler"
+                              className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            >
+                              <FileSearch className="h-4 w-4" />
+                            </button>
+                          )}
+
+                          {/* 3. RÉSOUDRE LITIGE - Si EN LITIGE */}
+                          {inv.status === InvoiceStatus.DISPUTED && (
+                            <button
+                              onClick={() => setCorrectInvoice(inv)}
+                              title="Résoudre le litige"
+                              className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                            </button>
+                          )}
+
+                          {/* 4. PAYER - Si APPROVED ou PARTIALLY_PAID */}
+                          {(inv.status === InvoiceStatus.APPROVED || inv.status === InvoiceStatus.PARTIALLY_PAID) && (
+                            <button
+                              onClick={() => setPaymentInvoice(inv)}
+                              title="Payer"
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </button>
+                          )}
+
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
