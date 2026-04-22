@@ -1,6 +1,7 @@
 // src/pages/backoffice/purchases/PurchaseInvoicesPage.tsx
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   Eye,
@@ -57,6 +58,7 @@ type SortDir   = 'asc' | 'desc';
 export default function PurchaseInvoicesPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const navigate = useNavigate();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [ocrOpen, setOcrOpen] = useState(false);
@@ -176,7 +178,7 @@ export default function PurchaseInvoicesPage() {
             </button>
 
             <button
-              onClick={() => window.location.href = '/app/purchases/three-way-matching'}
+              onClick={() => navigate('/app/purchases/three-way-matching')}
               className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
             >
               <FileSearch className="h-4 w-4" />
@@ -381,7 +383,7 @@ export default function PurchaseInvoicesPage() {
                             {/* 2. CONTRÔLER - Si BC existe ET statut PENDING */}
                             {inv.supplier_po_id && inv.status === InvoiceStatus.PENDING && (
                               <button
-                                onClick={() => window.location.href = `/app/purchases/three-way-matching/${inv.id}`}
+                                onClick={() => navigate(`/app/purchases/three-way-matching/${inv.id}`)}
                                 title="Contrôler"
                                 className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               >

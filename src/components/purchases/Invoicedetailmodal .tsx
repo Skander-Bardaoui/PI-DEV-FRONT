@@ -49,10 +49,10 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-xl">
+        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-xl">
 
           {/* Header simplifié */}
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 border-b border-indigo-100">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 border-b border-indigo-100 flex-shrink-0">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
@@ -80,7 +80,7 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
+          <div className="overflow-y-auto flex-1">
             <div className="p-6 space-y-5">
 
               {/* Informations principales - version simplifiée */}
@@ -206,7 +206,7 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
           </div>
 
           {/* Footer avec boutons */}
-          <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
             <div className="space-y-4">
               
               {/* Section: Documents */}

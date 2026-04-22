@@ -20,9 +20,9 @@ import { useTranslation }        from 'react-i18next';
 import { useAuth }               from '../hooks/useAuth';
 import { usePurchaseAlerts }     from '@/hooks/usePurchaseAlerts';
 import { useKeyboardShortcuts }  from '@/hooks/useKeyboardShortcuts';
+import { useSidebarScroll }      from '@/hooks/useSidebarScroll';
 import AlertsPanel               from '@/components/purchases/AlertsPanel';
 import KeyboardShortcutsHelp     from '@/components/KeyboardShortcutsHelp';
-import ReadingModeToggle         from '@/components/ReadingModeToggle';
 import LanguageSwitcher          from '@/components/LanguageSwitcher';
 import GlobalSearch              from '@/components/GlobalSearch';
 import { PresenceProvider }      from '../context/PresenceContext';
@@ -45,6 +45,13 @@ export default function BackOfficeLayout() {
   const location   = useLocation();
   const { user, logout } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+
+  // Refs to maintain sidebar scroll position
+  const desktopSidebarRef = useRef<HTMLElement>(null);
+  const mobileSidebarRef = useRef<HTMLElement>(null);
+  
+  // Use custom hook to preserve sidebar scroll position
+  useSidebarScroll();
 
   // Alertes non lues (DB)
   const { data: alerts = [] } = usePurchaseAlerts(businessId);
@@ -97,8 +104,6 @@ export default function BackOfficeLayout() {
         { name: 'Recommandations IA',      href: '/app/purchases/ml-predictions',   icon: Sparkles        },
       ],
     },
-    { name: t('nav.expenses'),      href: '/app/expenses',      icon: Receipt      },
-    { name: t('nav.clients'),       href: '/app/clients',       icon: Users        },
     {
       name: t('nav.stock'), href: '/app/stock', icon: Package,
       subItems: [
@@ -210,7 +215,19 @@ export default function BackOfficeLayout() {
                 className={`sidebar-submenu-item flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
                   isSubActive ? 'active bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-600 hover:bg-gray-100'
                 }`}
-                onClick={mobile ? () => setSidebarOpen(false) : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Save scroll position before navigation
+                  const scrollPos = e.currentTarget.closest('nav')?.scrollTop || 0;
+                  navigate(sub.href!, { preventScrollReset: true });
+                  // Restore scroll position after navigation
+                  requestAnimationFrame(() => {
+                    const nav = document.querySelector('nav[aria-label="Menu principal"]') || 
+                                document.querySelector('nav[aria-label="Menu principal mobile"]');
+                    if (nav) nav.scrollTop = scrollPos;
+                  });
+                  if (mobile) setSidebarOpen(false);
+                }}
                 role="menuitem"
                 aria-label={sub.name}
                 aria-current={isSubActive ? 'page' : undefined}
@@ -263,7 +280,19 @@ export default function BackOfficeLayout() {
             className={`sidebar-nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               isActive ? 'active bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-700 hover:bg-gray-100'
             }`}
-            onClick={mobile ? () => setSidebarOpen(false) : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              // Save scroll position before navigation
+              const scrollPos = e.currentTarget.closest('nav')?.scrollTop || 0;
+              navigate(item.href!, { preventScrollReset: true });
+              // Restore scroll position after navigation
+              requestAnimationFrame(() => {
+                const nav = document.querySelector('nav[aria-label="Menu principal"]') || 
+                            document.querySelector('nav[aria-label="Menu principal mobile"]');
+                if (nav) nav.scrollTop = scrollPos;
+              });
+              if (mobile) setSidebarOpen(false);
+            }}
             aria-label={item.name}
             aria-current={isActive ? 'page' : undefined}
           >
@@ -520,7 +549,7 @@ export default function BackOfficeLayout() {
           </div>
         </header>
 
-        <main id="main-content" className="p-4 sm:p-6 lg:p-8">
+        <main id="main-content" className="p-4 sm:p-6 lg:p-8 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
           <Outlet />
         </main>
       </div>
@@ -530,9 +559,6 @@ export default function BackOfficeLayout() {
         isOpen={shortcutsHelpOpen}
         onClose={() => setShortcutsHelpOpen(false)}
       />
-
-      {/* ── Bouton Mode Lecture ──────────────────────────────────────────── */}
-      <ReadingModeToggle />
       </div>
     </PresenceProvider>
   );

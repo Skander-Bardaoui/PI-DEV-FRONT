@@ -29,12 +29,8 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
   
   // Initialize with user's business_id or from localStorage
   useEffect(() => {
-    console.log('🔍 PresenceProvider - User:', user);
-    console.log('🔍 User keys:', user ? Object.keys(user) : 'null');
-    
-    // If user is null (logged out), clear business ID
+    // If user is null (logged out), clear business ID immediately
     if (!user) {
-      console.log('🚪 User logged out, clearing presence connection');
       setCurrentBusinessId(null);
       localStorage.removeItem('currentBusinessId');
       return;
@@ -46,36 +42,22 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
     if (user) {
       // Check user object for business_id (try multiple possible field names)
       businessId = user.business_id || (user as any).businessId || (user as any).business?.id;
-      console.log('📍 Business ID from user.business_id:', user.business_id);
-      console.log('📍 Business ID from user (any field):', businessId);
       
       // Store in localStorage for persistence
       if (businessId) {
         localStorage.setItem('currentBusinessId', businessId);
+        setCurrentBusinessId(businessId);
+      } else {
+        // Fallback to localStorage only if user exists but has no business_id
+        businessId = localStorage.getItem('currentBusinessId');
+        if (businessId) {
+          setCurrentBusinessId(businessId);
+        }
       }
-    }
-    
-    // Fallback to localStorage
-    if (!businessId) {
-      businessId = localStorage.getItem('currentBusinessId');
-      console.log('📍 Business ID from localStorage:', businessId);
-    }
-    
-    if (businessId) {
-      console.log('✅ Setting business ID for presence:', businessId);
-      setCurrentBusinessId(businessId);
-    } else {
-      console.warn('⚠️ No business ID found for presence connection');
-      console.warn('⚠️ User object structure:', JSON.stringify(user, null, 2));
     }
   }, [user]);
   
   const { onlineUsers, userStatuses, isConnected } = usePresence(currentBusinessId);
-  
-  // Log connection status
-  useEffect(() => {
-    console.log('🔌 Presence connection status:', { isConnected, currentBusinessId, onlineUsersCount: onlineUsers.length });
-  }, [isConnected, currentBusinessId, onlineUsers]);
 
   return (
     <PresenceContext.Provider value={{ onlineUsers, userStatuses, isConnected, setCurrentBusinessId }}>

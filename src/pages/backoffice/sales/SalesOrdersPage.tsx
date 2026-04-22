@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, Edit, Play, Truck, XCircle, MoreVertical } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, Edit, Play, Truck, XCircle, Package, Clock, CheckCircle, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useSalesOrders, useDeleteSalesOrder, useStartProgressSalesOrder, useMarkDeliveredSalesOrder, useConvertSalesOrderToInvoice, useCancelSalesOrder, useSendSalesOrderEmail } from '@/hooks/useSalesOrders';
 import { SALES_ORDER_STATUS_COLORS, SALES_ORDER_STATUS_LABELS, SalesOrderStatus } from '@/types/sales-order';
@@ -54,6 +54,18 @@ export default function SalesOrdersPage() {
   const totalPages = data?.total_pages ?? 1;
   const total = data?.total ?? 0;
 
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const orders = data?.data || [];
+    return {
+      total: total,
+      confirmed: orders.filter(o => o.status === 'CONFIRMED').length,
+      inProgress: orders.filter(o => o.status === 'IN_PROGRESS').length,
+      delivered: orders.filter(o => o.status === 'DELIVERED').length,
+      totalAmount: orders.reduce((sum, o) => sum + Number(o.netAmount || 0), 0),
+    };
+  }, [data, total]);
+
   const getPageNumbers = () => {
     if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
     if (page <= 3) return [1, 2, 3, 4, 5];
@@ -105,16 +117,67 @@ export default function SalesOrdersPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Commandes clients</h1>
         <button
           onClick={() => setModalOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
         >
           <Plus className="h-5 w-5" />
           Nouvelle commande
         </button>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-blue-50 rounded-lg border border-blue-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-700 text-sm font-medium">Total Commandes</p>
+              <p className="text-3xl font-bold text-blue-900 mt-2">{stats.total}</p>
+            </div>
+            <div className="bg-blue-100 p-3 rounded-lg">
+              <Package className="h-7 w-7 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-orange-50 rounded-lg border border-orange-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-700 text-sm font-medium">En Cours</p>
+              <p className="text-3xl font-bold text-orange-900 mt-2">{stats.inProgress}</p>
+            </div>
+            <div className="bg-orange-100 p-3 rounded-lg">
+              <Clock className="h-7 w-7 text-orange-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-green-50 rounded-lg border border-green-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-700 text-sm font-medium">Livrées</p>
+              <p className="text-3xl font-bold text-green-900 mt-2">{stats.delivered}</p>
+            </div>
+            <div className="bg-green-100 p-3 rounded-lg">
+              <CheckCircle className="h-7 w-7 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-purple-50 rounded-lg border border-purple-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-700 text-sm font-medium">Montant Total</p>
+              <p className="text-2xl font-bold text-purple-900 mt-2">{formatAmount(stats.totalAmount)} DT</p>
+            </div>
+            <div className="bg-purple-100 p-3 rounded-lg">
+              <TrendingUp className="h-7 w-7 text-purple-600" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow">
