@@ -8,7 +8,6 @@ import {
   Eye, 
   EyeOff, 
   User, 
-  Phone, 
   ArrowRight, 
   CheckCircle, 
   AlertCircle, 
@@ -18,6 +17,8 @@ import {
   XCircle
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import PhoneInput from '../../components/common/PhoneInput';
+import AddressAutocomplete, { AddressData } from '../../components/common/AddressAutocomplete';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -327,20 +328,15 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Téléphone (optionnel)</label>
-                  <div className="relative group">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
-                    <input
-                      type="tel"
-                      value={formData.phone_number}
-                      onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      placeholder="+216 XX XXX XXX"
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
+                <PhoneInput
+                  value={formData.phone_number}
+                  onChange={(value) => setFormData({ ...formData, phone_number: value || '' })}
+                  label="Téléphone (optionnel)"
+                  placeholder="Entrez votre numéro"
+                  defaultCountry="TN"
+                  disabled={isLoading}
+                  required={false}
+                />
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Mot de passe</label>
@@ -595,46 +591,27 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Adresse</label>
-                  <input
-                    type="text"
-                    value={formData.address.street}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      address: { ...formData.address, street: e.target.value } 
-                    })}
-                    className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all mb-3"
-                    placeholder="Rue et numéro"
+                  <AddressAutocomplete
+                    value={{
+                      street: formData.address.street,
+                      city: formData.address.city,
+                      postalCode: formData.address.postalCode,
+                      country: formData.address.country,
+                    }}
+                    onChange={(address: AddressData) => {
+                      setFormData({
+                        ...formData,
+                        address: {
+                          street: address.street,
+                          city: address.city,
+                          postalCode: address.postalCode,
+                          country: address.country,
+                        },
+                      });
+                    }}
                     disabled={isLoading}
+                    required={false}
                   />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      value={formData.address.city}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        address: { ...formData.address, city: e.target.value } 
-                      })}
-                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      placeholder="Ville (ex: Sousse)"
-                      disabled={isLoading}
-                    />
-                    <input
-                      type="text"
-                      value={formData.address.postalCode}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        address: { ...formData.address, postalCode: e.target.value } 
-                      })}
-                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      placeholder="Code postal (ex: 4000)"
-                      maxLength={4}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <p className="mt-1.5 text-xs text-gray-500">
-                    Le code postal tunisien doit contenir exactement 4 chiffres
-                  </p>
                 </div>
 
                 <div className="flex items-start gap-3">
