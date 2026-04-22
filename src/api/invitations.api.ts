@@ -31,6 +31,7 @@ export interface BusinessMember {
   business_id: string;
   user_id: string;
   role: string;
+  permissions?: string;
   is_active: boolean;
   invited_by?: string;
   invited_at?: string;

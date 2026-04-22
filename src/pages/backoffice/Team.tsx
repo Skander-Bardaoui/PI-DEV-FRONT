@@ -12,6 +12,7 @@ import {
   Clock,
   Loader2,
   AlertCircle,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { usePresenceContext } from '../../context/PresenceContext';
@@ -27,6 +28,7 @@ import {
   type Invitation,
 } from '../../api/invitations.api';
 import { getMyBusinesses } from '../../api/business.api';
+import { PermissionManagementModal } from '../../components/PermissionManagementModal';
 
 const roles = [
   {
@@ -66,6 +68,9 @@ export default function Team() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showInvite, setShowInvite] = useState(false);
   const [selectedMember, setSelectedMember] = useState<BusinessMember | null>(
+    null,
+  );
+  const [selectedMemberForPermissions, setSelectedMemberForPermissions] = useState<BusinessMember | null>(
     null,
   );
   const [isLoading, setIsLoading] = useState(true);
@@ -341,6 +346,9 @@ export default function Team() {
                   Rôle
                 </th>
                 <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
+                  Permissions
+                </th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
                   Poste
                 </th>
                 <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
@@ -404,6 +412,12 @@ export default function Team() {
                         {member.role}
                       </span>
                     </td>
+                    <td className="px-6 py-4">
+                      <code className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                        <Lock className="h-3 w-3" />
+                        {member.permissions || '------'}
+                      </code>
+                    </td>
                     <td className="px-6 py-4 text-gray-600">
                       {member.user.jobTitle || '-'}
                     </td>
@@ -446,6 +460,13 @@ export default function Team() {
                     {canManageTeam && member.role !== 'BUSINESS_OWNER' && (
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => setSelectedMemberForPermissions(member)}
+                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Gérer les permissions"
+                          >
+                            <Lock className="h-4 w-4" />
+                          </button>
                           <button
                             onClick={() => openEditModal(member)}
                             className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -690,6 +711,17 @@ export default function Team() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Permission Management Modal */}
+      {selectedMemberForPermissions && (
+        <PermissionManagementModal
+          member={selectedMemberForPermissions}
+          businessId={selectedBusinessId}
+          isOpen={!!selectedMemberForPermissions}
+          onClose={() => setSelectedMemberForPermissions(null)}
+          onSuccess={loadMembersAndInvitations}
+        />
       )}
     </div>
   );
