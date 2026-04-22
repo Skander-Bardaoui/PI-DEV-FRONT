@@ -31,7 +31,7 @@ describe('LoadingSpinner', () => {
 
   it('should have aria-live attribute', () => {
     render(<LoadingSpinner />);
-    const container = screen.getByRole('status').parentElement;
-    expect(container).toHaveAttribute('aria-live', 'polite');
+    const statusElement = screen.getByRole('status');
+    expect(statusElement.parentElement).toHaveAttribute('aria-live', 'polite');
   });
 });
