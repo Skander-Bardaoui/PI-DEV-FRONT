@@ -4,6 +4,7 @@
 import { CreateGoodsReceiptDto } from '@/types';
 import { createGoodsReceipt, getGoodsReceipt, getGoodsReceiptsByPO } from '@/api/goods-receipts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Validation UUID v4 stricte
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,6 +58,18 @@ export function useCreateGoodsReceipt(businessId: string, poId: string) {
       qc.invalidateQueries({ queryKey: ['purchase-invoices', businessId, 'by-po', poId] });
       // Forcer le refetch immédiat des données
       qc.refetchQueries({ queryKey: ['supplier-pos', businessId] });
+      
+      // Toast de succès
+      toast.success('Bon de réception créé', {
+        description: 'La réception a été enregistrée avec succès',
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast.error('Erreur lors de la création', {
+        description: error?.response?.data?.message || 'Impossible de créer le bon de réception',
+        duration: 5000,
+      });
     },
   });
 }

@@ -22,11 +22,18 @@ export const usePresence = (businessId: string | null): UsePresenceReturn => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    // Don't connect if no businessId
     if (!businessId) {
+      // Clean up existing connection if any
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+      setIsConnected(false);
+      setOnlineUsers([]);
+      setUserStatuses(new Map());
       return;
     }
-
-    console.log('🔌 Connecting to presence WebSocket...', { businessId, API_BASE });
 
     // Connect to WebSocket root (no namespace) - same as messages gateway
     // Use withCredentials to send HTTP-only cookies
@@ -40,26 +47,28 @@ export const usePresence = (businessId: string | null): UsePresenceReturn => {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
+      autoConnect: true,
     });
 
     newSocket.on('connect', () => {
-      console.log('✅ Connected to presence server');
       setIsConnected(true);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('❌ Connection error:', error);
+      console.error('Presence connection error:', error.message);
       setIsConnected(false);
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('❌ Disconnected from presence server:', reason);
       setIsConnected(false);
+      // Only log unexpected disconnects
+      if (reason !== 'io client disconnect' && reason !== 'io server disconnect') {
+        console.warn('Presence disconnected:', reason);
+      }
     });
 
     // Listen for online users list
     newSocket.on('onlineUsers', (users: string[]) => {
-      console.log('👥 Online users:', users);
       setOnlineUsers(users);
       
       // Update user statuses
@@ -72,8 +81,6 @@ export const usePresence = (businessId: string | null): UsePresenceReturn => {
 
     // Listen for user status changes
     newSocket.on('userStatusChanged', (data: UserStatus) => {
-      console.log('🔄 User status changed:', data);
-      
       setUserStatuses(prev => {
         const newStatuses = new Map(prev);
         newStatuses.set(data.userId, data.status);
@@ -104,7 +111,11 @@ export const usePresence = (businessId: string | null): UsePresenceReturn => {
     // Cleanup
     return () => {
       clearInterval(heartbeatInterval);
-      newSocket.disconnect();
+      if (newSocket) {
+        newSocket.removeAllListeners();
+        newSocket.disconnect();
+      }
+      setIsConnected(false);
     };
   }, [businessId]);
 

@@ -49,10 +49,10 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-xl">
+        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-xl">
 
           {/* Header simplifié */}
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 border-b border-indigo-100">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 border-b border-indigo-100 flex-shrink-0">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
@@ -80,7 +80,7 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
+          <div className="overflow-y-auto flex-1">
             <div className="p-6 space-y-5">
 
               {/* Informations principales - version simplifiée */}
@@ -181,14 +181,23 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
                 </div>
               </div>
 
-              {/* Motif litige - simplifié */}
+              {/* Motif litige - avec bouton de résolution */}
               {invoice.status === InvoiceStatus.DISPUTED && invoice.dispute_reason && (
-                <div className="bg-orange-50/50 border border-orange-200 rounded-lg p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                <div className="bg-orange-50/50 border-2 border-orange-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-orange-900 mb-1">Motif du litige</h3>
-                      <p className="text-sm text-orange-800">{invoice.dispute_reason}</p>
+                      <h3 className="text-sm font-semibold text-orange-900 mb-2">Motif du litige</h3>
+                      <p className="text-sm text-orange-800 mb-3">{invoice.dispute_reason}</p>
+                      
+                      {/* Bouton de résolution visible */}
+                      <button
+                        onClick={() => setCorrectOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium text-sm shadow-sm"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        Résoudre ce litige
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -197,7 +206,7 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
           </div>
 
           {/* Footer avec boutons */}
-          <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
             <div className="space-y-4">
               
               {/* Section: Documents */}
@@ -221,19 +230,6 @@ export default function InvoiceDetailModal({ invoice, onClose, businessId }: Pro
                   />
                 )}
               </ActionSection>
-
-              {/* Section: Actions */}
-              {invoice.status === InvoiceStatus.DISPUTED && (
-                <ActionSection title="Résolution">
-                  <ActionButton
-                    icon={Pencil}
-                    label="Corriger / Résoudre"
-                    description="Modifier la facture"
-                    onClick={() => setCorrectOpen(true)}
-                    variant="warning"
-                  />
-                </ActionSection>
-              )}
             </div>
           </div>
         </div>

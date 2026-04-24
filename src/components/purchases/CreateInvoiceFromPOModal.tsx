@@ -119,6 +119,36 @@ export default function CreateInvoiceFromPOModal({ businessId, po, onClose }: Pr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validation
+    const errors: string[] = [];
+    
+    if (!form.invoice_number_supplier.trim()) {
+      errors.push('Le numéro de facture est obligatoire');
+    }
+    if (!form.invoice_date) {
+      errors.push('La date de facture est obligatoire');
+    }
+    if (form.due_date && form.invoice_date && new Date(form.due_date) < new Date(form.invoice_date)) {
+      errors.push('La date d\'échéance doit être postérieure à la date de facture');
+    }
+    if (form.subtotal_ht < 0) {
+      errors.push('Le sous-total HT ne peut pas être négatif');
+    }
+    if (form.tax_amount < 0) {
+      errors.push('La TVA ne peut pas être négative');
+    }
+    if (form.timbre_fiscal < 0) {
+      errors.push('Le timbre fiscal ne peut pas être négatif');
+    }
+    if (!selectedGRId && receipts && receipts.length > 0) {
+      errors.push('Veuillez sélectionner un bon de réception');
+    }
+
+    if (errors.length > 0) {
+      toast.error('Validation', errors.join('. '));
+      return;
+    }
+
     if (isDuplicate) {
       toast.error('Doublon détecté', `Une facture avec le N° "${form.invoice_number_supplier}" existe déjà pour ce fournisseur`);
       return;

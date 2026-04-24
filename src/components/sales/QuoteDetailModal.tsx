@@ -18,6 +18,7 @@ import { ActionButton, ActionSection } from '../ui/ActionButton';
 import { printQuote } from '@/utils/sales-quote-print';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/Toast';
+import { getBusinessInfo } from '@/utils/business-info.utils';
 
 interface Props {
   quote: Quote;
@@ -224,7 +225,10 @@ export default function QuoteDetailModal({ quote: initialQuote, businessId, onCl
                   icon={FileText}
                   label="Télécharger PDF"
                   description="Générer le document"
-                  onClick={() => printQuote(quote, (user as any)?.business?.name || 'Entreprise', (user as any)?.business?.matricule_fiscal, (user as any)?.business?.address)}
+                  onClick={async () => {
+                    const info = await getBusinessInfo(user);
+                    printQuote(quote, info.businessName, info.businessMF, info.businessAddress);
+                  }}
                   variant="danger"
                 />
 

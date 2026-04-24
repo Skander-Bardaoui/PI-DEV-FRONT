@@ -289,15 +289,25 @@ export default function GoodsReceiptsPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
 
-  // ← FIX : filtrer par défaut uniquement les BCs réceptionnables
+  // ← FIX : filtrer par défaut les BCs réceptionnables + entièrement reçus
   const [statusFilter, setStatusFilter] = useState(
-    `${POStatus.CONFIRMED},${POStatus.PARTIALLY_RECEIVED}`
+    `${POStatus.CONFIRMED},${POStatus.PARTIALLY_RECEIVED},${POStatus.FULLY_RECEIVED}`
   );
   const [page, setPage] = useState(1);
 
   // ── Tri ───────────────────────────────────────────────────────────────────
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir,   setSortDir]   = useState<SortDir>('desc');
+
+  // Ordre de priorité des statuts pour le tri (partiellement reçus en haut)
+  const STATUS_ORDER: Record<POStatus, number> = {
+    [POStatus.DRAFT]: 99,
+    [POStatus.SENT]: 99,
+    [POStatus.CONFIRMED]: 2,
+    [POStatus.PARTIALLY_RECEIVED]: 1, // En haut
+    [POStatus.FULLY_RECEIVED]: 3,     // En bas
+    [POStatus.CANCELLED]: 99,
+  };
 
   const { data, isLoading } = useSupplierPOs(businessId, {
     status: statusFilter || undefined,
@@ -307,17 +317,25 @@ export default function GoodsReceiptsPage() {
 
   const STATUS_OPTIONS = [
     {
-      value: `${POStatus.CONFIRMED},${POStatus.PARTIALLY_RECEIVED}`,
-      label: 'À réceptionner'        // ← label plus clair
+      value: `${POStatus.CONFIRMED},${POStatus.PARTIALLY_RECEIVED},${POStatus.FULLY_RECEIVED}`,
+      label: 'Tous les BCs reçus'    // ← label par défaut
     },
     { value: POStatus.CONFIRMED,          label: 'Confirmés uniquement' },
     { value: POStatus.PARTIALLY_RECEIVED, label: 'Partiellement reçus' },
     { value: POStatus.FULLY_RECEIVED,     label: 'Entièrement reçus'   },
-    { value: '',                          label: 'Tous'                 },
   ];
 
   // ── Tri local ─────────────────────────────────────────────────────────────
   const sorted = [...(data?.data ?? [])].sort((a, b) => {
+    // Tri par statut en priorité (partiellement reçus en haut)
+    const statusA = STATUS_ORDER[a.status] || 999;
+    const statusB = STATUS_ORDER[b.status] || 999;
+    
+    if (statusA !== statusB) {
+      return statusA - statusB; // Tri croissant par statut
+    }
+
+    // Ensuite tri selon le champ sélectionné
     let va: any, vb: any;
     if (sortField === 'supplier') { 
       va = a.supplier?.name ?? ''; 

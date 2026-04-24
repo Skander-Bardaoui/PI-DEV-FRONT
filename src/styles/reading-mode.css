@@ -1,0 +1,404 @@
+/* ============================================
+   Mode Lecture - Simplifier pour la Lecture
+   ============================================ */
+
+/* Variables pour le mode lecture */
+:root {
+  --reading-bg: #faf8f5;
+  --reading-text: #2d2d2d;
+  --reading-font: 'Georgia', 'Times New Roman', serif;
+  --reading-max-width: 800px;
+  --reading-line-height: 1.8;
+}
+
+/* ═══════════════════════════════════════════
+   ACTIVATION DU MODE LECTURE
+   ═══════════════════════════════════════════ */
+
+.reading-mode {
+  /* Fond beige/crème pour réduire la fatigue oculaire */
+  background: var(--reading-bg) !important;
+}
+
+/* Masquer la sidebar en mode lecture */
+.reading-mode .sidebar-container,
+.reading-mode aside,
+.reading-mode [class*="sidebar"],
+.reading-mode .hidden.lg\:fixed,
+.reading-mode .lg\:flex.lg\:w-72 {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Masquer le header en mode lecture */
+.reading-mode header,
+.reading-mode .top-header,
+.reading-mode [class*="header"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Ajuster le layout principal */
+.reading-mode .lg\:pl-72,
+.reading-mode main {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* ═══════════════════════════════════════════
+   CONTENU PRINCIPAL EN MODE LECTURE
+   ═══════════════════════════════════════════ */
+
+.reading-mode main {
+  max-width: var(--reading-max-width) !important;
+  margin: 0 auto !important;
+  padding: 60px 40px !important;
+  background: var(--reading-bg) !important;
+  min-height: 100vh;
+}
+
+/* Typographie optimisée pour la lecture */
+.reading-mode {
+  font-family: var(--reading-font) !important;
+  line-height: var(--reading-line-height) !important;
+  color: var(--reading-text) !important;
+}
+
+.reading-mode * {
+  font-family: var(--reading-font) !important;
+  line-height: var(--reading-line-height) !important;
+}
+
+/* Titres en mode lecture */
+.reading-mode h1,
+.reading-mode h2,
+.reading-mode h3,
+.reading-mode h4,
+.reading-mode h5,
+.reading-mode h6 {
+  font-family: var(--reading-font) !important;
+  color: var(--reading-text) !important;
+  font-weight: 700 !important;
+  margin-top: 1.5em !important;
+  margin-bottom: 0.75em !important;
+  line-height: 1.4 !important;
+}
+
+.reading-mode h1 {
+  font-size: 2.5em !important;
+  border-bottom: 3px solid #d4c5b9;
+  padding-bottom: 0.3em;
+}
+
+.reading-mode h2 {
+  font-size: 2em !important;
+  border-bottom: 2px solid #e5ddd5;
+  padding-bottom: 0.25em;
+}
+
+.reading-mode h3 {
+  font-size: 1.5em !important;
+}
+
+/* Paragraphes */
+.reading-mode p {
+  margin-bottom: 1.5em !important;
+  text-align: justify !important;
+  hyphens: auto !important;
+}
+
+/* Listes */
+.reading-mode ul,
+.reading-mode ol {
+  margin-bottom: 1.5em !important;
+  padding-left: 2em !important;
+}
+
+.reading-mode li {
+  margin-bottom: 0.75em !important;
+}
+
+/* Liens en mode lecture */
+.reading-mode a {
+  color: #8b6f47 !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 1px !important;
+  text-underline-offset: 3px !important;
+  transition: color 0.2s ease !important;
+}
+
+.reading-mode a:hover {
+  color: #6b5537 !important;
+  text-decoration-thickness: 2px !important;
+}
+
+/* ═══════════════════════════════════════════
+   ÉLÉMENTS À SIMPLIFIER
+   ═══════════════════════════════════════════ */
+
+/* Simplifier les cartes et panels */
+.reading-mode .bg-white,
+.reading-mode .bg-gray-50,
+.reading-mode .bg-gray-100 {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Simplifier les bordures */
+.reading-mode .border,
+.reading-mode .border-t,
+.reading-mode .border-b,
+.reading-mode .border-l,
+.reading-mode .border-r {
+  border-color: #e5ddd5 !important;
+}
+
+/* Simplifier les boutons */
+.reading-mode button {
+  background: #d4c5b9 !important;
+  color: var(--reading-text) !important;
+  border: 1px solid #c4b5a9 !important;
+  font-family: var(--reading-font) !important;
+}
+
+.reading-mode button:hover {
+  background: #c4b5a9 !important;
+}
+
+/* Simplifier les inputs */
+.reading-mode input,
+.reading-mode textarea,
+.reading-mode select {
+  background: #fff !important;
+  border: 2px solid #d4c5b9 !important;
+  color: var(--reading-text) !important;
+  font-family: var(--reading-font) !important;
+}
+
+.reading-mode input:focus,
+.reading-mode textarea:focus,
+.reading-mode select:focus {
+  border-color: #8b6f47 !important;
+  outline-color: #8b6f47 !important;
+}
+
+/* ═══════════════════════════════════════════
+   TABLEAUX EN MODE LECTURE
+   ═══════════════════════════════════════════ */
+
+.reading-mode table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 2em 0 !important;
+  background: #fff !important;
+  border: 2px solid #d4c5b9 !important;
+}
+
+.reading-mode th,
+.reading-mode td {
+  padding: 12px 16px !important;
+  border: 1px solid #e5ddd5 !important;
+  text-align: left !important;
+}
+
+.reading-mode th {
+  background: #f5f0eb !important;
+  font-weight: 700 !important;
+  color: var(--reading-text) !important;
+}
+
+.reading-mode tr:nth-child(even) {
+  background: #faf8f5 !important;
+}
+
+/* ═══════════════════════════════════════════
+   IMAGES ET MÉDIAS
+   ═══════════════════════════════════════════ */
+
+.reading-mode img {
+  max-width: 100% !important;
+  height: auto !important;
+  margin: 2em auto !important;
+  display: block !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ═══════════════════════════════════════════
+   CODE ET PRÉFORMATÉ
+   ═══════════════════════════════════════════ */
+
+.reading-mode code {
+  font-family: 'Courier New', monospace !important;
+  background: #f5f0eb !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-size: 0.9em !important;
+  color: #8b6f47 !important;
+}
+
+.reading-mode pre {
+  background: #f5f0eb !important;
+  padding: 16px !important;
+  border-radius: 8px !important;
+  overflow-x: auto !important;
+  margin: 2em 0 !important;
+  border: 1px solid #d4c5b9 !important;
+}
+
+.reading-mode pre code {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* ═══════════════════════════════════════════
+   CITATIONS
+   ═══════════════════════════════════════════ */
+
+.reading-mode blockquote {
+  border-left: 4px solid #8b6f47 !important;
+  padding-left: 1.5em !important;
+  margin: 2em 0 !important;
+  font-style: italic !important;
+  color: #5a5a5a !important;
+}
+
+/* ═══════════════════════════════════════════
+   BOUTON DE CONTRÔLE DU MODE LECTURE
+   ═══════════════════════════════════════════ */
+
+.reading-mode-toggle {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 9999 !important;
+  background: #8b6f47 !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 12px 20px !important;
+  border-radius: 8px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s ease !important;
+}
+
+.reading-mode-toggle:hover {
+  background: #6b5537 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+.reading-mode .reading-mode-toggle {
+  background: #d4c5b9 !important;
+  color: var(--reading-text) !important;
+}
+
+.reading-mode .reading-mode-toggle:hover {
+  background: #c4b5a9 !important;
+}
+
+/* ═══════════════════════════════════════════
+   MASQUER LES ÉLÉMENTS NON ESSENTIELS
+   ═══════════════════════════════════════════ */
+
+/* Masquer les éléments de navigation et UI */
+.reading-mode nav:not(.reading-mode-nav),
+.reading-mode .sidebar,
+.reading-mode .header,
+.reading-mode .footer,
+.reading-mode .breadcrumb,
+.reading-mode .pagination {
+  display: none !important;
+}
+
+/* Masquer les icônes décoratives */
+.reading-mode svg:not(.reading-mode-icon) {
+  opacity: 0.3 !important;
+}
+
+/* ═══════════════════════════════════════════
+   IMPRESSION EN MODE LECTURE
+   ═══════════════════════════════════════════ */
+
+@media print {
+  .reading-mode {
+    background: white !important;
+  }
+  
+  .reading-mode main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  .reading-mode-toggle {
+    display: none !important;
+  }
+  
+  .reading-mode a {
+    color: #000 !important;
+    text-decoration: underline !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE - MODE LECTURE MOBILE
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .reading-mode main {
+    padding: 40px 20px !important;
+  }
+  
+  .reading-mode h1 {
+    font-size: 2em !important;
+  }
+  
+  .reading-mode h2 {
+    font-size: 1.5em !important;
+  }
+  
+  .reading-mode-toggle {
+    top: 10px !important;
+    right: 10px !important;
+    padding: 10px 16px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATIONS D'ENTRÉE/SORTIE
+   ═══════════════════════════════════════════ */
+
+.reading-mode main {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ACCESSIBILITÉ EN MODE LECTURE
+   ═══════════════════════════════════════════ */
+
+/* Focus rings adaptés au mode lecture */
+.reading-mode *:focus-visible {
+  outline: 3px solid #8b6f47 !important;
+  outline-offset: 2px !important;
+}
+
+/* Sélection de texte */
+.reading-mode ::selection {
+  background: #d4c5b9 !important;
+  color: var(--reading-text) !important;
+}

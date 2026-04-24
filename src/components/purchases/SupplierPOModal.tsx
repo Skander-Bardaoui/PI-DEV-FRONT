@@ -16,11 +16,25 @@ const inputCls = (error?: string) =>
     error ? 'border-red-400 bg-red-50' : 'border-gray-200'
   }`;
 
-interface Props { businessId: string; onClose: () => void; }
+interface Props { 
+  businessId: string; 
+  onClose: () => void;
+  mlPrediction?: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    estimatedValue: number;
+    urgency: string;
+    recommendation: string;
+  } | null;
+}
 
-export default function SupplierPOModal({ businessId, onClose }: Props) {
+export default function SupplierPOModal({ businessId, onClose, mlPrediction }: Props) {
   const { data: suppliersData } = useSuppliers(businessId, { is_active: true, limit: 100 });
   const create = useCreateSupplierPO(businessId);
+
+  // Debug: logger les données ML reçues
+  console.log('🔍 SupplierPOModal - mlPrediction reçu:', mlPrediction);
 
   const {
     register,
@@ -28,10 +42,24 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<SupplierPOFormValues>({
     resolver: zodResolver(supplierPOSchema),
-    defaultValues: {
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+    defaultValues: mlPrediction ? {
+      supplier_id:       '',
+      expected_delivery: '',
+      notes:             `Recommandation ML: ${mlPrediction.recommendation}`,
+      items: [{
+        product_id: mlPrediction.productId,
+        description: mlPrediction.productName,
+        quantity_ordered: mlPrediction.quantity,
+        unit_price_ht: 0,
+        tax_rate_value: 19
+      }],
+    } : {
       supplier_id:       '',
       expected_delivery: '',
       notes:             '',
@@ -61,7 +89,8 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
     if (product) {
       setValue(`items.${index}.product_id`, product.id);
       setValue(`items.${index}.description`, product.name);
-      setValue(`items.${index}.unit_price_ht`, product.purchase_price_ht);
+      // Ne pas pré-remplir le prix - l'utilisateur doit saisir le prix d'achat
+      // car product.purchase_price_ht est le prix de vente, pas le prix d'achat
     } else {
       setValue(`items.${index}.product_id`, undefined);
       setValue(`items.${index}.description`, '');
@@ -70,28 +99,55 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
   };
 
   const onSubmit = async (values: SupplierPOFormValues) => {
-    // FIX: Zod infère description / quantity_ordered / unit_price_ht / tax_rate_value
-    // comme optionnels (string | undefined, number | undefined) car le schéma utilise
-    // .trim().min(1) et z.coerce.number() qui acceptent des états intermédiaires.
-    // CreateSupplierPOItemDto exige tous ces champs comme requis.
-    // On mappe donc chaque item explicitement avec les types corrects et on
-    // utilise `satisfies` pour vérifier statiquement la compatibilité.
-    const items = values.items.map((item, i) => ({
-      description:      item.description      as string,
-      quantity_ordered: Number(item.quantity_ordered) || 0,
-      unit_price_ht:    Number(item.unit_price_ht)    || 0,
-      tax_rate_value:   Number(item.tax_rate_value)   || 0,
-      sort_order:       i,
-      ...(item.product_id ? { product_id: item.product_id } : {}),
-    })) satisfies CreateSupplierPOItemDto[];
+    try {
+      const items = values.items.map((item, i) => ({
+        description:      item.description      as string,
+        quantity_ordered: Number(item.quantity_ordered) || 0,
+        unit_price_ht:    Number(item.unit_price_ht)    || 0,
+        tax_rate_value:   Number(item.tax_rate_value)   || 0,
+        sort_order:       i,
+        ...(item.product_id ? { product_id: item.product_id } : {}),
+      })) satisfies CreateSupplierPOItemDto[];
 
-    await create.mutateAsync({
-      supplier_id:       values.supplier_id,
-      expected_delivery: values.expected_delivery || undefined,
-      notes:             values.notes             || undefined,
-      items,
-    });
-    onClose();
+      const payload = {
+        supplier_id:       values.supplier_id,
+        expected_delivery: values.expected_delivery || undefined,
+        notes:             values.notes             || undefined,
+        items,
+        // Ajouter l'info ML si présente
+        ...(mlPrediction ? { ml_product_id: mlPrediction.productId } : {}),
+      };
+
+      console.log('📤 Sending PO payload:', payload);
+      console.log('📦 Items count:', items.length);
+
+      const createdPO = await create.mutateAsync(payload);
+      
+      // Si c'est une création depuis ML, marquer comme traité
+      if (mlPrediction && createdPO) {
+        console.log('✅ BC créé depuis ML, marquage comme traité');
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('Erreur lors de la création du BC:', error);
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValid = await trigger();
+    if (!isValid) {
+      const firstErrorField = Object.keys(errors)[0];
+      if (firstErrorField) {
+        const element = document.querySelector(`[name="${firstErrorField}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    } else {
+      handleSubmit(onSubmit)();
+    }
   };
 
   return (
@@ -104,7 +160,51 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5" noValidate>
+        <form onSubmit={handleFormSubmit} className="p-6 space-y-5" noValidate>
+
+          {/* Badge ML si données présentes */}
+          {mlPrediction && (
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-purple-900 mb-1">
+                    🤖 Bon de commande suggéré par l'IA
+                  </h3>
+                  <p className="text-sm text-purple-700">
+                    Produit: <span className="font-medium">{mlPrediction.productName}</span> • 
+                    Quantité: <span className="font-medium">{mlPrediction.quantity} unités</span> • 
+                    Urgence: <span className="font-medium">{mlPrediction.urgency}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Message d'erreur global */}
+          {Object.keys(errors).length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-800 mb-1">
+                    Erreurs de validation
+                  </h3>
+                  <p className="text-sm text-red-700">
+                    Veuillez corriger les erreurs ci-dessous avant de continuer.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Panneau de recommandation IA */}
           <SupplierRecommendationPanel
@@ -131,7 +231,12 @@ export default function SupplierPOModal({ businessId, onClose }: Props) {
                 ))}
               </select>
               {errors.supplier_id && (
-                <p className="text-red-500 text-xs mt-1">{errors.supplier_id.message}</p>
+                <div className="flex items-start gap-1.5 mt-1.5">
+                  <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-red-600 text-xs font-medium">{errors.supplier_id.message}</p>
+                </div>
               )}
             </div>
             <div>

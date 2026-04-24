@@ -24,7 +24,6 @@ import { useTranslation } from 'react-i18next';
 import TreasuryWidget from '@/components/treasury/TreasuryWidget';
 
 
-
 export default function Dashboard() {
   const { t } = useTranslation();
 

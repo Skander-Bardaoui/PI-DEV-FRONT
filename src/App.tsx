@@ -1,5 +1,5 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AccessibilityButton from './components/AccessibilityButton';
@@ -25,6 +25,7 @@ import AcceptInvitationPage from './pages/frontoffice/AcceptInvitationPage';
 import SalesOrderClientPortal from './pages/frontoffice/SalesOrderClientPortal';
 import QuotePortal from './pages/frontoffice/QuotePortal';
 import ClientOnboarding from './pages/frontoffice/ClientOnboarding';
+import SubscriptionManagePage from './pages/frontoffice/SubscriptionManagePage';
 
 // Back Office Pages
 import Dashboard     from './pages/backoffice/Dashboard';
@@ -53,7 +54,6 @@ import Archive from './pages/backoffice/Archive';
 import SuppliersPage          from './pages/backoffice/purchases/SuppliersPage';
 import SupplierPOsPage        from './pages/backoffice/purchases/SupplierPOsPage';
 import PurchaseInvoicesPage   from './pages/backoffice/purchases/PurchaseInvoicesPage';
-import SupplierPaymentsPage   from './pages/backoffice/purchases/SupplierPaymentsPage';
 import PurchasesDashboardPage from './pages/backoffice/purchases/Purchasesdashboardpage';
 import GoodsReceiptsPage      from './pages/backoffice/purchases/Goodsreceiptspage';
 
@@ -78,6 +78,7 @@ import Transactions from './components/treasury/Transactions';
 import SupplierIntelligencePage from './pages/backoffice/purchases/SupplierIntelligencePage';
 import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingPage';
 import SupplierRegisterPage from './pages/frontoffice/SupplierRegisterPage';
+import MLPredictionsPage from './pages/backoffice/purchases/MLPredictionsPage';
 import SalaryToPayPage from './components/treasury/SalaryToPayPage';
 import SalaryRespondPage from './pages/frontoffice/SalaryRespondPage';
 import SupplierScheduleResponsePage from './pages/frontoffice/SupplierScheduleResponsePage';
@@ -90,7 +91,11 @@ function AppContent() {
   return (
     <>
       {/* Sonner Toast Notifications */}
-      <Toaster position="bottom-right" richColors closeButton />
+      <Toaster 
+        position="bottom-right" 
+        richColors 
+        closeButton 
+      />
 
 
       {/* Accessibility Components - Available on all pages */}
@@ -122,6 +127,7 @@ function AppContent() {
         <Route path="/supplier-portal" element={<SupplierPortalPage />} />
         <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
         <Route path="/client-portal" element={<SalesOrderClientPortal />} />
+        <Route path="/subscription-manage" element={<SubscriptionManagePage />} />
         <Route path="/quote-portal" element={<QuotePortal />} />
         <Route path="/supplier-register" element={<SupplierRegisterPage />} />
         <Route path="/salary-respond/:token" element={<SalaryRespondPage />}  />
@@ -195,10 +201,11 @@ function AppContent() {
           <Route path="purchases/orders"          element={<SupplierPOsPage />}        />
           <Route path="purchases/goods-receipts"  element={<GoodsReceiptsPage />}      />
           <Route path="purchases/invoices"        element={<PurchaseInvoicesPage />}   />
-          <Route path="purchases/payments"        element={<SupplierPaymentsPage />}   />
           <Route path="purchases/supplier-ranking" element={<SupplierRankingPage />} />
           <Route path="purchases/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="purchases/three-way-matching" element={<ThreeWayMatchingPage />} />
+          <Route path="purchases/three-way-matching/:invoiceId" element={<ThreeWayMatchingPage />} />
+          <Route path="purchases/ml-predictions" element={<MLPredictionsPage />} />
 
 
           {/*treasury*/}
@@ -231,7 +238,7 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true }}>
       <AuthProvider>
         <AppContent />
       </AuthProvider>
