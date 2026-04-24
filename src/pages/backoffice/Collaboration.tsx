@@ -50,6 +50,9 @@ import { toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
 import { activitiesApi, Activity } from '../../api/activities.api';
 import StatisticsDashboard from '../../components/StatisticsDashboard';
+import { PermissionManagementModal } from '../../components/PermissionManagementModal';
+import { PermissionUtils } from '../../utils/permissions';
+import { PermissionType } from '../../types/permissions.types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +61,7 @@ interface TeamMember {
   user_id: string;
   business_id: string;
   role: string;
+  permissions: string;
   is_active: boolean;
   invited_at: string | null;
   joined_at: string | null;
@@ -264,6 +268,7 @@ export default function Collaboration() {
   const [showInviteMember, setShowInviteMember] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null); // Pour TEAM_MEMBER
+  const [selectedMemberForPermissions, setSelectedMemberForPermissions] = useState<TeamMember | null>(null);
 
   // Team state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -325,13 +330,41 @@ export default function Collaboration() {
   // Real-time presence from global context
   const { userStatuses, isConnected: presenceConnected } = usePresenceContext();
 
-  // Check if user can manage tasks
-  const canManageTasks = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
+  // Get current user's member record to check permissions
+  const currentMember = teamMembers.find(m => m.user_id === currentUser?.id);
+  
+  // Only BUSINESS_OWNER bypasses permission checks
+  // BUSINESS_ADMIN must be checked against their permissions string like everyone else
+  const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  
+  // Check specific permissions for current user
+  const canCreateTasks = isOwner || (currentMember && PermissionUtils.hasPermission(currentMember.permissions, PermissionType.CREATE));
+  const canUpdateTasks = isOwner || (currentMember && PermissionUtils.hasPermission(currentMember.permissions, PermissionType.UPDATE));
+  const canDeleteTasks = isOwner || (currentMember && PermissionUtils.hasPermission(currentMember.permissions, PermissionType.DELETE));
+  
+  // For managing team permissions - only OWNER and ADMIN can access the permission management UI
+  const canManagePermissions = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
 
   // Filter tasks assigned to current user
   const myAssignedTasks = tasks.filter(
     (task) => task.assignedTo?.some((u) => u.id === currentUser?.id)
   );
+
+  // ── Function to reload members ────────────────────────────────────────────
+  const loadMembers = async () => {
+    if (!currentBusiness) return;
+    
+    setLoadingMembers(true);
+    setMembersError(null);
+    try {
+      const members = await fetchBusinessMembers(currentBusiness.id);
+      setTeamMembers(members);
+    } catch (err: any) {
+      setMembersError(err.message ?? 'Erreur lors du chargement des membres.');
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
 
   // ── Load current user, businesses, members, and tasks on mount ─────────────
   useEffect(() => {
@@ -934,7 +967,7 @@ export default function Collaboration() {
               </select>
             </div>
           )}
-          {canManageTasks && (
+          {canCreateTasks && (
             <button
               onClick={() => setShowNewTask(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap"
@@ -1019,10 +1052,10 @@ export default function Collaboration() {
                       status="TODO"
                       tasks={tasksByStatus.TODO}
                       onUpdateStatus={handleUpdateTaskStatus}
-                      onDelete={handleDeleteTask}
-                      onEdit={handleEditTask}
+                      onDelete={canDeleteTasks ? handleDeleteTask : undefined}
+                      onEdit={canUpdateTasks ? handleEditTask : undefined}
                       onOpenChat={setChatTask}
-                      canManage={canManageTasks}
+                      canManage={canUpdateTasks}
                       teamMembers={teamMembers}
                     />
                     <DroppableColumn
@@ -1031,10 +1064,10 @@ export default function Collaboration() {
                       status="IN_PROGRESS"
                       tasks={tasksByStatus.IN_PROGRESS}
                       onUpdateStatus={handleUpdateTaskStatus}
-                      onDelete={handleDeleteTask}
-                      onEdit={handleEditTask}
+                      onDelete={canDeleteTasks ? handleDeleteTask : undefined}
+                      onEdit={canUpdateTasks ? handleEditTask : undefined}
                       onOpenChat={setChatTask}
-                      canManage={canManageTasks}
+                      canManage={canUpdateTasks}
                       teamMembers={teamMembers}
                     />
                     <DroppableColumn
@@ -1043,10 +1076,10 @@ export default function Collaboration() {
                       status="DONE"
                       tasks={tasksByStatus.DONE}
                       onUpdateStatus={handleUpdateTaskStatus}
-                      onDelete={handleDeleteTask}
-                      onEdit={handleEditTask}
+                      onDelete={canDeleteTasks ? handleDeleteTask : undefined}
+                      onEdit={canUpdateTasks ? handleEditTask : undefined}
                       onOpenChat={setChatTask}
-                      canManage={canManageTasks}
+                      canManage={canUpdateTasks}
                       teamMembers={teamMembers}
                     />
                     <DroppableColumn
@@ -1055,10 +1088,10 @@ export default function Collaboration() {
                       status="BLOCKED"
                       tasks={tasksByStatus.BLOCKED}
                       onUpdateStatus={handleUpdateTaskStatus}
-                      onDelete={handleDeleteTask}
-                      onEdit={handleEditTask}
+                      onDelete={canDeleteTasks ? handleDeleteTask : undefined}
+                      onEdit={canUpdateTasks ? handleEditTask : undefined}
                       onOpenChat={setChatTask}
-                      canManage={canManageTasks}
+                      canManage={canUpdateTasks}
                       teamMembers={teamMembers}
                     />
                   </div>
@@ -1068,10 +1101,10 @@ export default function Collaboration() {
                         <DraggableTaskCard
                           task={activeTask}
                           onUpdateStatus={handleUpdateTaskStatus}
-                          onDelete={handleDeleteTask}
-                          onEdit={handleEditTask}
+                          onDelete={canDeleteTasks ? handleDeleteTask : undefined}
+                          onEdit={canUpdateTasks ? handleEditTask : undefined}
                           onOpenChat={setChatTask}
-                          canManage={canManageTasks}
+                          canManage={canUpdateTasks}
                           teamMembers={teamMembers}
                         />
                       </div>
@@ -1239,9 +1272,15 @@ export default function Collaboration() {
                               {joinedDate}
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                                <MoreHorizontal className="h-5 w-5" />
-                              </button>
+                              {canManagePermissions && member.role !== 'BUSINESS_OWNER' && (
+                                <button 
+                                  onClick={() => setSelectedMemberForPermissions(member)}
+                                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                  title="Manage permissions"
+                                >
+                                  <Settings className="h-5 w-5" />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );
@@ -1584,6 +1623,8 @@ export default function Collaboration() {
                     taskTitle={newTaskForm.title}
                     taskDescription={newTaskForm.description}
                     userRole={currentUser?.role}
+                    canManageSubtasks={canUpdateTasks}
+                    canMarkComplete={currentUser?.role === 'TEAM_MEMBER' || currentUser?.role === 'ACCOUNTANT'}
                     onProgressUpdate={() => {
                       // Rafraîchir les tâches pour mettre à jour la progression visible
                       if (currentBusiness) {
@@ -1686,6 +1727,17 @@ export default function Collaboration() {
               fetchTasks(currentBusiness.id).then(setTasks).catch(console.error);
             }
           }}
+        />
+      )}
+
+      {/* ── Permission Management Modal ────────────────────────────────────────── */}
+      {selectedMemberForPermissions && currentBusiness && (
+        <PermissionManagementModal
+          member={selectedMemberForPermissions}
+          businessId={currentBusiness.id}
+          isOpen={!!selectedMemberForPermissions}
+          onClose={() => setSelectedMemberForPermissions(null)}
+          onSuccess={loadMembers}
         />
       )}
     </div>

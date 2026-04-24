@@ -8,24 +8,35 @@ interface SubtaskListProps {
   taskId: string;
   taskTitle: string;
   taskDescription?: string;
-  userRole?: string; // Pour gérer les permissions
+  userRole?: string; // Pour gérer les permissions (kept for backward compatibility)
+  canManageSubtasks?: boolean; // New: explicit permission for managing subtasks (OWNER or ADMIN with UPDATE permission)
+  canMarkComplete?: boolean; // New: explicit permission for marking complete (TEAM_MEMBER or ACCOUNTANT)
   onProgressUpdate?: () => void; // Callback pour notifier le parent
 }
 
-export default function SubtaskList({ taskId, taskTitle, taskDescription, userRole, onProgressUpdate }: SubtaskListProps) {
+export default function SubtaskList({ 
+  taskId, 
+  taskTitle, 
+  taskDescription, 
+  userRole, 
+  canManageSubtasks, 
+  canMarkComplete: canMarkCompleteProp,
+  onProgressUpdate 
+}: SubtaskListProps) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
-  // Permissions basées sur le rôle
-  const canGenerate = userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN';
-  const canCreate = userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN';
-  const canDelete = userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN';
-  const canToggle = userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN';
+  // Use explicit permissions if provided, otherwise fall back to role-based checks
+  // This maintains backward compatibility while allowing proper permission enforcement
+  const canGenerate = canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN');
+  const canCreate = canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN');
+  const canDelete = canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN');
+  const canToggle = canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN');
   // TEAM_MEMBER peut marquer comme complété (différent de cocher)
-  const canMarkComplete = userRole === 'TEAM_MEMBER' || userRole === 'ACCOUNTANT';
+  const canMarkComplete = canMarkCompleteProp ?? (userRole === 'TEAM_MEMBER' || userRole === 'ACCOUNTANT');
 
   useEffect(() => {
     loadSubtasks();
