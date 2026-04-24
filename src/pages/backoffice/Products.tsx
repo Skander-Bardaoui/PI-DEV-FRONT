@@ -83,6 +83,62 @@ function ImagePicker({ value, onChange, onRemove, label = 'Product Image' }: Ima
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
+
+interface BusinessMember {
+  id: string;
+  user_id: string;
+  business_id: string;
+  role: string;
+  stock_permissions: {
+    create_product: boolean;
+    update_product: boolean;
+    delete_product: boolean;
+    create_movement: boolean;
+    delete_movement: boolean;
+    create_category: boolean;
+    update_category: boolean;
+    delete_category: boolean;
+    create_warehouse: boolean;
+    update_warehouse: boolean;
+    delete_warehouse: boolean;
+    create_reservation: boolean;
+    delete_reservation: boolean;
+    create_service: boolean;
+    update_service: boolean;
+    delete_service: boolean;
+    create_service_category: boolean;
+    update_service_category: boolean;
+    delete_service_category: boolean;
+  };
+  is_active: boolean;
+}
+
+async function fetchCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  return res.json();
+}
+
+async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[]> {
+  const res = await fetch(`${API_URL}/businesses/${businessId}/members`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch members');
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.members || []);
+}
+
 export default function Products() {
   const { user } = useAuth();
   const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
@@ -96,6 +152,10 @@ export default function Products() {
   const [showLowStock, setShowLowStock]       = useState(false);
   const [showModal, setShowModal]             = useState(false);
   const [editingProduct, setEditingProduct]   = useState<Product | null>(null);
+  
+  // User and member state for permissions
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentMember, setCurrentMember] = useState<BusinessMember | null>(null);
 
   // image state for the create/edit modal
   const [pendingImageFile, setPendingImageFile]       = useState<File | null>(null);
@@ -145,6 +205,33 @@ export default function Products() {
     min_stock_threshold: 0,
     is_stockable: true,
   });
+
+  // Load current user and member on mount
+  useEffect(() => {
+    async function loadUserData() {
+      if (!businessId) return;
+      
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUser(user);
+        
+        const members = await fetchBusinessMembers(businessId);
+        const member = members.find(m => m.user_id === user.id);
+        setCurrentMember(member || null);
+      } catch (err: any) {
+        console.error('Failed to load user data:', err);
+      }
+    }
+    loadUserData();
+  }, [businessId]);
+
+  // Permission checks
+  const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  const stock = currentMember?.stock_permissions;
+  
+  const canCreateProduct = isOwner || stock?.create_product === true;
+  const canUpdateProduct = isOwner || stock?.update_product === true;
+  const canDeleteProduct = isOwner || stock?.delete_product === true;
 
   // ─── Click outside handler ─────────────────────────────────────────────────
   useEffect(() => {
@@ -619,20 +706,24 @@ export default function Products() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Products</h1>
         <div className="flex gap-2">
-          <button
-            onClick={() => { resetScanModal(); setShowScanModal(true); }}
-            className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
-          >
-            <Camera size={20} />
-            Add via image scan
-          </button>
-          <button
-            onClick={() => { setEditingProduct(null); resetForm(); setShowModal(true); }}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            <Plus size={20} />
-            New Product
-          </button>
+          {canCreateProduct && (
+            <>
+              <button
+                onClick={() => { resetScanModal(); setShowScanModal(true); }}
+                className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
+              >
+                <Camera size={20} />
+                Add via image scan
+              </button>
+              <button
+                onClick={() => { setEditingProduct(null); resetForm(); setShowModal(true); }}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                <Plus size={20} />
+                New Product
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -757,10 +848,18 @@ export default function Products() {
                   <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => handleViewProduct(product)} className="text-gray-600 hover:text-gray-900" title="View details"><Eye size={18} /></button>
-                      <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-900" title="Edit"><Edit size={18} /></button>
-                      <button onClick={() => handleGenerateBarcode(product.id)} className="text-purple-600 hover:text-purple-900" title="Generate barcode"><Barcode size={18} /></button>
-                      <button onClick={() => handlePrintLabel(product.id, product.reference)} className="text-green-600 hover:text-green-900" title="Print label"><Printer size={18} /></button>
-                      <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900" title="Delete"><Trash2 size={18} /></button>
+                      {canUpdateProduct && (
+                        <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-900" title="Edit"><Edit size={18} /></button>
+                      )}
+                      {canUpdateProduct && (
+                        <button onClick={() => handleGenerateBarcode(product.id)} className="text-purple-600 hover:text-purple-900" title="Generate barcode"><Barcode size={18} /></button>
+                      )}
+                      {canUpdateProduct && (
+                        <button onClick={() => handlePrintLabel(product.id, product.reference)} className="text-green-600 hover:text-green-900" title="Print label"><Printer size={18} /></button>
+                      )}
+                      {canDeleteProduct && (
+                        <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900" title="Delete"><Trash2 size={18} /></button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1362,15 +1461,17 @@ export default function Products() {
             </div>
 
             <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-              <button 
-                onClick={() => {
-                  setShowDetailModal(false);
-                  handleEdit(viewingProduct);
-                }} 
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors"
-              >
-                <Edit size={16} />Edit Product
-              </button>
+              {canUpdateProduct && (
+                <button 
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    handleEdit(viewingProduct);
+                  }} 
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors"
+                >
+                  <Edit size={16} />Edit Product
+                </button>
+              )}
               <button onClick={() => setShowDetailModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors">
                 Close
               </button>

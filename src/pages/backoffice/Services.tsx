@@ -9,6 +9,62 @@ import { Category } from '../../types/category';
 import { Plus, Edit, Trash2, Search, Info, Sparkles, RefreshCw, CheckCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
+
+interface BusinessMember {
+  id: string;
+  user_id: string;
+  business_id: string;
+  role: string;
+  stock_permissions: {
+    create_product: boolean;
+    update_product: boolean;
+    delete_product: boolean;
+    create_movement: boolean;
+    delete_movement: boolean;
+    create_category: boolean;
+    update_category: boolean;
+    delete_category: boolean;
+    create_warehouse: boolean;
+    update_warehouse: boolean;
+    delete_warehouse: boolean;
+    create_reservation: boolean;
+    delete_reservation: boolean;
+    create_service: boolean;
+    update_service: boolean;
+    delete_service: boolean;
+    create_service_category: boolean;
+    update_service_category: boolean;
+    delete_service_category: boolean;
+  };
+  is_active: boolean;
+}
+
+async function fetchCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  return res.json();
+}
+
+async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[]> {
+  const res = await fetch(`${API_URL}/businesses/${businessId}/members`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch members');
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.members || []);
+}
+
 export default function Services() {
   const { user } = useAuth();
   const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
@@ -24,6 +80,10 @@ export default function Services() {
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [generatingSku, setGeneratingSku] = useState(false);
   const [skuError, setSkuError] = useState<string | null>(null);
+  
+  // User and member state for permissions
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentMember, setCurrentMember] = useState<BusinessMember | null>(null);
   
   // ==================== Alaa change for service type ====================
   // AI scan states
@@ -52,6 +112,33 @@ export default function Services() {
     tax_rate_id: '',
     is_stockable: false,
   });
+
+  // Load current user and member on mount
+  useEffect(() => {
+    async function loadUserData() {
+      if (!businessId) return;
+      
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUser(user);
+        
+        const members = await fetchBusinessMembers(businessId);
+        const member = members.find(m => m.user_id === user.id);
+        setCurrentMember(member || null);
+      } catch (err: any) {
+        console.error('Failed to load user data:', err);
+      }
+    }
+    loadUserData();
+  }, [businessId]);
+
+  // Permission checks
+  const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  const stock = currentMember?.stock_permissions;
+  
+  const canCreateService = isOwner || stock?.create_service === true;
+  const canUpdateService = isOwner || stock?.update_service === true;
+  const canDeleteService = isOwner || stock?.delete_service === true;
 
   useEffect(() => {
     if (businessId) {
@@ -396,27 +483,31 @@ export default function Services() {
         <h1 className="text-2xl font-bold">Services</h1>
         {/* ==================== Alaa change for service type ==================== */}
         <div className="flex gap-2">
-          <button
-            onClick={() => {
-              resetAiScanModal();
-              setShowAiScanModal(true);
-            }}
-            className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
-          >
-            <Sparkles size={20} />
-            Add via AI
-          </button>
-          <button
-            onClick={() => {
-              setEditingService(null);
-              resetForm();
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            <Plus size={20} />
-            Add Service
-          </button>
+          {canCreateService && (
+            <>
+              <button
+                onClick={() => {
+                  resetAiScanModal();
+                  setShowAiScanModal(true);
+                }}
+                className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
+              >
+                <Sparkles size={20} />
+                Add via AI
+              </button>
+              <button
+                onClick={() => {
+                  setEditingService(null);
+                  resetForm();
+                  setShowModal(true);
+                }}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                <Plus size={20} />
+                Add Service
+              </button>
+            </>
+          )}
         </div>
         {/* ==================================================================== */}
       </div>
@@ -537,20 +628,24 @@ export default function Services() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(service)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Edit"
-                      >
-                        <Edit size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(service.id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {canUpdateService && (
+                        <button
+                          onClick={() => handleEdit(service)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      )}
+                      {canDeleteService && (
+                        <button
+                          onClick={() => handleDelete(service.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

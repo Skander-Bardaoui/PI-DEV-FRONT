@@ -28,7 +28,68 @@ interface Supplier {
   name: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
+
+interface BusinessMember {
+  id: string;
+  user_id: string;
+  business_id: string;
+  role: string;
+  collaboration_permissions: any;
+  stock_permissions: {
+    create_product: boolean;
+    update_product: boolean;
+    delete_product: boolean;
+    create_movement: boolean;
+    delete_movement: boolean;
+    create_category: boolean;
+    update_category: boolean;
+    delete_category: boolean;
+    create_warehouse: boolean;
+    update_warehouse: boolean;
+    delete_warehouse: boolean;
+    create_reservation: boolean;
+    delete_reservation: boolean;
+    create_service: boolean;
+    update_service: boolean;
+    delete_service: boolean;
+    create_service_category: boolean;
+    update_service_category: boolean;
+    delete_service_category: boolean;
+  };
+  is_active: boolean;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
 type ViewMode = 'products' | 'services';
+
+async function fetchCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  return res.json();
+}
+
+async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[]> {
+  const res = await fetch(`${API_URL}/businesses/${businessId}/members`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch members');
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.members || []);
+}
 
 export default function StockDashboard() {
   const { businessId } = useBusinessId();
@@ -41,6 +102,51 @@ export default function StockDashboard() {
   const [reservationQuantities, setReservationQuantities] = useState<Record<string, number>>({});
   const [reservationSuppliers, setReservationSuppliers] = useState<Record<string, string>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentMember, setCurrentMember] = useState<BusinessMember | null>(null);
+
+  // Load current user and member on mount
+  useEffect(() => {
+    async function loadUserData() {
+      if (!businessId) return;
+      
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUser(user);
+        
+        const members = await fetchBusinessMembers(businessId);
+        const member = members.find(m => m.user_id === user.id);
+        setCurrentMember(member || null);
+      } catch (err: any) {
+        console.error('Failed to load user data:', err);
+      }
+    }
+    loadUserData();
+  }, [businessId]);
+
+  // Permission checks
+  const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  const stock = currentMember?.stock_permissions;
+  
+  const canCreateProduct = isOwner || stock?.create_product === true;
+  const canUpdateProduct = isOwner || stock?.update_product === true;
+  const canDeleteProduct = isOwner || stock?.delete_product === true;
+  const canCreateMovement = isOwner || stock?.create_movement === true;
+  const canDeleteMovement = isOwner || stock?.delete_movement === true;
+  const canCreateCategory = isOwner || stock?.create_category === true;
+  const canUpdateCategory = isOwner || stock?.update_category === true;
+  const canDeleteCategory = isOwner || stock?.delete_category === true;
+  const canCreateWarehouse = isOwner || stock?.create_warehouse === true;
+  const canUpdateWarehouse = isOwner || stock?.update_warehouse === true;
+  const canDeleteWarehouse = isOwner || stock?.delete_warehouse === true;
+  const canCreateReservation = isOwner || stock?.create_reservation === true;
+  const canDeleteReservation = isOwner || stock?.delete_reservation === true;
+  const canCreateService = isOwner || stock?.create_service === true;
+  const canUpdateService = isOwner || stock?.update_service === true;
+  const canDeleteService = isOwner || stock?.delete_service === true;
+  const canCreateServiceCategory = isOwner || stock?.create_service_category === true;
+  const canUpdateServiceCategory = isOwner || stock?.update_service_category === true;
+  const canDeleteServiceCategory = isOwner || stock?.delete_service_category === true;
 
   const fetchDashboard = async (mode?: ViewMode) => {
     if (!businessId) return;
@@ -238,6 +344,7 @@ export default function StockDashboard() {
             getStockBarColor={getStockBarColor}
             formatCurrency={formatCurrency}
             navigate={navigate}
+            canCreateReservation={canCreateReservation}
           />
         ) : (
           <ServicesView
@@ -265,6 +372,7 @@ interface ProductsViewProps {
   getStockBarColor: (percentage: number) => string;
   formatCurrency: (value: number) => string;
   navigate: any;
+  canCreateReservation: boolean;
 }
 
 function ProductsView({
@@ -281,6 +389,7 @@ function ProductsView({
   getStockBarColor,
   formatCurrency,
   navigate,
+  canCreateReservation,
 }: ProductsViewProps) {
   return (
     <>
@@ -324,18 +433,20 @@ function ProductsView({
                   <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
                     <div className={`h-2 rounded-full ${getStockBarColor(product.stock_percentage)}`} style={{ width: `${Math.min(product.stock_percentage, 100)}%` }}></div>
                   </div>
-                  <div className="space-y-2">
-                    <select value={reservationSuppliers[product.id] || ''} onChange={(e) => setReservationSuppliers((prev) => ({ ...prev, [product.id]: e.target.value }))} className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                      <option value="">Sélectionner fournisseur</option>
-                      {suppliers.map((supplier) => (<option key={supplier.id} value={supplier.id}>{supplier.name}</option>))}
-                    </select>
-                    <div className="flex items-center gap-2">
-                      <input type="number" min="1" placeholder="Qté" value={reservationQuantities[product.id] || ''} onChange={(e) => setReservationQuantities((prev) => ({ ...prev, [product.id]: parseFloat(e.target.value) || 0 }))} className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                      <button onClick={() => handleReserve(product.id)} disabled={reservingProductId === product.id} className="flex items-center gap-1 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <ShoppingCart className="h-3 w-3" />Réserver
-                      </button>
+                  {canCreateReservation && (
+                    <div className="space-y-2">
+                      <select value={reservationSuppliers[product.id] || ''} onChange={(e) => setReservationSuppliers((prev) => ({ ...prev, [product.id]: e.target.value }))} className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Sélectionner fournisseur</option>
+                        {suppliers.map((supplier) => (<option key={supplier.id} value={supplier.id}>{supplier.name}</option>))}
+                      </select>
+                      <div className="flex items-center gap-2">
+                        <input type="number" min="1" placeholder="Qté" value={reservationQuantities[product.id] || ''} onChange={(e) => setReservationQuantities((prev) => ({ ...prev, [product.id]: parseFloat(e.target.value) || 0 }))} className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        <button onClick={() => handleReserve(product.id)} disabled={reservingProductId === product.id} className="flex items-center gap-1 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                          <ShoppingCart className="h-3 w-3" />Réserver
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))
             )}

@@ -14,17 +14,24 @@ export const permissionsApi = {
    * Update member permissions
    * @param businessId - The business ID
    * @param userId - The user ID to update permissions for
-   * @param permissions - The new permission string
+   * @param collaboration_permissions - The new collaboration permissions object
+   * @param stock_permissions - The new stock permissions object
    * @returns The updated business member
    */
   async updateMemberPermissions(
     businessId: string,
     userId: string,
-    permissions: string,
+    collaboration_permissions: UpdatePermissionsDto['collaboration_permissions'],
+    stock_permissions: UpdatePermissionsDto['stock_permissions'],
   ): Promise<BusinessMember> {
+    const body: UpdatePermissionsDto = {
+      collaboration_permissions,
+      stock_permissions,
+    };
+    
     const response = await axiosInstance.patch<BusinessMember>(
       `/businesses/${businessId}/members/${userId}/permissions`,
-      { permissions } as UpdatePermissionsDto,
+      body,
     );
     return response.data;
   },

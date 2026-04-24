@@ -14,6 +14,43 @@ export enum PermissionType {
 }
 
 /**
+ * Collaboration permissions structure
+ */
+export interface CollaborationPermissions {
+  create_task: boolean;
+  update_task: boolean;
+  delete_task: boolean;
+  add_member: boolean;
+  kick_member: boolean;
+  promote_member: boolean;
+}
+
+/**
+ * Stock permissions structure
+ */
+export interface StockPermissions {
+  create_product: boolean;
+  update_product: boolean;
+  delete_product: boolean;
+  create_movement: boolean;
+  delete_movement: boolean;
+  create_category: boolean;
+  update_category: boolean;
+  delete_category: boolean;
+  create_warehouse: boolean;
+  update_warehouse: boolean;
+  delete_warehouse: boolean;
+  create_reservation: boolean;
+  delete_reservation: boolean;
+  create_service: boolean;
+  update_service: boolean;
+  delete_service: boolean;
+  create_service_category: boolean;
+  update_service_category: boolean;
+  delete_service_category: boolean;
+}
+
+/**
  * Business member with permissions
  */
 export interface BusinessMember {
@@ -21,7 +58,8 @@ export interface BusinessMember {
   user_id: string;
   business_id: string;
   role: string;
-  permissions: string;
+  collaboration_permissions: CollaborationPermissions;
+  stock_permissions: StockPermissions;
   is_active: boolean;
   user: {
     id: string;
@@ -38,7 +76,8 @@ export interface BusinessMember {
  * DTO for updating member permissions
  */
 export interface UpdatePermissionsDto {
-  permissions: string;
+  collaboration_permissions?: CollaborationPermissions;
+  stock_permissions?: StockPermissions;
 }
 
 /**
