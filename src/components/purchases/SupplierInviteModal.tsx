@@ -42,7 +42,6 @@ export default function SupplierInviteModal({ businessId, onClose }: Props) {
       inviteSupplier(businessId, { 
         email: data.email, 
         name: data.supplier_name || undefined,
-        message: data.message || undefined,
       }),
     onSuccess: () => {
       setSuccess(true);

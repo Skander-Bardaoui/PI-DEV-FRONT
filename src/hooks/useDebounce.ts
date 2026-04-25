@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+/**
+ * Debounce Hook
+ * Delays updating a value until after a specified delay
+ */
 
-export function useDebounce<T>(value: T, delay: number = 300): T {
+import { useEffect, useState } from 'react';
+
+export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {

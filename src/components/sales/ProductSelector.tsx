@@ -9,11 +9,20 @@ interface ProductSelectorProps {
   disabled?: boolean;
   className?: string;
   onStockInfo?: (stock: number, isStockable: boolean) => void;
+  businessId?: string; // Ajouter businessId en prop
 }
 
-export default function ProductSelector({ value, onChange, disabled, className, onStockInfo }: ProductSelectorProps) {
+export default function ProductSelector({ 
+  value, 
+  onChange, 
+  disabled, 
+  className, 
+  onStockInfo,
+  businessId: propBusinessId // Recevoir businessId en prop
+}: ProductSelectorProps) {
   const { user } = useAuth();
-  const businessId = (user as any)?.business_id;
+  // Utiliser le businessId passé en prop, sinon fallback sur user.business_id
+  const businessId = propBusinessId || (user as any)?.business_id;
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 

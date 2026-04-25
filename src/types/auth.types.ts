@@ -88,11 +88,11 @@ export interface AuthResponse {
   refresh_token: string;
 }
 
-export interface LoginResponse extends AuthResponse {}
+export type LoginResponse = AuthResponse;
 
-export interface RegisterResponse extends AuthResponse {}
+export type RegisterResponse = AuthResponse;
 
-export interface RefreshResponse extends AuthResponse {}
+export type RefreshResponse = AuthResponse;
 
 // ─── Auth Context State ──────────────────────────────────────────────────
 export interface AuthContextType {

@@ -215,7 +215,7 @@ export default function AccessibilityPanel() {
             <h3 className="text-base font-semibold text-gray-900 mb-4">Options avancées</h3>
             <div className="space-y-3">
               <ModernToggle
-                icon={<Target className="h-5 w-5" />}
+                icon={Target}
                 label="Mode Simplifié"
                 description="Interface ultra-simple avec gros boutons et moins d'options"
                 checked={settings.simplifiedMode}
@@ -223,7 +223,7 @@ export default function AccessibilityPanel() {
                 color="teal"
               />
               <ModernToggle
-                icon={<Target className="h-5 w-5" />}
+                icon={Target}
                 label="Mode Focus"
                 description="Assombrit tout sauf l'élément actif"
                 checked={settings.focusMode}
@@ -231,7 +231,7 @@ export default function AccessibilityPanel() {
                 color="orange"
               />
               <ModernToggle
-                icon={<BookOpen className="h-5 w-5" />}
+                icon={BookOpen}
                 label="Mode Lecture"
                 description="Simplifie la page pour une lecture confortable"
                 checked={isReadingMode}
@@ -239,7 +239,7 @@ export default function AccessibilityPanel() {
                 color="yellow"
               />
               <ModernToggle
-                icon={<Volume2 className="h-5 w-5" />}
+                icon={Volume2}
                 label="Lecteur vocal"
                 description="Lit le texte sélectionné à voix haute"
                 checked={settings.textToSpeech}
@@ -247,7 +247,7 @@ export default function AccessibilityPanel() {
                 color="purple"
               />
               <ModernToggle
-                icon={<Hand className="h-5 w-5" />}
+                icon={Hand}
                 label="Contrôle par geste"
                 description="Navigation avec les mains"
                 checked={isFingerScrollActive}
@@ -255,7 +255,7 @@ export default function AccessibilityPanel() {
                 color="blue"
               />
               <ModernToggle
-                icon={<BookOpen className="h-5 w-5" />}
+                icon={BookOpen}
                 label="Police dyslexie"
                 description="Police adaptée pour la dyslexie"
                 checked={settings.dyslexiaFont}
@@ -263,7 +263,7 @@ export default function AccessibilityPanel() {
                 color="green"
               />
               <ModernToggle
-                icon={<LinkIcon className="h-5 w-5" />}
+                icon={LinkIcon}
                 label="Surligner les liens"
                 description="Rend les liens plus visibles"
                 checked={settings.highlightLinks}
@@ -271,7 +271,7 @@ export default function AccessibilityPanel() {
                 color="indigo"
               />
               <ModernToggle
-                icon={<Zap className="h-5 w-5" />}
+                icon={Zap}
                 label="Réduire les animations"
                 description="Moins de mouvements à l'écran"
                 checked={settings.reduceAnimations}
@@ -296,7 +296,7 @@ export default function AccessibilityPanel() {
 }
 
 interface ModernToggleProps {
-  icon:         React.ReactNode;
+  icon:         React.ComponentType<{ className?: string }>;
   label:        string;
   description:  string;
   checked:      boolean;
@@ -304,7 +304,7 @@ interface ModernToggleProps {
   color:        'orange' | 'purple' | 'blue' | 'green' | 'indigo' | 'yellow' | 'teal' | 'pink';
 }
 
-function ModernToggle({ icon, label, description, checked, onChange, color }: ModernToggleProps) {
+function ModernToggle({ icon: Icon, label, description, checked, onChange, color }: ModernToggleProps) {
   const colorClasses = {
     orange:  { bg: 'bg-orange-100',  text: 'text-orange-600',  border: 'border-orange-500',  activeBg: 'bg-orange-500'  },
     purple:  { bg: 'bg-purple-100',  text: 'text-purple-600',  border: 'border-purple-500',  activeBg: 'bg-purple-500'  },
@@ -325,9 +325,7 @@ function ModernToggle({ icon, label, description, checked, onChange, color }: Mo
         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
     }`}>
       <div className={`p-2 rounded-lg ${checked ? colors.bg : 'bg-gray-100'}`}>
-        <div className={checked ? colors.text : 'text-gray-400'}>
-          {icon}
-        </div>
+        <Icon className={`h-5 w-5 ${checked ? colors.text : 'text-gray-400'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <div className={`text-sm font-semibold ${checked ? colors.text : 'text-gray-700'}`}>
