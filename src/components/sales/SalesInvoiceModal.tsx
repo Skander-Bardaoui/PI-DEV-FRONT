@@ -310,6 +310,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
                     <tr key={field.id} className={stockWarning ? 'bg-red-50' : ''}>
                       <td className="px-4 py-2">
                         <ProductSelector
+                          businessId={businessId}
                           value={watchedItems[i]?.productId}
                           onChange={(product) => handleProductSelect(i, product)}
                           className={inputSmallCls()}

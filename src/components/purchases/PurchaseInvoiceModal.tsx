@@ -65,7 +65,6 @@ export function PurchaseInvoiceModal({ businessId, onClose }: Props) {
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      invoice_number_supplier: '',
       supplier_id:   '',
       supplier_po_id: '',
       invoice_date:  new Date().toISOString().split('T')[0],
@@ -153,9 +152,9 @@ export function PurchaseInvoiceModal({ businessId, onClose }: Props) {
     try {
       // Nettoyer et valider les données avant envoi
       const cleanedData = {
-        invoice_number_supplier: values.invoice_number_supplier,
         supplier_id:    values.supplier_id,
         supplier_po_id: values.supplier_po_id || undefined,
+        goods_receipt_id: selectedGRId || undefined, // Ajouter l'ID du BR sélectionné
         invoice_date:   values.invoice_date,
         due_date:       values.due_date || undefined,
         subtotal_ht:    Number(values.subtotal_ht) || 0,
@@ -485,16 +484,19 @@ export function PurchaseInvoiceModal({ businessId, onClose }: Props) {
                 label="Identification"
               />
               <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    N° facture fournisseur <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    {...register('invoice_number_supplier')}
-                    className={inputCls(errors.invoice_number_supplier?.message)}
-                    placeholder="Ex: FACT-2024-0042"
-                  />
-                  <FieldError msg={errors.invoice_number_supplier?.message} />
+                {/* Info: Numéro auto-généré */}
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-indigo-900">Numéro de facture auto-généré</p>
+                      <p className="text-xs text-indigo-700 mt-0.5">
+                        Un numéro unique sera créé automatiquement (ex: FACT-2026-0001)
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {creationMode === 'manual' && (

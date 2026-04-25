@@ -412,7 +412,6 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
   const [error, setError]     = useState('');
 
   const [form, setForm] = useState({
-    invoice_number_supplier: '',
     invoice_date: '',
     supplier_id: '',
     subtotal_ht: '',
@@ -423,7 +422,6 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
   });
 
   const [conf, setConf] = useState<Record<string, ConfidenceLevel>>({
-    invoice_number_supplier: 'not_found',
     invoice_date: 'not_found',
     supplier_name: 'not_found',
     subtotal_ht: 'not_found',
@@ -444,7 +442,6 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
       const result = await ocr.mutateAsync(file);
       setOcrData(result);
       setForm({
-        invoice_number_supplier: result.invoice_number_supplier.value ?? '',
         invoice_date:            result.invoice_date.value ?? '',
         supplier_id:             '',
         subtotal_ht:             result.subtotal_ht.value?.toString() ?? '',
@@ -454,7 +451,6 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
         receipt_url:             result.file_url,
       });
       setConf({
-        invoice_number_supplier: result.invoice_number_supplier.confidence,
         invoice_date:            result.invoice_date.confidence,
         supplier_name:           result.supplier_name.confidence,
         subtotal_ht:             result.subtotal_ht.confidence,
@@ -470,14 +466,13 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
   };
 
   const handleCreate = async () => {
-    if (!form.invoice_number_supplier || !form.invoice_date || !form.supplier_id) {
-      setError('Veuillez remplir : N° facture, date et fournisseur.');
+    if (!form.invoice_date || !form.supplier_id) {
+      setError('Veuillez remplir : date et fournisseur.');
       return;
     }
     setError('');
     try {
       await create.mutateAsync({
-        invoice_number_supplier: form.invoice_number_supplier,
         invoice_date:   form.invoice_date,
         supplier_id:    form.supplier_id,
         subtotal_ht:    parseFloat(form.subtotal_ht)    || 0,
@@ -592,12 +587,31 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
                   <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <FileText size={12} /> Identification
                   </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <OcrField label="N° Facture fournisseur" value={form.invoice_number_supplier}
-                      confidence={conf.invoice_number_supplier} onChange={upd('invoice_number_supplier')} required />
-                    <OcrField label="Date de facture" value={form.invoice_date}
-                      confidence={conf.invoice_date} onChange={upd('invoice_date')} type="date" required />
+                  
+                  {/* Info message about auto-generated invoice number */}
+                  <div style={{ 
+                    padding: '10px 12px', 
+                    background: 'linear-gradient(135deg, #EEF2FF, #E0E7FF)', 
+                    border: '1px solid #C7D2FE', 
+                    borderRadius: 8, 
+                    marginBottom: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}>
+                    <CheckCircle size={14} color="#4F46E5" />
+                    <div>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: '#4338CA' }}>
+                        Numéro de facture auto-généré
+                      </p>
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6366F1' }}>
+                        Un numéro unique sera créé automatiquement (ex: FACT-2026-0001)
+                      </p>
+                    </div>
                   </div>
+
+                  <OcrField label="Date de facture" value={form.invoice_date}
+                    confidence={conf.invoice_date} onChange={upd('invoice_date')} type="date" required />
                 </div>
 
                 {/* Section : Fournisseur */}
@@ -709,13 +723,13 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
               </div>
               <h3 style={{ fontWeight: 700, fontSize: 20, marginBottom: 8, color: '#1F2937' }}>Facture créée !</h3>
               <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 8 }}>
-                La facture <strong style={{ color: '#1F2937' }}>{form.invoice_number_supplier}</strong> a été créée
+                La facture a été créée avec succès avec un <strong style={{ color: '#4F46E5' }}>numéro auto-généré</strong>
               </p>
               <p style={{ color: '#9CA3AF', fontSize: 12, marginBottom: 28 }}>
                 Extraite automatiquement par IA en {ocrData?.processing_time_ms}ms
               </p>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                <button onClick={() => { setStep('upload'); setOcrData(null); setForm({ invoice_number_supplier: '', invoice_date: '', supplier_id: '', subtotal_ht: '', tax_amount: '', timbre_fiscal: '1.000', net_amount: '', receipt_url: '' }); }}
+                <button onClick={() => { setStep('upload'); setOcrData(null); setForm({ invoice_date: '', supplier_id: '', subtotal_ht: '', tax_amount: '', timbre_fiscal: '1.000', net_amount: '', receipt_url: '' }); }}
                   style={{ padding: '11px 20px', border: '1.5px solid #E5E7EB', borderRadius: 12, cursor: 'pointer', background: '#fff', fontSize: 13, fontWeight: 500, color: '#374151' }}>
                   Importer une autre
                 </button>

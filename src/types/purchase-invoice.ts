@@ -42,13 +42,15 @@ export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
 // ── Facture Fournisseur ───────────────────────────────────────────────────
 export interface PurchaseInvoice {
   id:                      string;
-  invoice_number_supplier: string;
+  invoice_number:          string;  // Numéro interne auto-généré (FACT-2026-0001)
+  invoice_number_supplier: string | null;  // Numéro du fournisseur (optionnel)
   status:                  InvoiceStatus;
   business_id:             string;
   supplier_id:             string;
   supplier:                Supplier;
   supplier_po_id:          string | null;
   supplier_po:             SupplierPO | null;
+  goods_receipt_id:        string | null;  // Lien vers le BR spécifique
   invoice_date:            string;
   due_date:                string;
   subtotal_ht:             number;

@@ -174,10 +174,14 @@ export default function SupplierIntelligencePage() {
     setPage(1); // Reset à la page 1 lors du tri
   };
 
-  const SortIcon = ({ field }: { field: SortField }) =>
-    sortField === field
-      ? (sortDir === 'asc' ? <ChevronUp className="h-3 w-3 inline ml-1" /> : <ChevronDown className="h-3 w-3 inline ml-1" />)
-      : <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField === field) {
+      return sortDir === 'asc' 
+        ? <ChevronUp className="h-3 w-3 inline ml-1" /> 
+        : <ChevronDown className="h-3 w-3 inline ml-1" />;
+    }
+    return <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  };
 
   const grades: Record<ScoreGrade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
   ranking.forEach(r => grades[r.grade]++);

@@ -100,10 +100,14 @@ export default function SuppliersPage() {
     else { setSortField(field); setSortDir('asc'); }
   };
 
-  const SortIcon = ({ field }: { field: SortField }) =>
-    sortField === field
-      ? (sortDir === 'asc' ? <ChevronUp className="h-3 w-3 inline ml-1" /> : <ChevronDown className="h-3 w-3 inline ml-1" />)
-      : <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField === field) {
+      return sortDir === 'asc' 
+        ? <ChevronUp className="h-3 w-3 inline ml-1" /> 
+        : <ChevronDown className="h-3 w-3 inline ml-1" />;
+    }
+    return <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  };
 
   const hasActiveFilters = search || categoryFilter || showInactive;
   const clearFilters = () => { setSearch(''); setCategoryFilter(''); setShowInactive(false); setPage(1); };
@@ -257,9 +261,8 @@ export default function SuppliersPage() {
           <LoadingSpinner size="lg" message="Chargement des fournisseurs..." />
         ) : !isNonEmptyArray(sorted) ? (
           <EmptyState 
-            icon={Building2}
+            icon={<Building2 className="h-16 w-16 text-gray-400" />}
             message="Aucun fournisseur trouvé"
-            description={hasActiveFilters ? "Essayez de modifier vos filtres" : "Commencez par créer votre premier fournisseur"}
             action={!hasActiveFilters ? { label: "Nouveau fournisseur", onClick: openCreate } : undefined}
           />
         ) : (

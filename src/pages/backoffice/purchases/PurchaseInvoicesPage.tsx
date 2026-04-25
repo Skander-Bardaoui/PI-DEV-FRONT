@@ -138,10 +138,14 @@ export default function PurchaseInvoicesPage() {
     else { setSortField(field); setSortDir('asc'); }
   };
 
-  const SortIcon = ({ field }: { field: SortField }) =>
-    sortField === field
-      ? (sortDir === 'asc' ? <ChevronUp className="h-3 w-3 inline ml-1" /> : <ChevronDown className="h-3 w-3 inline ml-1" />)
-      : <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField === field) {
+      return sortDir === 'asc' 
+        ? <ChevronUp className="h-3 w-3 inline ml-1" /> 
+        : <ChevronDown className="h-3 w-3 inline ml-1" />;
+    }
+    return <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  };
 
   const totalPages = data?.total_pages ?? 1;
 
@@ -296,9 +300,14 @@ export default function PurchaseInvoicesPage() {
                     <tr key={inv.id} className="hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-purple-50/30 transition-all duration-200">
 
                       <td className="px-4 py-4">
-                        <span className="font-mono text-sm font-medium text-gray-900">
-                          {inv.invoice_number_supplier || '—'}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className="font-mono text-sm font-bold text-indigo-600">
+                            {inv.invoice_number || '—'}
+                          </span>
+                          <span className="font-mono text-xs text-gray-500">
+                            Fournisseur: {inv.invoice_number_supplier || '—'}
+                          </span>
+                        </div>
                       </td>
 
                       <td className="px-4 py-4">

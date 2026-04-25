@@ -140,10 +140,14 @@ export default function SupplierPOsPage() {
     else { setSortField(field); setSortDir('asc'); }
   };
 
-  const SortIcon = ({ field }: { field: SortField }) =>
-    sortField === field
-      ? (sortDir === 'asc' ? <ChevronUp className="h-3 w-3 inline ml-1" /> : <ChevronDown className="h-3 w-3 inline ml-1" />)
-      : <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField === field) {
+      return sortDir === 'asc' 
+        ? <ChevronUp className="h-3 w-3 inline ml-1" /> 
+        : <ChevronDown className="h-3 w-3 inline ml-1" />;
+    }
+    return <span className="h-3 w-3 inline ml-1 opacity-30">↕</span>;
+  };
   const totalPages = data?.total_pages ?? 1;
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -252,7 +256,7 @@ export default function SupplierPOsPage() {
           <LoadingSpinner size="lg" message="Chargement des bons de commande..." />
         ) : !isNonEmptyArray(sorted) ? (
           <EmptyState 
-            icon={ShoppingCart}
+            icon={<ShoppingCart className="h-16 w-16 text-gray-400" />}
             message="Aucun bon de commande"
             description={hasActiveFilters ? "Essayez de modifier vos filtres" : "Commencez par créer votre premier bon de commande"}
             action={!hasActiveFilters ? { label: "Nouveau BC", onClick: () => setModalOpen(true) } : undefined}
