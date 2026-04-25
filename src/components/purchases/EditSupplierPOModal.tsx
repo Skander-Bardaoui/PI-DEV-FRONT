@@ -190,6 +190,7 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
                     <tr key={i}>
                       <td className="px-4 py-2">
                         <ProductSelectorPurchase
+                          businessId={businessId}
                           value={line.product_id}
                           onChange={(product) => handleProductSelect(i, product)}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm"

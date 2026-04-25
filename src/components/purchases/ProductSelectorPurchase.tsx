@@ -8,16 +8,19 @@ interface ProductSelectorPurchaseProps {
   onChange: (product: Product | null) => void;
   disabled?: boolean;
   className?: string;
+  businessId?: string; // Ajouter businessId en prop
 }
 
 export default function ProductSelectorPurchase({ 
   value, 
   onChange, 
   disabled, 
-  className 
+  className,
+  businessId: propBusinessId // Recevoir businessId en prop
 }: ProductSelectorPurchaseProps) {
   const { user } = useAuth();
-  const businessId = (user as any)?.business_id;
+  // Utiliser le businessId passé en prop, sinon fallback sur user.business_id
+  const businessId = propBusinessId || (user as any)?.business_id;
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 

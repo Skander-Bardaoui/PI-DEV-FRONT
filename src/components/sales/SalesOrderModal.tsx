@@ -262,6 +262,7 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
                     <tr key={field.id} className={stockWarning || hasError ? 'bg-red-50' : ''}>
                       <td className="px-4 py-2">
                         <ProductSelector
+                          businessId={businessId}
                           value={watchedItems[i]?.product_id}
                           onChange={(product) => handleProductSelect(i, product)}
                           className={inputSmallCls(errors.items?.[i]?.product_id?.message)}

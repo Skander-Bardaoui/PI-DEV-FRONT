@@ -325,12 +325,6 @@ export type GoodsReceiptFormValues = z.infer<typeof goodsReceiptSchema>;
 // 5. FACTURE FOURNISSEUR
 // ══════════════════════════════════════════════════════════════════════════════
 export const purchaseInvoiceSchema = z.object({
-  invoice_number_supplier: z
-    .string({ required_error: 'Le numéro de facture est obligatoire' })
-    .trim()
-    .min(1, 'Le numéro de facture est obligatoire')
-    .max(100, 'Numéro de facture trop long'),
-
   supplier_id: z
     .string({ required_error: 'Le fournisseur est obligatoire' })
     .trim()
@@ -340,6 +334,12 @@ export const purchaseInvoiceSchema = z.object({
   supplier_po_id: z
     .string()
     .uuid('Bon de commande invalide')
+    .optional()
+    .or(z.literal('')),
+
+  goods_receipt_id: z
+    .string()
+    .uuid('Bon de réception invalide')
     .optional()
     .or(z.literal('')),
 
@@ -467,8 +467,7 @@ export const aiPOGeneratorSchema = z.object({
   text: z
     .string({ required_error: 'Le texte est obligatoire' })
     .trim()
-    .min(1, 'Le texte est obligatoire')
-    .min(10, 'Le texte doit contenir au moins 10 caractères')
+    .min(10, 'Le texte de commande est trop court (minimum 10 caractères).')
     .max(5000, 'Le texte ne peut pas dépasser 5000 caractères'),
 });
 

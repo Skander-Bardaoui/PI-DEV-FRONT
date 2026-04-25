@@ -286,6 +286,7 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
                     <tr key={field.id}>
                       <td className="px-4 py-2">
                         <ProductSelectorPurchase
+                          businessId={businessId}
                           value={watchedItems[i]?.product_id}
                           onChange={(product) => handleProductSelect(i, product)}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm"

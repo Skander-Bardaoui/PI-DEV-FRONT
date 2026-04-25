@@ -4,12 +4,9 @@
 // Exemple: "Commander 500 kg de farine chez Ali Boulangerie pour le 15 avril"
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Sparkles, CheckCircle, AlertTriangle, Loader } from 'lucide-react';
 import axiosInstance from '@/api/axiosInstance';
 import { useQueryClient } from '@tanstack/react-query';
-import { aiPOGeneratorSchema, AiPOGeneratorFormValues } from '@/schemas/purchases.schemas';
 
 interface GeneratedPO {
   supplier_id: string;
@@ -37,20 +34,13 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
   const [generated, setGenerated] = useState<GeneratedPO | null>(null);
   const [creating, setCreating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [text, setText] = useState('');
+  const [textError, setTextError] = useState('');
 
   const queryClient = useQueryClient();
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<AiPOGeneratorFormValues>({
-    resolver: zodResolver(aiPOGeneratorSchema),
-    defaultValues: {
-      text: '',
-    },
-  });
+  // Version du composant pour forcer le rechargement du cache
+  console.log('🔄 AiPOGeneratorModal chargé - Version: 2024-04-25-FINAL');
 
   const examples = [
     "Commander 500 kg de farine chez Ali Boulangerie pour le 15 avril",
@@ -58,21 +48,42 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
     "Prendre 50 litres d'huile d'olive chez Olive & Co pour demain",
   ];
 
-  const onSubmit = async (data: AiPOGeneratorFormValues) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('📝 Soumission du formulaire - Texte actuel:', text);
+    console.log('📝 Texte après trim:', text.trim());
+    console.log('📝 Longueur du texte:', text.trim().length);
+    
+    // Pas de validation frontend - laisser le backend gérer
+    console.log('🚀 Envoi de la requête à l\'API...');
+    console.log('🚀 Payload:', { text: text.trim() });
+    
     setLoading(true);
     setError('');
+    setTextError(''); // Effacer toute erreur précédente
     setGenerated(null);
 
     try {
       const { data: result } = await axiosInstance.post(
         `/businesses/${businessId}/supplier-pos/generate-from-text`,
-        { text: data.text.trim() },
+        { text: text.trim() },
       );
+      console.log('✅ Réponse reçue:', result);
       setGenerated(result);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Erreur lors de la génération');
+      console.error('❌ Erreur API:', err);
+      console.error('❌ Réponse du serveur:', err?.response?.data);
+      console.error('❌ Status:', err?.response?.status);
+      
+      const errorMessage = err?.response?.data?.message || err?.response?.data?.error || 'Erreur lors de la génération';
+      setError(errorMessage);
+      
+      // Afficher aussi l'erreur dans le champ texte si c'est une erreur de validation
+      if (errorMessage.includes('texte') || errorMessage.includes('obligatoire')) {
+        setTextError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -140,7 +151,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6">
+        <form onSubmit={onSubmit} className="p-6">
           
           {/* Exemples */}
           <div className="mb-4">
@@ -150,7 +161,10 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
                 <button
                   key={i}
                   type="button"
-                  onClick={() => setValue('text', ex)}
+                  onClick={() => {
+                    setText(ex);
+                    setTextError('');
+                  }}
                   className="text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors border border-purple-200"
                 >
                   {ex}
@@ -165,15 +179,22 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
               Décrivez votre commande <span className="text-red-500">*</span>
             </label>
             <textarea
-              {...register('text')}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (textError) setTextError('');
+              }}
               placeholder="Ex: Commander 500 kg de farine chez Ali Boulangerie pour le 15 avril"
               rows={4}
               className={`w-full px-4 py-3 border-2 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none ${
-                errors.text ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                textError ? 'border-red-400 bg-red-50' : 'border-gray-300'
               }`}
             />
-            {errors.text && (
-              <p className="text-red-500 text-xs mt-1">{errors.text.message}</p>
+            {textError && (
+              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-800">{textError}</p>
+              </div>
             )}
             <p className="text-xs text-gray-500 mt-1">
               Mentionnez : le produit, la quantité, le fournisseur (et optionnellement la date)
@@ -294,7 +315,10 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setGenerated(null)}
+                onClick={() => {
+                  setGenerated(null);
+                  setTextError('');
+                }}
                 className="flex-1 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 Modifier

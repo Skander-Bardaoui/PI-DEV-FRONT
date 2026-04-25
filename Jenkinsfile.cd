@@ -17,7 +17,7 @@ pipeline {
     environment {
         // Docker Configuration
         DOCKER_REGISTRY_URL = 'https://index.docker.io/v1/'
-        IMAGE_NAME = 'imen077/pi-dev-frontend'
+        IMAGE_NAME = 'imen077pi-dev-frontend/'
         IMAGE_TAG = "${params.BUILD_NUMBER ?: env.BUILD_NUMBER}"
         DOCKER_CREDENTIALS_ID = 'docker-credentials'
         
@@ -85,10 +85,10 @@ pipeline {
                     sh """
                         docker build \
                           --build-arg BUILD_DATE=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                          --build-arg VCS_REF=${params.GIT_COMMIT} \
+                          --build-arg VCS_REF=${params.GIT_COMMIT ?: env.GIT_COMMIT} \
                           --build-arg VERSION=${IMAGE_TAG} \
                           --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                          --label org.opencontainers.image.revision=${params.GIT_COMMIT} \
+                          --label org.opencontainers.image.revision=${params.GIT_COMMIT ?: env.GIT_COMMIT} \
                           --label org.opencontainers.image.version=${IMAGE_TAG} \
                           -t ${IMAGE_NAME}:${IMAGE_TAG} \
                           -t ${IMAGE_NAME}:latest \
@@ -223,11 +223,6 @@ pipeline {
                             echo "📝 Recent Events:"
                             kubectl --kubeconfig="$KUBECONFIG_FILE" get events -n ${NAMESPACE} \
                                 --sort-by=.lastTimestamp | tail -10
-                            
-                            echo ""
-                            echo "🏥 Pod Health:"
-                            kubectl --kubeconfig="$KUBECONFIG_FILE" get pods -n ${NAMESPACE} -l app=frontend \
-                                -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\t"}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
                         '''
                     }
                 }

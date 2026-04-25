@@ -16,6 +16,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { useMLRecommendations, useMLHealth } from '../../../hooks/useMLPredictions';
 import { PredictionResponse } from '../../../types/ml-predictions';
+import { LoadingSpinner } from '../../../components/common/LoadingSpinner';
+import { ErrorMessage } from '../../../components/common/ErrorMessage';
+import { EmptyState } from '../../../components/common/EmptyState';
+import { formatCurrency, formatDate } from '../../../utils/formatters';
+import { safeArrayAccess, isNonEmptyArray } from '../../../utils/validators';
+import { safeSum } from '../../../utils/safeOperations';
 
 const MLPredictionsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,7 +33,8 @@ const MLPredictionsPage: React.FC = () => {
   // Filtrer par urgence
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'urgent' | 'soon' | 'planned' | 'processed'>('all');
 
-  const filteredRecommendations = recommendations?.recommendations.filter((rec) => {
+  const filteredRecommendations = recommendations?.recommendations?.filter((rec) => {
+    if (!rec) return false;
     if (urgencyFilter === 'all') return true;
     if (urgencyFilter === 'processed') return rec.is_processed;
     if (rec.is_processed) return false; // Ne pas afficher les traitées dans les autres filtres
@@ -42,7 +49,7 @@ const MLPredictionsPage: React.FC = () => {
     
     // Sinon trier par urgence
     const urgencyOrder = { urgent: 0, soon: 1, planned: 2 };
-    return urgencyOrder[a.urgency_level] - urgencyOrder[b.urgency_level];
+    return (urgencyOrder[a.urgency_level] ?? 2) - (urgencyOrder[b.urgency_level] ?? 2);
   });
 
   // Icône de tendance
@@ -101,18 +108,22 @@ const MLPredictionsPage: React.FC = () => {
 
   // Fonction pour créer un BC à partir d'une prédiction
   const handleCreatePO = (prediction: PredictionResponse) => {
-    // Stocker les données de la prédiction dans sessionStorage
-    sessionStorage.setItem('mlPrediction', JSON.stringify({
-      productId: prediction.product_id,
-      productName: prediction.product_name,
-      quantity: Math.ceil(prediction.predicted_quantity),
-      estimatedValue: prediction.estimated_value,
-      urgency: prediction.urgency_level,
-      recommendation: prediction.recommendation,
-    }));
-    
-    // Rediriger vers la page des bons de commande
-    navigate('/app/purchases/orders');
+    try {
+      // Stocker les données de la prédiction dans sessionStorage
+      sessionStorage.setItem('mlPrediction', JSON.stringify({
+        productId: prediction.product_id,
+        productName: prediction.product_name,
+        quantity: Math.ceil(prediction.predicted_quantity),
+        estimatedValue: prediction.estimated_value,
+        urgency: prediction.urgency_level,
+        recommendation: prediction.recommendation,
+      }));
+      
+      // Rediriger vers la page des bons de commande
+      navigate('/app/purchases/orders');
+    } catch (error) {
+      console.error('Error saving ML prediction:', error);
+    }
   };
 
   return (
@@ -176,14 +187,14 @@ const MLPredictionsPage: React.FC = () => {
       </div>
 
       {/* Statistiques globales */}
-      {recommendations && (
+      {recommendations && isNonEmptyArray(recommendations.recommendations) && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Recommandations Actives</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {recommendations.recommendations.filter(r => !r.is_processed).length}
+                  {recommendations.recommendations.filter(r => r && !r.is_processed).length}
                 </p>
               </div>
               <ChartBarIcon className="h-10 w-10 text-indigo-600" />
@@ -195,7 +206,7 @@ const MLPredictionsPage: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-600">À Commander Maintenant</p>
                 <p className="text-2xl font-bold text-red-600 mt-1">
-                  {recommendations.recommendations.filter(r => !r.is_processed && r.urgency_level === 'urgent').length}
+                  {recommendations.recommendations.filter(r => r && !r.is_processed && r.urgency_level === 'urgent').length}
                 </p>
               </div>
               <ExclamationTriangleIcon className="h-10 w-10 text-red-600" />
@@ -207,10 +218,14 @@ const MLPredictionsPage: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-600">Valeur Totale Estimée</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">
-                  {recommendations.recommendations
-                    .filter(r => !r.is_processed)
-                    .reduce((sum, r) => sum + (r.estimated_value || 0), 0)
-                    .toFixed(2)} TND
+                  {formatCurrency(
+                    safeSum(
+                      recommendations.recommendations
+                        .filter(r => r && !r.is_processed)
+                        .map(r => r.estimated_value || 0)
+                    ),
+                    'TND'
+                  )}
                 </p>
               </div>
               <CurrencyDollarIcon className="h-10 w-10 text-green-600" />
@@ -283,105 +298,103 @@ const MLPredictionsPage: React.FC = () => {
 
       {/* Liste des recommandations */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-        </div>
+        <LoadingSpinner size="lg" message="Chargement des prédictions..." />
       ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <ExclamationTriangleIcon className="h-12 w-12 text-red-600 mx-auto mb-3" />
-          <p className="text-red-800 font-medium">Erreur lors du chargement des prédictions</p>
-          <p className="text-red-600 text-sm mt-1">
-            Vérifiez que le service ML est démarré
-          </p>
-        </div>
-      ) : !sortedRecommendations || sortedRecommendations.length === 0 ? (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-          <ChartBarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Aucune recommandation disponible</p>
-          <p className="text-gray-500 text-sm mt-1">
-            Assurez-vous d'avoir un historique d'achat suffisant
-          </p>
-        </div>
+        <ErrorMessage
+          title="Erreur lors du chargement des prédictions"
+          message="Vérifiez que le service ML est démarré"
+          onRetry={() => refetch()}
+        />
+      ) : !isNonEmptyArray(sortedRecommendations) ? (
+        <EmptyState
+          icon={<ChartBarIcon className="h-16 w-16 text-gray-400 mb-4" aria-hidden="true" />}
+          title="Aucune recommandation disponible"
+          message="Assurez-vous d'avoir un historique d'achat suffisant"
+        />
       ) : (
         <div className="space-y-4">
-          {sortedRecommendations.map((prediction: PredictionResponse) => (
-            <div
-              key={prediction.product_id}
-              className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-start justify-between">
-                {/* Informations produit */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-lg font-bold text-gray-900">
-                      {prediction.product_name}
-                    </h3>
-                    {prediction.is_processed ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-green-100 text-green-800 border-green-200">
-                        ✅ BC créé {prediction.supplier_po_number && `(${prediction.supplier_po_number})`}
-                      </span>
-                    ) : (
-                      getUrgencyBadge(prediction.urgency_level)
-                    )}
-                    {getTrendIcon(prediction.trend)}
-                  </div>
-
-                  {/* Recommandation */}
-                  <p className="text-gray-700 mb-4">{prediction.recommendation}</p>
-
-                  {/* Métriques */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div>
-                      <p className="text-xs text-gray-500">Quantité prédite</p>
-                      <p className="text-lg font-bold text-indigo-600">
-                        {prediction.predicted_quantity.toFixed(0)} unités
-                      </p>
+          {sortedRecommendations.map((prediction: PredictionResponse) => {
+            if (!prediction) return null;
+            
+            return (
+              <div
+                key={prediction.product_id}
+                className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  {/* Informations produit */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {prediction.product_name || 'Produit inconnu'}
+                      </h3>
+                      {prediction.is_processed ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-green-100 text-green-800 border-green-200">
+                          ✅ BC créé {prediction.supplier_po_number && `(${prediction.supplier_po_number})`}
+                        </span>
+                      ) : (
+                        getUrgencyBadge(prediction.urgency_level)
+                      )}
+                      {getTrendIcon(prediction.trend)}
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Date prédite</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {new Date(prediction.predicted_date).toLocaleDateString('fr-FR')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Jours restants</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {prediction.days_until_order} jours
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Valeur estimée</p>
-                      <p className="text-lg font-bold text-green-600">
-                        {prediction.estimated_value?.toFixed(2) || '0.00'} TND
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Barre de confiance */}
-                  <ConfidenceBar confidence={prediction.confidence} />
-                </div>
+                    {/* Recommandation */}
+                    <p className="text-gray-700 mb-4">{prediction.recommendation || 'Aucune recommandation'}</p>
 
-                {/* Actions */}
-                <div className="ml-6">
-                  {prediction.is_processed ? (
-                    <div className="text-center">
-                      <div className="text-green-600 text-sm font-medium mb-1">✓ Traité</div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(prediction.processed_at!).toLocaleDateString('fr-FR')}
+                    {/* Métriques */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div>
+                        <p className="text-xs text-gray-500">Quantité prédite</p>
+                        <p className="text-lg font-bold text-indigo-600">
+                          {Math.ceil(prediction.predicted_quantity || 0)} unités
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Date prédite</p>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {formatDate(prediction.predicted_date, 'short')}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Jours restants</p>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {prediction.days_until_order || 0} jours
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Valeur estimée</p>
+                        <p className="text-lg font-bold text-green-600">
+                          {formatCurrency(prediction.estimated_value || 0, 'TND')}
+                        </p>
                       </div>
                     </div>
-                  ) : (
-                    <button 
-                      onClick={() => handleCreatePO(prediction)}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-                    >
-                      Créer BC
-                    </button>
-                  )}
+
+                    {/* Barre de confiance */}
+                    <ConfidenceBar confidence={prediction.confidence || 0} />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="ml-6">
+                    {prediction.is_processed ? (
+                      <div className="text-center">
+                        <div className="text-green-600 text-sm font-medium mb-1">✓ Traité</div>
+                        <div className="text-xs text-gray-500">
+                          {prediction.processed_at ? formatDate(prediction.processed_at, 'short') : '—'}
+                        </div>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => handleCreatePO(prediction)}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                      >
+                        Créer BC
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
