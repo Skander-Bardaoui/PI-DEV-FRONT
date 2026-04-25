@@ -6,6 +6,62 @@ import { categoriesApi } from '../../api/categories.api';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../types/category';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
+
+interface BusinessMember {
+  id: string;
+  user_id: string;
+  business_id: string;
+  role: string;
+  stock_permissions: {
+    create_product: boolean;
+    update_product: boolean;
+    delete_product: boolean;
+    create_movement: boolean;
+    delete_movement: boolean;
+    create_category: boolean;
+    update_category: boolean;
+    delete_category: boolean;
+    create_warehouse: boolean;
+    update_warehouse: boolean;
+    delete_warehouse: boolean;
+    create_reservation: boolean;
+    delete_reservation: boolean;
+    create_service: boolean;
+    update_service: boolean;
+    delete_service: boolean;
+    create_service_category: boolean;
+    update_service_category: boolean;
+    delete_service_category: boolean;
+  };
+  is_active: boolean;
+}
+
+async function fetchCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  return res.json();
+}
+
+async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[]> {
+  const res = await fetch(`${API_URL}/businesses/${businessId}/members`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch members');
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.members || []);
+}
+
 export default function Categories() {
   const { user } = useAuth();
   const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
@@ -20,6 +76,37 @@ export default function Categories() {
     name: '',
     description: '',
   });
+  
+  // User and member state for permissions
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentMember, setCurrentMember] = useState<BusinessMember | null>(null);
+
+  // Load current user and member on mount
+  useEffect(() => {
+    async function loadUserData() {
+      if (!businessId) return;
+      
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUser(user);
+        
+        const members = await fetchBusinessMembers(businessId);
+        const member = members.find(m => m.user_id === user.id);
+        setCurrentMember(member || null);
+      } catch (err: any) {
+        console.error('Failed to load user data:', err);
+      }
+    }
+    loadUserData();
+  }, [businessId]);
+
+  // Permission checks
+  const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  const stock = currentMember?.stock_permissions;
+  
+  const canCreateCategory = isOwner || stock?.create_category === true;
+  const canUpdateCategory = isOwner || stock?.update_category === true;
+  const canDeleteCategory = isOwner || stock?.delete_category === true;
 
   useEffect(() => {
     if (businessId) {
@@ -114,17 +201,19 @@ export default function Categories() {
         {/* ==================== Alaa change for service type ==================== */}
         <h1 className="text-2xl font-bold">Product Categories</h1>
         {/* ==================================================================== */}
-        <button
-          onClick={() => {
-            setEditingCategory(null);
-            setFormData({ name: '', description: '' });
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={20} />
-          New Category
-        </button>
+        {canCreateCategory && (
+          <button
+            onClick={() => {
+              setEditingCategory(null);
+              setFormData({ name: '', description: '' });
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            <Plus size={20} />
+            New Category
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -206,18 +295,22 @@ export default function Categories() {
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(category)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {canUpdateCategory && (
+                      <button
+                        onClick={() => handleEdit(category)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
+                      >
+                        <Edit size={18} />
+                      </button>
+                    )}
+                    {canDeleteCategory && (
+                      <button
+                        onClick={() => handleDelete(category.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

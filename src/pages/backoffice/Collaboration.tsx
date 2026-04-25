@@ -51,8 +51,6 @@ import { io, Socket } from 'socket.io-client';
 import { activitiesApi, Activity } from '../../api/activities.api';
 import StatisticsDashboard from '../../components/StatisticsDashboard';
 import { PermissionManagementModal } from '../../components/PermissionManagementModal';
-import { PermissionUtils } from '../../utils/permissions';
-import { PermissionType } from '../../types/permissions.types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -334,13 +332,15 @@ export default function Collaboration() {
   const currentMember = teamMembers.find(m => m.user_id === currentUser?.id);
   
   // Only BUSINESS_OWNER bypasses permission checks
-  // BUSINESS_ADMIN must be checked against their permissions string like everyone else
+  // BUSINESS_ADMIN must be checked against their permissions like everyone else
   const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  const currentUserRole = currentUser?.role;
   
-  // Check specific permissions for current user
-  const canCreateTasks = isOwner || (currentMember && PermissionUtils.hasPermission(currentMember.permissions, PermissionType.CREATE));
-  const canUpdateTasks = isOwner || (currentMember && PermissionUtils.hasPermission(currentMember.permissions, PermissionType.UPDATE));
-  const canDeleteTasks = isOwner || (currentMember && PermissionUtils.hasPermission(currentMember.permissions, PermissionType.DELETE));
+  // Check specific permissions for current user using direct boolean checks
+  const collab = currentMember?.collaboration_permissions;
+  const canCreateTasks = isOwner || collab?.create_task === true;
+  const canUpdateTasks = isOwner || collab?.update_task === true;
+  const canDeleteTasks = isOwner || collab?.delete_task === true;
   
   // For managing team permissions - only OWNER and ADMIN can access the permission management UI
   const canManagePermissions = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
