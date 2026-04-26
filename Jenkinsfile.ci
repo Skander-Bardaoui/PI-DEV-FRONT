@@ -96,8 +96,18 @@ pipeline {
                 script {
                     echo 'Installing npm dependencies...'
                     sh '''
-                        npm ci --prefer-offline
-                        echo "Dependencies installed"
+                        # Fix Rollup dependencies issue (npm bug with optional dependencies)
+                        echo "🔧 Fixing Rollup dependencies..."
+                        rm -rf node_modules package-lock.json
+                        npm cache clean --force
+                        
+                        # Install with --force to ensure optional dependencies are installed
+                        npm install --force
+                        
+                        # Explicitly install the missing Rollup binary
+                        npm install --save-optional @rollup/rollup-linux-x64-gnu --force || echo "Rollup binary install attempted"
+                        
+                        echo "✅ Dependencies installed"
                     '''
                 }
             }
