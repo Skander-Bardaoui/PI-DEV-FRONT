@@ -42,6 +42,10 @@ export default function SupplierInviteModal({ businessId, onClose }: Props) {
       inviteSupplier(businessId, { 
         email: data.email, 
         name: data.supplier_name || undefined,
+<<<<<<< HEAD
+=======
+        message: data.message || undefined,
+>>>>>>> 167a81b (added services in the BC and fixed warehouse error)
       }),
     onSuccess: () => {
       setSuccess(true);

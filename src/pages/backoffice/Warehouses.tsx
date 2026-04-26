@@ -4,6 +4,7 @@ import { useBusinessId } from '../../hooks/useBusinessId';
 import { useNavigate } from 'react-router-dom';
 import { warehousesApi } from '../../api/warehouses.api';
 import { Warehouse, CreateWarehouseDto } from '../../types/warehouse';
+import LocationPicker from '../../components/common/LocationPicker';
 import {
   Plus,
   Warehouse as WarehouseIcon,
@@ -27,6 +28,8 @@ export default function Warehouses() {
     code: '',
     description: '',
     address: '',
+    latitude: undefined,
+    longitude: undefined,
     is_active: true,
   });
 
@@ -71,6 +74,8 @@ export default function Warehouses() {
       code: warehouse.code,
       description: warehouse.description || '',
       address: warehouse.address || '',
+      latitude: warehouse.latitude || undefined,
+      longitude: warehouse.longitude || undefined,
       is_active: warehouse.is_active,
     });
     setShowModal(true);
@@ -92,6 +97,8 @@ export default function Warehouses() {
       code: '',
       description: '',
       address: '',
+      latitude: undefined,
+      longitude: undefined,
       is_active: true,
     });
     setEditingWarehouse(null);
@@ -222,96 +229,113 @@ export default function Warehouses() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
-              {editingWarehouse ? 'Edit Warehouse' : 'New Warehouse'}
-            </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="Main Warehouse"
-                />
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
+              <h2 className="text-xl font-bold">
+                {editingWarehouse ? 'Modifier l\'entrepôt' : 'Nouvel entrepôt'}
+              </h2>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6">
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nom de l'entrepôt *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Entrepôt Principal"
+                    />
+                  </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Code *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="WH01"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Code *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="WH01"
+                    />
+                  </div>
+                </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  rows={3}
-                  placeholder="Optional description"
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
-                </label>
-                <textarea
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  rows={2}
-                  placeholder="Physical address"
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active}
-                    onChange={(e) =>
-                      setFormData({ ...formData, is_active: e.target.checked })
-                    }
-                    className="rounded"
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="Description optionnelle de l'entrepôt"
                   />
-                  <span className="text-sm font-medium text-gray-700">Active</span>
-                </label>
+                </div>
+
+                {/* Location Picker */}
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Localisation
+                  </h3>
+                  <LocationPicker
+                    value={{
+                      address: formData.address || '',
+                      latitude: formData.latitude || 36.8065,
+                      longitude: formData.longitude || 10.1815,
+                    }}
+                    onChange={(location) => {
+                      setFormData({
+                        ...formData,
+                        address: location.address,
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                      });
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active}
+                      onChange={(e) =>
+                        setFormData({ ...formData, is_active: e.target.checked })
+                      }
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Actif</span>
+                  </label>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => {
                     setShowModal(false);
                     resetForm();
                   }}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  {editingWarehouse ? 'Update' : 'Create'}
+                  {editingWarehouse ? 'Mettre à jour' : 'Créer'}
                 </button>
               </div>
             </form>

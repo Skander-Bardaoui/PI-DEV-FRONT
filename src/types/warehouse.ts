@@ -5,6 +5,8 @@ export interface Warehouse {
   code: string;
   description: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -15,6 +17,8 @@ export interface CreateWarehouseDto {
   code: string;
   description?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   is_active?: boolean;
 }
 
@@ -23,5 +27,7 @@ export interface UpdateWarehouseDto {
   code?: string;
   description?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   is_active?: boolean;
 }
