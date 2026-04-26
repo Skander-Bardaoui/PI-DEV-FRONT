@@ -205,13 +205,6 @@ export type SupplierFormValues = z.infer<typeof supplierSchema>;
 // 2. LIGNE DE BON DE COMMANDE
 // ══════════════════════════════════════════════════════════════════════════════
 export const poItemSchema = z.object({
-  item_type: z
-    .enum(['PRODUCT', 'SERVICE'], {
-      required_error: 'Le type d\'article est obligatoire',
-      invalid_type_error: 'Type d\'article invalide',
-    })
-    .default('PRODUCT'),
-
   product_id: z.string().uuid('Produit invalide').optional().or(z.literal('')),
 
   description: z
@@ -332,15 +325,6 @@ export type GoodsReceiptFormValues = z.infer<typeof goodsReceiptSchema>;
 // 5. FACTURE FOURNISSEUR
 // ══════════════════════════════════════════════════════════════════════════════
 export const purchaseInvoiceSchema = z.object({
-<<<<<<< HEAD
-=======
-  invoice_number_supplier: z
-    .string({ required_error: 'Le numéro de facture est obligatoire' })
-    .trim()
-    .min(1, 'Le numéro de facture est obligatoire')
-    .max(100, 'Numéro de facture trop long'),
-
->>>>>>> 167a81b (added services in the BC and fixed warehouse error)
   supplier_id: z
     .string({ required_error: 'Le fournisseur est obligatoire' })
     .trim()
@@ -353,15 +337,12 @@ export const purchaseInvoiceSchema = z.object({
     .optional()
     .or(z.literal('')),
 
-<<<<<<< HEAD
   goods_receipt_id: z
     .string()
     .uuid('Bon de réception invalide')
     .optional()
     .or(z.literal('')),
 
-=======
->>>>>>> 167a81b (added services in the BC and fixed warehouse error)
   invoice_date: requiredIsoDate,
 
   due_date: isoDate,
@@ -486,12 +467,7 @@ export const aiPOGeneratorSchema = z.object({
   text: z
     .string({ required_error: 'Le texte est obligatoire' })
     .trim()
-<<<<<<< HEAD
     .min(10, 'Le texte de commande est trop court (minimum 10 caractères).')
-=======
-    .min(1, 'Le texte est obligatoire')
-    .min(10, 'Le texte doit contenir au moins 10 caractères')
->>>>>>> 167a81b (added services in the BC and fixed warehouse error)
     .max(5000, 'Le texte ne peut pas dépasser 5000 caractères'),
 });
 
