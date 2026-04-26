@@ -28,6 +28,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submission
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -91,6 +92,12 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
+    // Prevent double submission
+    if (isSubmitting) {
+      console.log('Form already submitting, ignoring duplicate submission');
+      return;
+    }
+
     if (step === 1) {
       if (!formData.firstName?.trim() || formData.firstName.trim().length < 2) {
         setError('Le prénom doit contenir au moins 2 caractères');
@@ -141,6 +148,7 @@ export default function RegisterPage() {
       }
 
       setIsLoading(true);
+      setIsSubmitting(true); // Mark as submitting
 
       const registrationData = {
         firstName: formData.firstName.trim(),
@@ -178,8 +186,10 @@ export default function RegisterPage() {
 
       try {
         await register(registrationData);
+        // Success - navigation is handled by AuthContext
       } catch (err: any) {
         setError(err.message || 'Une erreur est survenue lors de l\'inscription');
+        setIsSubmitting(false); // Reset on error so user can retry
       } finally {
         setIsLoading(false);
       }

@@ -1,7 +1,7 @@
 // src/pages/frontoffice/LoginPage.tsx
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Building2, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Building2, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
@@ -9,14 +9,23 @@ import LanguageSwitcher from '../../components/LanguageSwitcher';
 export default function LoginPage() {
   const { login } = useAuth();
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     remember: false
   });
+
+  // Check if redirected from successful registration
+  useEffect(() => {
+    if (searchParams.get('registered') === 'true') {
+      setSuccessMessage('Inscription réussie ! Veuillez vous connecter avec vos identifiants.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +71,21 @@ export default function LoginPage() {
             <h1 className="text-4xl font-bold text-gray-900 mb-3">{t('auth.login')}</h1>
             <p className="text-lg text-gray-600">{t('dashboard.welcome')}</p>
           </div>
+
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl opacity-50 group-hover:opacity-75 blur transition duration-300"></div>
+              <div className="relative p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3 shadow-lg">
+                <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-800">{successMessage}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error Message - Enhanced */}
           {error && (
