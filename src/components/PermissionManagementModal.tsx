@@ -37,6 +37,10 @@ export function PermissionManagementModal({
       create_task: false,
       update_task: false,
       delete_task: false,
+      create_subtask: false,
+      update_subtask: false,
+      delete_subtask: false,
+      mark_complete_subtask: false,
       add_member: false,
       kick_member: false,
       promote_member: false,
@@ -279,6 +283,41 @@ export function PermissionManagementModal({
                   description="delete tasks permanently"
                   isGranted={collaborationPermissions.delete_task}
                   onToggle={() => handleCollaborationToggle('delete_task')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Subtasks Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Subtasks</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Subtask"
+                  description="create subtasks and generate with AI"
+                  isGranted={collaborationPermissions.create_subtask}
+                  onToggle={() => handleCollaborationToggle('create_subtask')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Subtask"
+                  description="edit and toggle subtask completion"
+                  isGranted={collaborationPermissions.update_subtask}
+                  onToggle={() => handleCollaborationToggle('update_subtask')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Subtask"
+                  description="delete subtasks permanently"
+                  isGranted={collaborationPermissions.delete_subtask}
+                  onToggle={() => handleCollaborationToggle('delete_subtask')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Mark Complete Subtask"
+                  description="mark subtasks as complete (team member action)"
+                  isGranted={collaborationPermissions.mark_complete_subtask}
+                  onToggle={() => handleCollaborationToggle('mark_complete_subtask')}
                   disabled={updatePermissionsMutation.isPending}
                 />
               </div>

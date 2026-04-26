@@ -30,12 +30,27 @@ export default function SubtaskViewModal({ task, businessId, onClose, onProgress
   }, [task.id]);
 
   const loadSubtasks = async () => {
+    console.log('📡 DEBUG loadSubtasks:', {
+      taskId: task.id,
+      taskTitle: task.title,
+      businessId
+    });
+    
     try {
       setLoading(true);
       const data = await subtasksApi.getByTask(task.id);
+      console.log('✅ DEBUG Subtasks loaded successfully:', {
+        count: data.length,
+        subtasks: data
+      });
       setSubtasks(data);
     } catch (error) {
-      console.error('Failed to load subtasks:', error);
+      console.error('❌ DEBUG Failed to load subtasks:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast.error('Failed to load subtasks');
     } finally {
       setLoading(false);
