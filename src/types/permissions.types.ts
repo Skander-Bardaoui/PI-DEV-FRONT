@@ -51,6 +51,36 @@ export interface StockPermissions {
 }
 
 /**
+ * Payment permissions structure
+ */
+export interface PaymentPermissions {
+  create_client_payment: boolean;
+  delete_client_payment: boolean;
+  create_supplier_payment: boolean;
+  delete_supplier_payment: boolean;
+  create_schedule: boolean;
+  update_schedule: boolean;
+  delete_schedule: boolean;
+  pay_installment: boolean;
+  create_account: boolean;
+  update_account: boolean;
+  delete_account: boolean;
+  create_transfer: boolean;
+  delete_transfer: boolean;
+}
+
+/**
+ * Salary permissions structure
+ */
+export interface SalaryPermissions {
+  create_salary: boolean;
+  update_salary: boolean;
+  delete_salary: boolean;
+  send_proposal: boolean;
+  pay_salary: boolean;
+}
+
+/**
  * Business member with permissions
  */
 export interface BusinessMember {
@@ -60,6 +90,8 @@ export interface BusinessMember {
   role: string;
   collaboration_permissions: CollaborationPermissions;
   stock_permissions: StockPermissions;
+  payment_permissions: PaymentPermissions;
+  salary_permissions?: SalaryPermissions; // Optional for backward compatibility
   is_active: boolean;
   user: {
     id: string;
@@ -78,6 +110,8 @@ export interface BusinessMember {
 export interface UpdatePermissionsDto {
   collaboration_permissions?: CollaborationPermissions;
   stock_permissions?: StockPermissions;
+  payment_permissions?: PaymentPermissions;
+  salary_permissions?: SalaryPermissions;
 }
 
 /**

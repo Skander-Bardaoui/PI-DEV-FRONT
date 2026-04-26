@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Loader2, Users, Package } from 'lucide-react';
+import { X, Loader2, Users, Package, CreditCard, CheckCircle2 } from 'lucide-react';
 import { permissionsApi } from '../api/permissions.api';
-import { BusinessMember, CollaborationPermissions, StockPermissions } from '../types/permissions.types';
+import { BusinessMember, CollaborationPermissions, StockPermissions, PaymentPermissions } from '../types/permissions.types';
 import { useToast } from './ui/Toast';
 
 interface PermissionManagementModalProps {
@@ -19,6 +19,8 @@ interface PermissionManagementModalProps {
  * Modal component for managing member permissions with granular controls
  * Displays two sections: Collaboration and Stock Management
  * Each section has specific toggles for each permission type
+ * 
+ * BUSINESS_OWNER permissions cannot be modified - they always have full access
  */
 export function PermissionManagementModal({
   member,
@@ -27,6 +29,9 @@ export function PermissionManagementModal({
   onClose,
   onSuccess,
 }: PermissionManagementModalProps) {
+  // Check if member is BUSINESS_OWNER - their permissions cannot be modified
+  const isBusinessOwner = member.role === 'BUSINESS_OWNER';
+
   const [collaborationPermissions, setCollaborationPermissions] = useState<CollaborationPermissions>(
     member.collaboration_permissions || {
       create_task: false,
@@ -62,6 +67,24 @@ export function PermissionManagementModal({
     }
   );
 
+  const [paymentPermissions, setPaymentPermissions] = useState<PaymentPermissions>(
+    member.payment_permissions || {
+      create_client_payment: false,
+      delete_client_payment: false,
+      create_supplier_payment: false,
+      delete_supplier_payment: false,
+      create_schedule: false,
+      update_schedule: false,
+      delete_schedule: false,
+      pay_installment: false,
+      create_account: false,
+      update_account: false,
+      delete_account: false,
+      create_transfer: false,
+      delete_transfer: false,
+    }
+  );
+
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -72,7 +95,8 @@ export function PermissionManagementModal({
         businessId,
         member.user_id,
         collaborationPermissions,
-        stockPermissions
+        stockPermissions,
+        paymentPermissions
       ),
     onSuccess: () => {
       // Invalidate business members cache to refetch updated data
@@ -111,6 +135,14 @@ export function PermissionManagementModal({
     }));
   };
 
+  // Handle payment permission toggle
+  const handlePaymentToggle = (key: keyof PaymentPermissions) => {
+    setPaymentPermissions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
   // Handle save button click
   const handleSave = () => {
     updatePermissionsMutation.mutate();
@@ -119,11 +151,74 @@ export function PermissionManagementModal({
   // Check if anything changed
   const hasChanges =
     JSON.stringify(collaborationPermissions) !== JSON.stringify(member.collaboration_permissions) ||
-    JSON.stringify(stockPermissions) !== JSON.stringify(member.stock_permissions);
+    JSON.stringify(stockPermissions) !== JSON.stringify(member.stock_permissions) ||
+    JSON.stringify(paymentPermissions) !== JSON.stringify(member.payment_permissions);
 
   // Don't render if modal is not open
   if (!isOpen) {
     return null;
+  }
+
+  // If member is BUSINESS_OWNER, show read-only view
+  if (isBusinessOwner) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-2xl max-w-2xl w-full shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Business Owner Permissions</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {member.user.firstName} {member.user.lastName}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+              <CheckCircle2 className="h-8 w-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Full Access Granted
+            </h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+              Business owners have full access to all features across all modules. 
+              Their permissions cannot be modified to ensure proper business management.
+            </p>
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800 font-medium">
+                ✓ All Collaboration Features<br />
+                ✓ All Stock Management Features<br />
+                ✓ All Payment Management Features
+              </p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-6 border-t border-gray-200 flex justify-end bg-gray-50">
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -402,6 +497,140 @@ export function PermissionManagementModal({
                   description="delete service categories"
                   isGranted={stockPermissions.delete_service_category}
                   onToggle={() => handleStockToggle('delete_service_category')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Management Section */}
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <CreditCard className="h-5 w-5 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900">💳 Payment Management</h3>
+            </div>
+
+            {/* Client Payments Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Client Payments</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Client Payment"
+                  description="register client invoice payments"
+                  isGranted={paymentPermissions.create_client_payment}
+                  onToggle={() => handlePaymentToggle('create_client_payment')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Client Payment"
+                  description="cancel client payments"
+                  isGranted={paymentPermissions.delete_client_payment}
+                  onToggle={() => handlePaymentToggle('delete_client_payment')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Supplier Payments Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Supplier Payments</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Supplier Payment"
+                  description="register supplier invoice payments"
+                  isGranted={paymentPermissions.create_supplier_payment}
+                  onToggle={() => handlePaymentToggle('create_supplier_payment')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Supplier Payment"
+                  description="cancel supplier payments"
+                  isGranted={paymentPermissions.delete_supplier_payment}
+                  onToggle={() => handlePaymentToggle('delete_supplier_payment')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Payment Schedules Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Payment Schedules</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Schedule"
+                  description="create installment schedules"
+                  isGranted={paymentPermissions.create_schedule}
+                  onToggle={() => handlePaymentToggle('create_schedule')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Schedule"
+                  description="modify installment schedules"
+                  isGranted={paymentPermissions.update_schedule}
+                  onToggle={() => handlePaymentToggle('update_schedule')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Schedule"
+                  description="delete installment schedules"
+                  isGranted={paymentPermissions.delete_schedule}
+                  onToggle={() => handlePaymentToggle('delete_schedule')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Pay Installment"
+                  description="record payment for an installment"
+                  isGranted={paymentPermissions.pay_installment}
+                  onToggle={() => handlePaymentToggle('pay_installment')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Bank Accounts Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Bank Accounts</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Account"
+                  description="add bank accounts"
+                  isGranted={paymentPermissions.create_account}
+                  onToggle={() => handlePaymentToggle('create_account')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Account"
+                  description="edit bank accounts"
+                  isGranted={paymentPermissions.update_account}
+                  onToggle={() => handlePaymentToggle('update_account')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Account"
+                  description="delete bank accounts"
+                  isGranted={paymentPermissions.delete_account}
+                  onToggle={() => handlePaymentToggle('delete_account')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Transfers Subsection */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Transfers</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Transfer"
+                  description="create internal transfers"
+                  isGranted={paymentPermissions.create_transfer}
+                  onToggle={() => handlePaymentToggle('create_transfer')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Transfer"
+                  description="cancel internal transfers"
+                  isGranted={paymentPermissions.delete_transfer}
+                  onToggle={() => handlePaymentToggle('delete_transfer')}
                   disabled={updatePermissionsMutation.isPending}
                 />
               </div>

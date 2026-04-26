@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrentBusinessMember } from '@/hooks/useCurrentBusinessMember';
 import { useApprovedOrPartialInvoices } from '@/hooks/usePurchaseInvoices';
 import { formatAmount, formatDate, InvoiceStatus, PurchaseInvoice } from '@/types';
 import InvoiceDetailModal from '@/components/purchases/Invoicedetailmodal ';
@@ -92,6 +93,13 @@ function SummaryCards({ invoices }: { invoices: PurchaseInvoice[] }) {
 export default function ExpensesToPayPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const { businessMember } = useCurrentBusinessMember();
+
+  // Permission checks
+  const isOwner = businessMember?.role === 'BUSINESS_OWNER';
+  const pay = businessMember?.payment_permissions;
+  const canCreateSupplierPayment = isOwner || pay?.create_supplier_payment === true;
+  const canCreateSchedule = isOwner || pay?.create_schedule === true;
 
   const [page, setPage] = useState(1);
   const [sortField, setSortField] = useState<string>('due_date');
@@ -209,22 +217,26 @@ export default function ExpensesToPayPage() {
                           </button>
 
                           {/* Paiement direct */}
-                          <button
-                            onClick={() => setPaymentInvoice(inv)}
-                            title="Enregistrer un paiement"
-                            className="p-1.5 hover:bg-green-50 rounded-lg text-gray-500 hover:text-green-600 transition-colors"
-                          >
-                            <CreditCard className="h-4 w-4" />
-                          </button>
+                          {canCreateSupplierPayment && (
+                            <button
+                              onClick={() => setPaymentInvoice(inv)}
+                              title="Enregistrer un paiement"
+                              className="p-1.5 hover:bg-green-50 rounded-lg text-gray-500 hover:text-green-600 transition-colors"
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </button>
+                          )}
 
                           {/* ✅ Paiement échelonné */}
-                          <button
-                            onClick={() => setInstallmentInvoice(inv)}
-                            title="Paiement échelonné"
-                            className="p-1.5 hover:bg-violet-50 rounded-lg text-gray-500 hover:text-violet-600 transition-colors"
-                          >
-                            <CalendarDays className="h-4 w-4" />
-                          </button>
+                          {canCreateSchedule && (
+                            <button
+                              onClick={() => setInstallmentInvoice(inv)}
+                              title="Paiement échelonné"
+                              className="p-1.5 hover:bg-violet-50 rounded-lg text-gray-500 hover:text-violet-600 transition-colors"
+                            >
+                              <CalendarDays className="h-4 w-4" />
+                            </button>
+                          )}
 
                         </div>
                       </td>

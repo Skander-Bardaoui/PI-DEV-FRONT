@@ -13,6 +13,68 @@ import {
   Package,
 } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
+
+interface BusinessMember {
+  id: string;
+  user_id: string;
+  business_id: string;
+  role: string;
+  stock_permissions: {
+    create_product: boolean;
+    update_product: boolean;
+    delete_product: boolean;
+    create_movement: boolean;
+    delete_movement: boolean;
+    create_category: boolean;
+    update_category: boolean;
+    delete_category: boolean;
+    create_warehouse: boolean;
+    update_warehouse: boolean;
+    delete_warehouse: boolean;
+    create_reservation: boolean;
+    delete_reservation: boolean;
+    create_service: boolean;
+    update_service: boolean;
+    delete_service: boolean;
+    create_service_category: boolean;
+    update_service_category: boolean;
+    delete_service_category: boolean;
+  };
+  is_active: boolean;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
+async function fetchCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  return res.json();
+}
+
+async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[]> {
+  const res = await fetch(`${API_URL}/businesses/${businessId}/members`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch members');
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.members || []);
+}
+
 export default function Warehouses() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -29,6 +91,38 @@ export default function Warehouses() {
     address: '',
     is_active: true,
   });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentMember, setCurrentMember] = useState<BusinessMember | null>(null);
+
+  // Load current user and member on mount
+  useEffect(() => {
+    async function loadUserData() {
+      if (!businessId) return;
+      
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUser(user);
+        
+        const members = await fetchBusinessMembers(businessId);
+        const member = members.find(m => m.user_id === user.id);
+        setCurrentMember(member || null);
+        
+        // Debug log
+        console.log('stock_permissions:', member?.stock_permissions);
+      } catch (err: any) {
+        console.error('Failed to load user data:', err);
+      }
+    }
+    loadUserData();
+  }, [businessId]);
+
+  // Permission checks
+  const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  const stock = currentMember?.stock_permissions;
+  
+  const canCreateWarehouse = isOwner || stock?.create_warehouse === true;
+  const canUpdateWarehouse = isOwner || stock?.update_warehouse === true;
+  const canDeleteWarehouse = isOwner || stock?.delete_warehouse === true;
 
   useEffect(() => {
     if (businessId) {
@@ -114,16 +208,18 @@ export default function Warehouses() {
           <h1 className="text-2xl font-bold">Warehouses</h1>
           <p className="text-gray-600 mt-1">Manage your storage locations</p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={20} />
-          New Warehouse
-        </button>
+        {canCreateWarehouse && (
+          <button
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            <Plus size={20} />
+            New Warehouse
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -138,16 +234,18 @@ export default function Warehouses() {
           <p className="text-gray-600 mb-4">
             Create your first warehouse to organize your inventory
           </p>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            <Plus size={20} />
-            Create Warehouse
-          </button>
+          {canCreateWarehouse && (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              <Plus size={20} />
+              Create Warehouse
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -200,18 +298,22 @@ export default function Warehouses() {
                     View Stock
                   </button>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(warehouse)}
-                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(warehouse.id)}
-                      className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {canUpdateWarehouse && (
+                      <button
+                        onClick={() => handleEdit(warehouse)}
+                        className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                      >
+                        <Edit size={16} />
+                      </button>
+                    )}
+                    {canDeleteWarehouse && (
+                      <button
+                        onClick={() => handleDelete(warehouse.id)}
+                        className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

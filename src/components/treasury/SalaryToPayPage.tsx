@@ -6,7 +6,38 @@ import { getMyBusinesses } from '../../api/business.api';
 import axiosInstance from '../../api/axiosInstance';
 import SendSalarycomponent from './SendSalarycomponent';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
+
+interface BusinessMember {
+  id: string;
+  user_id: string;
+  business_id: string;
+  role: string;
+  salary_permissions?: {
+    create_salary: boolean;
+    update_salary: boolean;
+    delete_salary: boolean;
+    send_proposal: boolean;
+    pay_salary: boolean;
+  };
+  is_active: boolean;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
 interface ProposalState {
   memberId: string;
   amount: string;
@@ -28,6 +59,23 @@ interface ProposalInfo {
   counterAmount: number | null;
   currency: string;
   respondedAt: string | null;
+}
+
+async function fetchCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  return res.json();
+}
+
+async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[]> {
+  const res = await fetch(`${API_URL}/businesses/${businessId}/members`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch members');
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.members || []);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -221,6 +269,36 @@ export default function SalaryToPayPage() {
   const [search, setSearch]             = useState('');
   const [selectedMember, setSelectedMember] = useState<SalaryMember | null>(null);
   const [toasts, setToasts]             = useState<Toast[]>([]);
+  const [currentUser, setCurrentUser]   = useState<User | null>(null);
+  const [currentMember, setCurrentMember] = useState<BusinessMember | null>(null);
+
+  // Load current user and member on mount
+  useEffect(() => {
+    async function loadUserData() {
+      if (!businessId) return;
+      
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUser(user);
+        
+        const members = await fetchBusinessMembers(businessId);
+        const member = members.find(m => m.user_id === user.id);
+        setCurrentMember(member || null);
+        
+        // Debug log
+        console.log('salary_permissions:', member?.salary_permissions);
+      } catch (err: any) {
+        console.error('Failed to load user data:', err);
+      }
+    }
+    loadUserData();
+  }, [businessId]);
+
+  // Permission checks
+  const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  const salary = currentMember?.salary_permissions;
+  
+  const canSendProposal = isOwner || salary?.send_proposal === true;
 
   const addToast = (type: 'success' | 'error', message: string) => {
     const id = Date.now();
@@ -401,13 +479,15 @@ export default function SalaryToPayPage() {
                   {/* ← Proposal status badge */}
                   {proposal && <ProposalStatusBadge info={proposal} />}
 
-                  <button className="propose-btn" onClick={() => setSelectedMember(member)} style={{ width: '100%', padding: '11px 0', borderRadius: 9, background: '#f0f7ff', border: '1.5px solid #2563eb', color: '#2563eb', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    {proposal
-                      ? proposal.status === 'PENDING'   ? '📨 Resend Proposal'
-                      : proposal.status === 'COUNTERED' ? '🔄 Send New Proposal'
-                                                        : '✉️ Send New Proposal'
-                      : '✉️ Send Salary Proposal'}
-                  </button>
+                  {canSendProposal && (
+                    <button className="propose-btn" onClick={() => setSelectedMember(member)} style={{ width: '100%', padding: '11px 0', borderRadius: 9, background: '#f0f7ff', border: '1.5px solid #2563eb', color: '#2563eb', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      {proposal
+                        ? proposal.status === 'PENDING'   ? '📨 Resend Proposal'
+                        : proposal.status === 'COUNTERED' ? '🔄 Send New Proposal'
+                                                          : '✉️ Send New Proposal'
+                        : '✉️ Send Salary Proposal'}
+                    </button>
+                  )}
                 </div>
               );
             })}
