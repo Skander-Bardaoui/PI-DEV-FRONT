@@ -96,7 +96,8 @@ export default function ExpensesToPayPage() {
   const { businessMember } = useCurrentBusinessMember();
 
   // Permission checks
-  const isOwner = businessMember?.role === 'BUSINESS_OWNER';
+  // BUSINESS_OWNER bypasses all permission checks
+  const isOwner = user?.role === 'BUSINESS_OWNER' || businessMember?.role === 'BUSINESS_OWNER';
   const pay = businessMember?.payment_permissions;
   const canCreateSupplierPayment = isOwner || pay?.create_supplier_payment === true;
   const canCreateSchedule = isOwner || pay?.create_schedule === true;
