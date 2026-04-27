@@ -33,14 +33,12 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
   const [error, setError] = useState('');
   const [generated, setGenerated] = useState<GeneratedPO | null>(null);
   const [creating, setCreating] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [text, setText] = useState('');
-  const [textError, setTextError] = useState('');
 
   const queryClient = useQueryClient();
 
   // Version du composant pour forcer le rechargement du cache
-  console.log('🔄 AiPOGeneratorModal chargé - Version: 2024-04-26-V3-FINAL-FIX');
+  console.log('🔄 AiPOGeneratorModal - Version: 2024-04-26-NO-REQUIRED-FINAL');
 
   const examples = [
     "Commander 500 kg de farine chez Ali Boulangerie pour le 15 avril",
@@ -51,14 +49,12 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Réinitialiser les erreurs
+    // Réinitialiser l'erreur
     setError('');
-    setTextError('');
     
     const trimmedText = text.trim();
     
-    console.log('📝 Soumission du formulaire - Texte:', trimmedText);
-    console.log('🚀 Envoi de la requête à l\'API...');
+    console.log('📝 Soumission - Texte:', trimmedText, 'Longueur:', trimmedText.length);
     
     setLoading(true);
     setGenerated(null);
@@ -68,18 +64,12 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
         `/businesses/${businessId}/supplier-pos/generate-from-text`,
         { text: trimmedText },
       );
-      console.log('✅ Réponse reçue:', result);
+      console.log('✅ Succès:', result);
       setGenerated(result);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: any) {
-      console.error('❌ Erreur API:', err);
-      console.error('❌ Réponse du serveur:', err?.response?.data);
-      
+      console.error('❌ Erreur:', err?.response?.data);
       const errorMessage = err?.response?.data?.message || err?.response?.data?.error || 'Erreur lors de la génération';
-      
-      // Afficher l'erreur seulement dans textError (pas dans error)
-      setTextError(errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -159,7 +149,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
                   type="button"
                   onClick={() => {
                     setText(ex);
-                    setTextError('');
+                    setError('');
                   }}
                   className="text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors border border-purple-200"
                 >
@@ -172,27 +162,23 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
           {/* Champ texte */}
           <div className="mb-4">
             <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Décrivez votre commande <span className="text-red-500">*</span>
+              Décrivez votre commande
             </label>
             <textarea
               value={text}
               onChange={(e) => {
-                console.log('✏️ Texte modifié, longueur:', e.target.value.length);
+                console.log('✏️ Changement:', e.target.value.length, 'caractères');
                 setText(e.target.value);
-                // Effacer l'erreur dès que l'utilisateur tape
-                setTextError('');
-                setError('');
+                setError(''); // Effacer l'erreur
               }}
               placeholder="Ex: Commander 500 kg de farine chez Ali Boulangerie pour le 15 avril"
               rows={4}
-              className={`w-full px-4 py-3 border-2 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none transition-colors ${
-                textError ? 'border-red-400 bg-red-50' : 'border-gray-300'
-              }`}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none transition-colors"
             />
-            {textError && (
+            {error && (
               <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800">{textError}</p>
+                <p className="text-sm text-red-800">{error}</p>
               </div>
             )}
             <p className="text-xs text-gray-500 mt-1">
@@ -308,7 +294,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
                 type="button"
                 onClick={() => {
                   setGenerated(null);
-                  setTextError('');
+                  setError('');
                 }}
                 className="flex-1 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
