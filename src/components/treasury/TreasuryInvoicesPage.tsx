@@ -121,7 +121,8 @@ export default function TreasuryInvoicesPage() {
   const { businessMember } = useCurrentBusinessMember();
 
   // Permission checks
-  const isOwner = businessMember?.role === 'BUSINESS_OWNER';
+  // BUSINESS_OWNER bypasses all permission checks
+  const isOwner = user?.role === 'BUSINESS_OWNER' || businessMember?.role === 'BUSINESS_OWNER';
   const pay = businessMember?.payment_permissions;
   const canCreateClientPayment = isOwner || pay?.create_client_payment === true;
 
