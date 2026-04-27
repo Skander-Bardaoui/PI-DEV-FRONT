@@ -65,6 +65,63 @@ interface TeamMember {
   invited_at: string | null;
   joined_at: string | null;
   created_at: string;
+  updated_at: string;
+  collaboration_permissions?: {
+    create_task?: boolean;
+    update_task?: boolean;
+    delete_task?: boolean;
+    create_subtask?: boolean;
+    update_subtask?: boolean;
+    delete_subtask?: boolean;
+    mark_complete_subtask?: boolean;
+    assign_task?: boolean;
+    view_all_tasks?: boolean;
+    add_member?: boolean;
+    kick_member?: boolean;
+    promote_member?: boolean;
+  };
+  stock_permissions?: {
+    create_product?: boolean;
+    update_product?: boolean;
+    delete_product?: boolean;
+    create_movement?: boolean;
+    delete_movement?: boolean;
+    create_category?: boolean;
+    update_category?: boolean;
+    delete_category?: boolean;
+    create_warehouse?: boolean;
+    update_warehouse?: boolean;
+    delete_warehouse?: boolean;
+    create_reservation?: boolean;
+    delete_reservation?: boolean;
+    create_service?: boolean;
+    update_service?: boolean;
+    delete_service?: boolean;
+    create_service_category?: boolean;
+    update_service_category?: boolean;
+    delete_service_category?: boolean;
+  };
+  payment_permissions?: {
+    create_client_payment?: boolean;
+    delete_client_payment?: boolean;
+    create_supplier_payment?: boolean;
+    delete_supplier_payment?: boolean;
+    create_schedule?: boolean;
+    update_schedule?: boolean;
+    delete_schedule?: boolean;
+    pay_installment?: boolean;
+    create_account?: boolean;
+    update_account?: boolean;
+    delete_account?: boolean;
+    create_transfer?: boolean;
+    delete_transfer?: boolean;
+  };
+  salary_permissions?: {
+    create_salary?: boolean;
+    update_salary?: boolean;
+    delete_salary?: boolean;
+    view_salary?: boolean;
+  };
   user: {
     id: string;
     firstName?: string;
@@ -346,6 +403,30 @@ export default function Collaboration() {
   // For managing team permissions - only OWNER and ADMIN can access the permission management UI
   const canManagePermissions = currentUser?.role === 'BUSINESS_OWNER' || currentUser?.role === 'BUSINESS_ADMIN';
 
+  // Check if current user can manage a specific member's permissions
+  const canManageMemberPermissions = (member: TeamMember): boolean => {
+    const currentUserRole = currentUser?.role;
+    const targetRole = member.role;
+
+    // Cannot manage own permissions
+    if (member.user_id === currentUser?.id) {
+      return false;
+    }
+
+    // BUSINESS_OWNER can manage everyone except themselves
+    if (currentUserRole === 'BUSINESS_OWNER') {
+      return targetRole !== 'BUSINESS_OWNER' || member.user_id !== currentUser?.id;
+    }
+
+    // BUSINESS_ADMIN can only manage TEAM_MEMBER and ACCOUNTANT
+    if (currentUserRole === 'BUSINESS_ADMIN') {
+      return targetRole === 'TEAM_MEMBER' || targetRole === 'ACCOUNTANT';
+    }
+
+    // Other roles cannot manage permissions
+    return false;
+  };
+
   // Filter tasks assigned to current user
   const myAssignedTasks = tasks.filter(
     (task) => task.assignedTo?.some((u) => u.id === currentUser?.id)
@@ -571,12 +652,27 @@ export default function Collaboration() {
 
   // ── Handle edit task ───────────────────────────────────────────────────────
   const handleEditTask = (task: Task) => {
+    console.log('🔍 DEBUG handleEditTask:', {
+      taskId: task.id,
+      taskTitle: task.title,
+      userRole: currentUser?.role,
+      isTeamMember: currentUser?.role === 'TEAM_MEMBER',
+      isAccountant: currentUser?.role === 'ACCOUNTANT',
+      willOpenViewModal: currentUser?.role === 'TEAM_MEMBER' || currentUser?.role === 'ACCOUNTANT',
+      currentBusiness: currentBusiness?.id,
+      currentBusinessExists: !!currentBusiness
+    });
+
     // Si TEAM_MEMBER, ouvrir le modal de vue des subtasks
     if (currentUser?.role === 'TEAM_MEMBER' || currentUser?.role === 'ACCOUNTANT') {
+      console.log('✅ Opening SubtaskViewModal for TEAM_MEMBER/ACCOUNTANT');
+      console.log('📋 Setting viewingTask to:', task);
       setViewingTask(task);
+      console.log('✅ viewingTask state updated');
       return;
     }
 
+    console.log('✅ Opening edit modal for OWNER/ADMIN');
     // Sinon, ouvrir le modal d'édition complet
     setEditingTask(task);
     setNewTaskForm({
@@ -1055,6 +1151,7 @@ export default function Collaboration() {
                       onUpdateStatus={handleUpdateTaskStatus}
                       onDelete={canDeleteTasks ? handleDeleteTask : undefined}
                       onEdit={canUpdateTasks ? handleEditTask : undefined}
+                      onView={setViewingTask}
                       onOpenChat={setChatTask}
                       canManage={canUpdateTasks}
                       teamMembers={teamMembers}
@@ -1067,6 +1164,7 @@ export default function Collaboration() {
                       onUpdateStatus={handleUpdateTaskStatus}
                       onDelete={canDeleteTasks ? handleDeleteTask : undefined}
                       onEdit={canUpdateTasks ? handleEditTask : undefined}
+                      onView={setViewingTask}
                       onOpenChat={setChatTask}
                       canManage={canUpdateTasks}
                       teamMembers={teamMembers}
@@ -1079,6 +1177,7 @@ export default function Collaboration() {
                       onUpdateStatus={handleUpdateTaskStatus}
                       onDelete={canDeleteTasks ? handleDeleteTask : undefined}
                       onEdit={canUpdateTasks ? handleEditTask : undefined}
+                      onView={setViewingTask}
                       onOpenChat={setChatTask}
                       canManage={canUpdateTasks}
                       teamMembers={teamMembers}
@@ -1091,6 +1190,7 @@ export default function Collaboration() {
                       onUpdateStatus={handleUpdateTaskStatus}
                       onDelete={canDeleteTasks ? handleDeleteTask : undefined}
                       onEdit={canUpdateTasks ? handleEditTask : undefined}
+                      onView={setViewingTask}
                       onOpenChat={setChatTask}
                       canManage={canUpdateTasks}
                       teamMembers={teamMembers}
@@ -1104,6 +1204,7 @@ export default function Collaboration() {
                           onUpdateStatus={handleUpdateTaskStatus}
                           onDelete={canDeleteTasks ? handleDeleteTask : undefined}
                           onEdit={canUpdateTasks ? handleEditTask : undefined}
+                          onView={setViewingTask}
                           onOpenChat={setChatTask}
                           canManage={canUpdateTasks}
                           teamMembers={teamMembers}
@@ -1273,7 +1374,7 @@ export default function Collaboration() {
                               {joinedDate}
                             </td>
                             <td className="px-6 py-4 text-right">
-                              {canManagePermissions && member.role !== 'BUSINESS_OWNER' && (
+                              {canManageMemberPermissions(member) && (
                                 <button 
                                   onClick={() => setSelectedMemberForPermissions(member)}
                                   className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -1617,14 +1718,14 @@ export default function Collaboration() {
               </div>
 
               {/* Subtasks Section - Only show when editing existing task */}
-              {editingTask && (
+              {editingTask && currentBusiness && (
                 <div className="pt-4 border-t border-gray-200">
                   <SubtaskList
                     taskId={editingTask.id}
                     taskTitle={newTaskForm.title}
                     taskDescription={newTaskForm.description}
-                    userRole={currentUser?.role}
-                    canManageSubtasks={canUpdateTasks}
+                    businessId={currentBusiness.id}
+                    currentMember={currentMember}
                     canMarkComplete={currentUser?.role === 'TEAM_MEMBER' || currentUser?.role === 'ACCOUNTANT'}
                     onProgressUpdate={() => {
                       // Rafraîchir les tâches pour mettre à jour la progression visible
@@ -1718,23 +1819,36 @@ export default function Collaboration() {
       )}
 
       {/* ── Subtask View Modal (TEAM_MEMBER) ──────────────────────────────────── */}
-      {viewingTask && currentBusiness && (
+      {(() => {
+        console.log('🔍 DEBUG Modal Render Check:', {
+          viewingTask: !!viewingTask,
+          viewingTaskId: viewingTask?.id,
+          currentBusiness: !!currentBusiness,
+          currentBusinessId: currentBusiness?.id,
+          willRender: !!(viewingTask && currentBusiness)
+        });
+        return null;
+      })()}
+      {viewingTask && currentBusiness ? (
         <SubtaskViewModal
           task={viewingTask}
           businessId={currentBusiness.id}
-          onClose={() => setViewingTask(null)}
+          onClose={() => {
+            console.log('🚪 Closing SubtaskViewModal');
+            setViewingTask(null);
+          }}
           onProgressUpdate={() => {
             if (currentBusiness) {
               fetchTasks(currentBusiness.id).then(setTasks).catch(console.error);
             }
           }}
         />
-      )}
+      ) : null}
 
       {/* ── Permission Management Modal ────────────────────────────────────────── */}
       {selectedMemberForPermissions && currentBusiness && (
         <PermissionManagementModal
-          member={selectedMemberForPermissions}
+          member={selectedMemberForPermissions as any}
           businessId={currentBusiness.id}
           isOpen={!!selectedMemberForPermissions}
           onClose={() => setSelectedMemberForPermissions(null)}

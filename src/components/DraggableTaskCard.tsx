@@ -75,6 +75,7 @@ interface DraggableTaskCardProps {
   onUpdateStatus: (taskId: string, newStatus: Task['status']) => void;
   onDelete: (taskId: string) => void;
   onEdit: (task: Task) => void;
+  onView?: (task: Task) => void; // Optional: for viewing subtasks when user can't edit
   onOpenChat: (task: Task) => void;
   canManage: boolean;
   teamMembers: TeamMember[];
@@ -85,6 +86,7 @@ export default function DraggableTaskCard({
   onUpdateStatus,
   onDelete,
   onEdit,
+  onView,
   onOpenChat,
   canManage,
 }: DraggableTaskCardProps) {
@@ -141,9 +143,9 @@ export default function DraggableTaskCard({
           >
             <MessageSquare className="h-4 w-4" />
           </button>
-          {!canManage && (
+          {!canManage && onView && (
             <button
-              onClick={() => onEdit(task)}
+              onClick={() => onView(task)}
               className="text-gray-400 hover:text-green-600 transition-colors"
               title="View subtasks"
             >

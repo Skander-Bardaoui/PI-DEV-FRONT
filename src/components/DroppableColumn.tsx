@@ -53,6 +53,7 @@ interface DroppableColumnProps {
   onUpdateStatus: (taskId: string, newStatus: Task['status']) => void;
   onDelete: (taskId: string) => void;
   onEdit: (task: Task) => void;
+  onView?: (task: Task) => void; // Optional: for viewing subtasks
   onOpenChat: (task: Task) => void;
   canManage: boolean;
   teamMembers: TeamMember[];
@@ -66,6 +67,7 @@ export default function DroppableColumn({
   onUpdateStatus,
   onDelete,
   onEdit,
+  onView,
   onOpenChat,
   canManage,
   teamMembers,
@@ -99,6 +101,7 @@ export default function DroppableColumn({
                 onUpdateStatus={onUpdateStatus}
                 onDelete={onDelete}
                 onEdit={onEdit}
+                onView={onView}
                 onOpenChat={onOpenChat}
                 canManage={canManage}
                 teamMembers={teamMembers}

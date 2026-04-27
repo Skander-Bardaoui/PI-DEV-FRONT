@@ -8,19 +8,32 @@ interface SubtaskListProps {
   taskId: string;
   taskTitle: string;
   taskDescription?: string;
-  userRole?: string; // Pour gérer les permissions (kept for backward compatibility)
-  canManageSubtasks?: boolean; // New: explicit permission for managing subtasks (OWNER or ADMIN with UPDATE permission)
-  canMarkComplete?: boolean; // New: explicit permission for marking complete (TEAM_MEMBER or ACCOUNTANT)
+  businessId: string; // Required for marking complete
+  userRole?: string; // Deprecated: kept for backward compatibility
+  canManageSubtasks?: boolean; // Deprecated: kept for backward compatibility
+  canMarkComplete?: boolean; // Deprecated: kept for backward compatibility
+  currentMember?: {
+    role: string;
+    collaboration_permissions?: {
+      create_subtask?: boolean;
+      update_subtask?: boolean;
+      delete_subtask?: boolean;
+      mark_complete_subtask?: boolean;
+      [key: string]: boolean | undefined; // Allow other permission keys
+    };
+  };
   onProgressUpdate?: () => void; // Callback pour notifier le parent
 }
 
 export default function SubtaskList({ 
   taskId, 
   taskTitle, 
-  taskDescription, 
+  taskDescription,
+  businessId,
   userRole, 
   canManageSubtasks, 
   canMarkComplete: canMarkCompleteProp,
+  currentMember,
   onProgressUpdate 
 }: SubtaskListProps) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
@@ -29,14 +42,23 @@ export default function SubtaskList({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
-  // Use explicit permissions if provided, otherwise fall back to role-based checks
-  // This maintains backward compatibility while allowing proper permission enforcement
-  const canGenerate = canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN');
-  const canCreate = canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN');
-  const canDelete = canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN');
-  const canToggle = canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN');
+  // Determine permissions based on currentMember if provided, otherwise fall back to legacy props
+  const isOwner = currentMember?.role === 'BUSINESS_OWNER' || userRole === 'BUSINESS_OWNER';
+  const collab = currentMember?.collaboration_permissions;
+  
+  // Enforce granular permissions
+  const canCreateSubtask = isOwner || collab?.create_subtask === true;
+  const canUpdateSubtask = isOwner || collab?.update_subtask === true;
+  const canDeleteSubtask = isOwner || collab?.delete_subtask === true;
+  const canMarkCompleteSubtask = isOwner || collab?.mark_complete_subtask === true;
+  
+  // Legacy fallback for backward compatibility
+  const canGenerate = currentMember ? canCreateSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'));
+  const canCreate = currentMember ? canCreateSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'));
+  const canDelete = currentMember ? canDeleteSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'));
+  const canToggle = currentMember ? canUpdateSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'));
   // TEAM_MEMBER peut marquer comme complété (différent de cocher)
-  const canMarkComplete = canMarkCompleteProp ?? (userRole === 'TEAM_MEMBER' || userRole === 'ACCOUNTANT');
+  const canMarkComplete = currentMember ? canMarkCompleteSubtask : (canMarkCompleteProp ?? (userRole === 'TEAM_MEMBER' || userRole === 'ACCOUNTANT'));
 
   useEffect(() => {
     loadSubtasks();
@@ -144,7 +166,7 @@ export default function SubtaskList({
 
   const handleMarkComplete = async (subtask: Subtask) => {
     if (!canMarkComplete) {
-      toast.error('Only team members can mark subtasks as complete');
+      toast.error('You don\'t have permission to mark subtasks as complete');
       return;
     }
 
@@ -154,7 +176,7 @@ export default function SubtaskList({
     }
 
     try {
-      const updated = await subtasksApi.markCompleteByTeamMember(subtask.id);
+      const updated = await subtasksApi.markCompleteByTeamMember(subtask.id, businessId);
       setSubtasks((prev) =>
         prev.map((s) =>
           s.id === subtask.id ? updated : s
@@ -166,9 +188,10 @@ export default function SubtaskList({
       if (onProgressUpdate) {
         onProgressUpdate();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to mark subtask as complete:', error);
-      toast.error('Failed to mark subtask as complete');
+      const errorMessage = error.response?.data?.message || 'Failed to mark subtask as complete';
+      toast.error(errorMessage);
     }
   };
 
