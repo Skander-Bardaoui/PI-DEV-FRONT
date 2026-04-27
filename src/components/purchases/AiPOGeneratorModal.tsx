@@ -40,7 +40,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
   const queryClient = useQueryClient();
 
   // Version du composant pour forcer le rechargement du cache
-  console.log('🔄 AiPOGeneratorModal chargé - Version: 2024-04-25-FINAL');
+  console.log('🔄 AiPOGeneratorModal chargé - Version: 2024-04-26-HOTFIX-V2');
 
   const examples = [
     "Commander 500 kg de farine chez Ali Boulangerie pour le 15 avril",
@@ -185,6 +185,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
             <textarea
               value={text}
               onChange={(e) => {
+                console.log('✏️ Texte modifié, longueur:', e.target.value.length);
                 setText(e.target.value);
                 // Effacer l'erreur dès que l'utilisateur tape
                 setTextError('');
@@ -207,8 +208,8 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
             </p>
           </div>
 
-          {/* Erreur */}
-          {error && (
+          {/* Erreur générale (sauf erreur de validation de texte) */}
+          {error && !textError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-800">{error}</p>
