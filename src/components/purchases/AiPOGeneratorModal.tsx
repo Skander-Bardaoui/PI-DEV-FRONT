@@ -50,23 +50,28 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('📝 Soumission du formulaire - Texte actuel:', text);
-    console.log('📝 Texte après trim:', text.trim());
-    console.log('📝 Longueur du texte:', text.trim().length);
     
-    // Pas de validation frontend - laisser le backend gérer
+    // Réinitialiser les erreurs
+    setError('');
+    setTextError('');
+    
+    // Validation frontend simple
+    const trimmedText = text.trim();
+    if (!trimmedText || trimmedText.length < 10) {
+      setTextError('Veuillez décrire votre commande (minimum 10 caractères)');
+      return;
+    }
+    
+    console.log('📝 Soumission du formulaire - Texte:', trimmedText);
     console.log('🚀 Envoi de la requête à l\'API...');
-    console.log('🚀 Payload:', { text: text.trim() });
     
     setLoading(true);
-    setError('');
-    setTextError(''); // Effacer toute erreur précédente
     setGenerated(null);
 
     try {
       const { data: result } = await axiosInstance.post(
         `/businesses/${businessId}/supplier-pos/generate-from-text`,
-        { text: text.trim() },
+        { text: trimmedText },
       );
       console.log('✅ Réponse reçue:', result);
       setGenerated(result);
@@ -75,13 +80,12 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
     } catch (err: any) {
       console.error('❌ Erreur API:', err);
       console.error('❌ Réponse du serveur:', err?.response?.data);
-      console.error('❌ Status:', err?.response?.status);
       
       const errorMessage = err?.response?.data?.message || err?.response?.data?.error || 'Erreur lors de la génération';
       setError(errorMessage);
       
       // Afficher aussi l'erreur dans le champ texte si c'est une erreur de validation
-      if (errorMessage.includes('texte') || errorMessage.includes('obligatoire')) {
+      if (errorMessage.toLowerCase().includes('texte') || errorMessage.toLowerCase().includes('obligatoire')) {
         setTextError(errorMessage);
       }
     } finally {
@@ -182,11 +186,13 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
-                if (textError) setTextError('');
+                // Effacer l'erreur dès que l'utilisateur tape
+                setTextError('');
+                setError('');
               }}
               placeholder="Ex: Commander 500 kg de farine chez Ali Boulangerie pour le 15 avril"
               rows={4}
-              className={`w-full px-4 py-3 border-2 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none ${
+              className={`w-full px-4 py-3 border-2 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none transition-colors ${
                 textError ? 'border-red-400 bg-red-50' : 'border-gray-300'
               }`}
             />
