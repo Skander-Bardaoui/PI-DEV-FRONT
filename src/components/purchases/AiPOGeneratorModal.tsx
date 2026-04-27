@@ -54,21 +54,39 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
     
     const trimmedText = text.trim();
     
-    console.log('📝 Soumission - Texte:', trimmedText, 'Longueur:', trimmedText.length);
+    console.log('📝 [Frontend] Soumission du formulaire');
+    console.log('📝 [Frontend] Texte brut:', text);
+    console.log('📝 [Frontend] Texte trimmed:', trimmedText);
+    console.log('📝 [Frontend] Longueur:', trimmedText.length);
+    console.log('📝 [Frontend] Payload à envoyer:', JSON.stringify({ text: trimmedText }));
     
     setLoading(true);
     setGenerated(null);
 
     try {
-      const { data: result } = await axiosInstance.post(
-        `/businesses/${businessId}/supplier-pos/generate-from-text`,
-        { text: trimmedText },
-      );
-      console.log('✅ Succès:', result);
+      const url = `/businesses/${businessId}/supplier-pos/generate-from-text`;
+      console.log('📝 [Frontend] URL:', url);
+      
+      const { data: result } = await axiosInstance.post(url, { text: trimmedText });
+      
+      console.log('✅ [Frontend] Succès:', result);
       setGenerated(result);
     } catch (err: any) {
-      console.error('❌ Erreur:', err?.response?.data);
-      const errorMessage = err?.response?.data?.message || err?.response?.data?.error || 'Erreur lors de la génération';
+      console.error('❌ [Frontend] Erreur:', err?.response?.data);
+      
+      let errorMessage = 'Erreur lors de la génération';
+      
+      // Gérer les erreurs spécifiques
+      if (err?.response?.status === 503 || err?.response?.data?.message?.includes('503')) {
+        errorMessage = "🔄 L'intelligence artificielle est temporairement surchargée. Veuillez réessayer dans quelques instants.";
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
