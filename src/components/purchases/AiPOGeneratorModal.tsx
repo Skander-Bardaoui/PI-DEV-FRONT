@@ -40,7 +40,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
   const queryClient = useQueryClient();
 
   // Version du composant pour forcer le rechargement du cache
-  console.log('🔄 AiPOGeneratorModal chargé - Version: 2024-04-26-HOTFIX-V2');
+  console.log('🔄 AiPOGeneratorModal chargé - Version: 2024-04-26-V3-FINAL-FIX');
 
   const examples = [
     "Commander 500 kg de farine chez Ali Boulangerie pour le 15 avril",
@@ -55,12 +55,7 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
     setError('');
     setTextError('');
     
-    // Validation frontend simple
     const trimmedText = text.trim();
-    if (!trimmedText || trimmedText.length < 10) {
-      setTextError('Veuillez décrire votre commande (minimum 10 caractères)');
-      return;
-    }
     
     console.log('📝 Soumission du formulaire - Texte:', trimmedText);
     console.log('🚀 Envoi de la requête à l\'API...');
@@ -82,12 +77,9 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
       console.error('❌ Réponse du serveur:', err?.response?.data);
       
       const errorMessage = err?.response?.data?.message || err?.response?.data?.error || 'Erreur lors de la génération';
-      setError(errorMessage);
       
-      // Afficher aussi l'erreur dans le champ texte si c'est une erreur de validation
-      if (errorMessage.toLowerCase().includes('texte') || errorMessage.toLowerCase().includes('obligatoire')) {
-        setTextError(errorMessage);
-      }
+      // Afficher l'erreur seulement dans textError (pas dans error)
+      setTextError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -207,14 +199,6 @@ export default function AiPOGeneratorModal({ businessId, onClose, onSuccess }: P
               Mentionnez : le produit, la quantité, le fournisseur (et optionnellement la date)
             </p>
           </div>
-
-          {/* Erreur générale (sauf erreur de validation de texte) */}
-          {error && !textError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          )}
 
           {/* Bouton générer */}
           {!generated && (
