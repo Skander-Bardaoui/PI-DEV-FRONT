@@ -1,5 +1,3 @@
-// src/components/treasury/Transactions.tsx
-
 import { useState, useMemo } from 'react';
 import {
   ArrowDownCircle,
@@ -8,14 +6,26 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ShieldAlert,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTransactions, useTransactionsByAccount } from '@/hooks/useTransactions';
 import { useAccounts } from '@/hooks/useAccounts';
 import { Transaction, TransactionType, Account } from '@/types/treasury';
 import { formatAmount, formatDate } from '@/types';
+import { updateFraudReview } from '@/api/treasury.api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 
-// ─── Backend returns account relation but it's not in the type — extend locally
-type TransactionWithAccount = Transaction & { account?: Account };
+type TransactionWithAccount = Transaction & {
+  account?:        Account;
+  fraud_score?:    number | null;
+  is_fraud?:       boolean;
+  fraud_blocked?:  boolean;
+  fraud_reviewed?: boolean;
+};
 
 // ─── Type config ──────────────────────────────────────────────────────────
 const TYPE_CONFIG: Record<
@@ -47,18 +57,71 @@ const TYPE_CONFIG: Record<
 
 const PAGE_SIZE = 20;
 
+// ─── Fraud badge ──────────────────────────────────────────────────────────
+function FraudBadge({ 
+  score, 
+  reviewed, 
+  onClick 
+}: { 
+  score: number | null | undefined; 
+  reviewed?: boolean;
+  onClick?: () => void;
+}) {
+  if (score === null || score === undefined) return null;
+
+  const isClickable = onClick && !reviewed;
+
+  if (score > 0.8)
+    return (
+      <button
+        onClick={onClick}
+        disabled={reviewed}
+        className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-medium ${
+          isClickable ? 'hover:bg-red-200 cursor-pointer' : 'cursor-default'
+        }`}
+      >
+        <ShieldAlert className="h-3 w-3" />
+        {(score * 100).toFixed(0)}% risque
+        {reviewed && <CheckCircle className="h-3 w-3 ml-1" />}
+      </button>
+    );
+
+  if (score > 0.5)
+    return (
+      <button
+        onClick={onClick}
+        disabled={reviewed}
+        className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-700 font-medium ${
+          isClickable ? 'hover:bg-orange-200 cursor-pointer' : 'cursor-default'
+        }`}
+      >
+        <ShieldAlert className="h-3 w-3" />
+        {(score * 100).toFixed(0)}% suspect
+        {reviewed && <CheckCircle className="h-3 w-3 ml-1" />}
+      </button>
+    );
+
+  return null;
+}
+
 // ─── Summary cards ────────────────────────────────────────────────────────
 function SummaryBar({ transactions }: { transactions: TransactionWithAccount[] }) {
   const encaissements = transactions
     .filter((t) => t.type === 'ENCAISSEMENT')
     .reduce((s, t) => s + Number(t.amount), 0);
+
   const decaissements = transactions
     .filter((t) => t.type === 'DECAISSEMENT')
     .reduce((s, t) => s + Number(t.amount), 0);
+
   const net = encaissements - decaissements;
 
+  const flagged = transactions.filter(
+    (t) => t.fraud_score != null && t.fraud_score > 0.5,
+  ).length;
+
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-4 gap-4">
       <div className="bg-white rounded-xl border p-5">
         <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
           <ArrowDownCircle className="h-3 w-3 text-green-500" />
@@ -81,12 +144,28 @@ function SummaryBar({ transactions }: { transactions: TransactionWithAccount[] }
           {net >= 0 ? '+' : ''}{formatAmount(net)}
         </p>
       </div>
+
+      <div className={`rounded-xl border p-5 ${flagged > 0 ? 'bg-orange-50 border-orange-200' : 'bg-white'}`}>
+        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
+          <ShieldAlert className="h-3 w-3 text-orange-500" />
+          Transactions suspectes
+        </p>
+        <p className={`text-2xl font-bold ${flagged > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+          {flagged}
+        </p>
+      </div>
     </div>
   );
 }
 
 // ─── Table ────────────────────────────────────────────────────────────────
-function TransactionsTable({ transactions }: { transactions: TransactionWithAccount[] }) {
+function TransactionsTable({ 
+  transactions,
+  onReviewFraud 
+}: { 
+  transactions: TransactionWithAccount[];
+  onReviewFraud: (transaction: TransactionWithAccount) => void;
+}) {
   if (transactions.length === 0) {
     return (
       <div className="p-20 text-center">
@@ -109,15 +188,22 @@ function TransactionsTable({ transactions }: { transactions: TransactionWithAcco
           <th className="px-4 py-4 text-left">Référence</th>
           <th className="px-4 py-4 text-left">Compte</th>
           <th className="px-4 py-4 text-right">Montant</th>
+          <th className="px-4 py-4 text-center">Fraude</th>
           <th className="px-4 py-4 text-center">Rapprochement</th>
         </tr>
       </thead>
       <tbody>
         {transactions.map((t) => {
-          const cfg = TYPE_CONFIG[t.type];
-          return (
-            <tr key={t.id} className="border-b hover:bg-gray-50 transition-colors">
+          const cfg       = TYPE_CONFIG[t.type];
+          const isFlagged = t.fraud_score != null && t.fraud_score > 0.5;
 
+          return (
+            <tr
+              key={t.id}
+              className={`border-b hover:bg-gray-50 transition-colors ${
+                isFlagged ? 'bg-orange-50 hover:bg-orange-100' : ''
+              }`}
+            >
               <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
                 {formatDate(t.transaction_date)}
               </td>
@@ -146,6 +232,14 @@ function TransactionsTable({ transactions }: { transactions: TransactionWithAcco
               </td>
 
               <td className="px-4 py-4 text-center">
+                <FraudBadge 
+                  score={t.fraud_score} 
+                  reviewed={t.fraud_reviewed}
+                  onClick={isFlagged && !t.fraud_reviewed ? () => onReviewFraud(t) : undefined}
+                />
+              </td>
+
+              <td className="px-4 py-4 text-center">
                 {t.is_reconciled ? (
                   <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium">
                     ✓ Rapproché
@@ -156,7 +250,6 @@ function TransactionsTable({ transactions }: { transactions: TransactionWithAcco
                   </span>
                 )}
               </td>
-
             </tr>
           );
         })}
@@ -165,13 +258,115 @@ function TransactionsTable({ transactions }: { transactions: TransactionWithAcco
   );
 }
 
+// ─── Fraud Review Modal ───────────────────────────────────────────────────
+function FraudReviewModal({
+  transaction,
+  onClose,
+  onConfirm,
+}: {
+  transaction: TransactionWithAccount | null;
+  onClose: () => void;
+  onConfirm: (isFraud: boolean) => void;
+}) {
+  if (!transaction) return null;
+
+  const cfg = TYPE_CONFIG[transaction.type];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <AlertTriangle className="h-6 w-6 text-orange-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Révision de transaction suspecte
+              </h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Score de fraude: {((transaction.fraud_score || 0) * 100).toFixed(0)}%
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Date:</span>
+            <span className="font-medium">{formatDate(transaction.transaction_date)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Type:</span>
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded-full font-medium ${cfg.classes}`}>
+              {cfg.icon}
+              {cfg.label}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Montant:</span>
+            <span className={`font-semibold ${cfg.amountClass}`}>
+              {cfg.sign}{formatAmount(transaction.amount)}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Compte:</span>
+            <span className="font-medium">{transaction.account?.name}</span>
+          </div>
+          {transaction.description && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Description:</span>
+              <span className="font-medium text-right">{transaction.description}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm text-gray-600">
+            Cette transaction a été signalée comme suspecte par le système de détection de fraude.
+            Veuillez confirmer s'il s'agit d'une fraude ou d'une transaction légitime.
+          </p>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={() => onConfirm(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+          >
+            <XCircle className="h-4 w-4" />
+            C'est une fraude
+          </button>
+          <button
+            onClick={() => onConfirm(false)}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+          >
+            <CheckCircle className="h-4 w-4" />
+            Transaction légitime
+          </button>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm"
+        >
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────
 // ─── Main component ───────────────────────────────────────────────────────
 export default function Transactions() {
   const [selectedAccount, setSelectedAccount] = useState('');
   const [selectedType, setSelectedType]       = useState('');
+  const [fraudOnly, setFraudOnly]             = useState(false);
   const [search, setSearch]                   = useState('');
   const [page, setPage]                       = useState(1);
+  const [reviewTransaction, setReviewTransaction] = useState<TransactionWithAccount | null>(null);
 
+  const queryClient = useQueryClient();
   const { accounts } = useAccounts();
 
   const allQuery     = useTransactions();
@@ -181,9 +376,40 @@ export default function Transactions() {
     selectedAccount ? accountQuery : allQuery
   ) as { data: TransactionWithAccount[]; isLoading: boolean };
 
+  const reviewMutation = useMutation({
+    mutationFn: ({ transactionId, isFraud }: { transactionId: string; isFraud: boolean }) =>
+      updateFraudReview(transactionId, isFraud),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast.success(
+        variables.isFraud 
+          ? 'Transaction marquée comme frauduleuse' 
+          : 'Transaction marquée comme légitime'
+      );
+      setReviewTransaction(null);
+    },
+    onError: () => {
+      toast.error('Erreur lors de la mise à jour');
+    },
+  });
+
+  const handleReviewFraud = (transaction: TransactionWithAccount) => {
+    setReviewTransaction(transaction);
+  };
+
+  const handleConfirmReview = (isFraud: boolean) => {
+    if (reviewTransaction) {
+      reviewMutation.mutate({
+        transactionId: reviewTransaction.id,
+        isFraud,
+      });
+    }
+  };
+
   const filtered = useMemo(() => {
     return raw.filter((t) => {
       if (selectedType && t.type !== selectedType) return false;
+      if (fraudOnly && (t.fraud_score == null || t.fraud_score <= 0.5)) return false;
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -194,10 +420,11 @@ export default function Transactions() {
       }
       return true;
     });
-  }, [raw, selectedType, search]);
+  }, [raw, selectedType, fraudOnly, search]);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages   = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated    = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const flaggedCount = raw.filter((t) => t.fraud_score != null && t.fraud_score > 0.5).length;
 
   const handleChange =
     (setter: (v: string) => void) =>
@@ -224,6 +451,7 @@ export default function Transactions() {
 
       {/* FILTERS */}
       <div className="bg-white rounded-xl border p-4 flex flex-wrap gap-3 items-center">
+
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -257,9 +485,28 @@ export default function Transactions() {
           <option value="VIREMENT_INTERNE">Virement interne</option>
         </select>
 
+        {/* Fraud filter toggle */}
+        <button
+          onClick={() => { setFraudOnly((v) => !v); setPage(1); }}
+          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
+            fraudOnly
+              ? 'bg-orange-100 border-orange-300 text-orange-700'
+              : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <ShieldAlert className="h-4 w-4" />
+          Suspectes seulement
+          {flaggedCount > 0 && (
+            <span className="bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1">
+              {flaggedCount}
+            </span>
+          )}
+        </button>
+
         <span className="text-xs text-gray-400 ml-auto whitespace-nowrap">
           {filtered.length} transaction(s)
         </span>
+
       </div>
 
       {/* TABLE */}
@@ -268,7 +515,10 @@ export default function Transactions() {
           <div className="p-20 text-center text-gray-400">Chargement...</div>
         ) : (
           <>
-            <TransactionsTable transactions={paginated} />
+            <TransactionsTable 
+              transactions={paginated}
+              onReviewFraud={handleReviewFraud}
+            />
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
@@ -297,6 +547,14 @@ export default function Transactions() {
           </>
         )}
       </div>
+
+      {/* FRAUD REVIEW MODAL */}
+      <FraudReviewModal
+        transaction={reviewTransaction}
+        onClose={() => setReviewTransaction(null)}
+        onConfirm={handleConfirmReview}
+      />
+
     </div>
   );
 }
