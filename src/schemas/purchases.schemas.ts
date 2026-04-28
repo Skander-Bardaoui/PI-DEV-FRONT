@@ -635,8 +635,9 @@ export const createInvoiceFromPOSchema = z.object({
   invoice_number_supplier: z
     .string()
     .trim()
-    .min(1, 'Le numéro de facture est obligatoire')
-    .max(100, 'Numéro de facture trop long'),
+    .max(100, 'Numéro de facture trop long')
+    .optional()
+    .or(z.literal('')),
 
   invoice_date: requiredIsoDate,
 

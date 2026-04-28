@@ -431,10 +431,20 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
   });
 
   const [supplierSearch, setSupplierSearch] = useState('');
+  const [supplierNotFound, setSupplierNotFound] = useState(false);
 
   const ocr    = useOcrExtract(businessId);
   const create = useCreatePurchaseInvoice(businessId);
-  const { data: suppliersData } = useSuppliers(businessId, { is_active: true, limit: 100, search: supplierSearch || undefined });
+
+  // Charger tous les fournisseurs actifs (sans filtre de recherche)
+  const { data: allSuppliersData } = useSuppliers(businessId, { is_active: true, limit: 200 });
+  // Charger les fournisseurs filtrés par recherche (quand l'utilisateur tape)
+  const { data: filteredSuppliersData } = useSuppliers(businessId, { is_active: true, limit: 100, search: supplierSearch || undefined });
+
+  // Liste affichée : si recherche active → filtrée, sinon tous
+  const displayedSuppliers = supplierSearch
+    ? (filteredSuppliersData?.data ?? [])
+    : (allSuppliersData?.data ?? []);
 
   const handleFile = async (file: File) => {
     setError('');
@@ -458,7 +468,30 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
         timbre_fiscal:           result.timbre_fiscal.confidence,
         net_amount:              result.net_amount.confidence,
       });
-      if (result.supplier_name.value) setSupplierSearch(result.supplier_name.value);
+      if (result.supplier_name.value) {
+        const detectedName = result.supplier_name.value.toLowerCase();
+        const allSuppliers = allSuppliersData?.data ?? [];
+
+        // Chercher une correspondance exacte ou partielle dans les fournisseurs existants
+        const matched = allSuppliers.find(s =>
+          s.name.toLowerCase().includes(detectedName) ||
+          detectedName.includes(s.name.toLowerCase())
+        );
+
+        if (matched) {
+          // Fournisseur trouvé → auto-sélectionner
+          setForm(f => ({ ...f, supplier_id: matched.id }));
+          setSupplierSearch(matched.name);
+          setSupplierNotFound(false);
+        } else {
+          // Fournisseur non trouvé → afficher tous les fournisseurs, vider la recherche
+          setSupplierSearch('');
+          setSupplierNotFound(true);
+        }
+      } else {
+        setSupplierSearch('');
+        setSupplierNotFound(false);
+      }
       setStep('review');
     } catch (err: any) {
       setError(err?.response?.data?.message ?? err?.message ?? 'Erreur OCR');
@@ -630,19 +663,68 @@ export default function OcrInvoiceModal({ businessId, onClose, onCreated }: Prop
                       <ConfIcon level={conf.supplier_name} />
                       {ocrData.supplier_name.value ? `IA a détecté : "${ocrData.supplier_name.value}"` : 'Fournisseur non détecté'}
                     </div>
+                    {/* Badge si fournisseur non trouvé dans la base */}
+                    {supplierNotFound && ocrData.supplier_name.value && (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        padding: '3px 8px', borderRadius: 20, fontSize: 11,
+                        background: '#FEF3C7', border: '1px solid #FCD34D', color: '#92400E',
+                      }}>
+                        ⚠️ Non trouvé — choisissez dans la liste
+                      </div>
+                    )}
                   </div>
-                  <input type="text" placeholder="🔍 Rechercher un fournisseur..." value={supplierSearch}
-                    onChange={e => setSupplierSearch(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', fontSize: 13, border: '1.5px solid #E5E7EB', borderRadius: '8px 8px 0 0', outline: 'none', boxSizing: 'border-box', background: '#fff' }} />
-                  <select value={form.supplier_id}
-                    onChange={e => setForm(f => ({ ...f, supplier_id: e.target.value }))}
-                    size={3}
-                    style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1.5px solid #E5E7EB', borderTop: 'none', borderRadius: '0 0 8px 8px', outline: 'none', boxSizing: 'border-box', background: '#fff' }}>
+
+                  {/* Message d'aide si fournisseur non trouvé */}
+                  {supplierNotFound && (
+                    <div style={{
+                      padding: '8px 12px', marginBottom: 8,
+                      background: '#FFFBEB', border: '1px solid #FCD34D',
+                      borderRadius: 8, fontSize: 12, color: '#92400E',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                      <span>⚠️</span>
+                      <span>
+                        Le fournisseur <strong>"{ocrData.supplier_name.value}"</strong> n'existe pas dans votre base.
+                        Sélectionnez un fournisseur existant ci-dessous.
+                      </span>
+                    </div>
+                  )}
+
+                  <input
+                    type="text"
+                    placeholder="🔍 Rechercher un fournisseur..."
+                    value={supplierSearch}
+                    onChange={e => {
+                      setSupplierSearch(e.target.value);
+                      setSupplierNotFound(false);
+                      // Réinitialiser la sélection si l'utilisateur tape
+                      if (form.supplier_id) setForm(f => ({ ...f, supplier_id: '' }));
+                    }}
+                    style={{ width: '100%', padding: '9px 12px', fontSize: 13, border: '1.5px solid #E5E7EB', borderRadius: '8px 8px 0 0', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
+                  />
+                  <select
+                    value={form.supplier_id}
+                    onChange={e => {
+                      setForm(f => ({ ...f, supplier_id: e.target.value }));
+                      setSupplierNotFound(false);
+                      // Mettre à jour la recherche avec le nom sélectionné
+                      const selected = displayedSuppliers.find(s => s.id === e.target.value);
+                      if (selected) setSupplierSearch(selected.name);
+                    }}
+                    size={Math.min(5, Math.max(3, displayedSuppliers.length + 1))}
+                    style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1.5px solid #E5E7EB', borderTop: 'none', borderRadius: '0 0 8px 8px', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
+                  >
                     <option value="">— Sélectionner un fournisseur —</option>
-                    {(suppliersData?.data ?? []).map(s => (
+                    {displayedSuppliers.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
+                  {/* Compteur de fournisseurs */}
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#9CA3AF', textAlign: 'right' }}>
+                    {displayedSuppliers.length} fournisseur{displayedSuppliers.length !== 1 ? 's' : ''} disponible{displayedSuppliers.length !== 1 ? 's' : ''}
+                    {supplierSearch && ` pour "${supplierSearch}"`}
+                  </p>
                 </div>
 
                 {/* Section : Montants */}
