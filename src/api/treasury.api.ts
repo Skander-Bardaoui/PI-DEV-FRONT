@@ -73,6 +73,17 @@ export const getTransactionById = async (id: string): Promise<Transaction> => {
   return response.data;
 };
 
+export const updateFraudReview = async (
+  transactionId: string,
+  isFraud: boolean
+): Promise<Transaction> => {
+  const response = await axiosInstance.patch<Transaction>(
+    `/transactions/${transactionId}/fraud-review`,
+    { is_fraud: isFraud }
+  );
+  return response.data;
+};
+
 // ===================== SUPPLIER PAYMENTS =====================
 export interface CreateSupplierPaymentDto {
   supplier_id:          string;
