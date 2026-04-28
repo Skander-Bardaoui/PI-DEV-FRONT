@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { productsApi } from '../../api/products.api';
-import { Product } from '../../types/product';
+import { Product, ProductType } from '../../types/product';
 
 interface ProductSelectorProps {
   value?: string;
@@ -9,8 +9,16 @@ interface ProductSelectorProps {
   disabled?: boolean;
   className?: string;
   onStockInfo?: (stock: number, isStockable: boolean) => void;
-  businessId?: string; // Ajouter businessId en prop
+  businessId?: string;
+  filterByType?: ProductType; // Nouveau: filtrer par type
+  showType?: boolean; // Nouveau: afficher le type dans la liste
 }
+
+const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
+  [ProductType.PHYSICAL]: '📦 Produit',
+  [ProductType.SERVICE]: '🔧 Service',
+  [ProductType.DIGITAL]: '💾 Digital',
+};
 
 export default function ProductSelector({ 
   value, 
@@ -18,10 +26,11 @@ export default function ProductSelector({
   disabled, 
   className, 
   onStockInfo,
-  businessId: propBusinessId // Recevoir businessId en prop
+  businessId: propBusinessId,
+  filterByType,
+  showType = true,
 }: ProductSelectorProps) {
   const { user } = useAuth();
-  // Utiliser le businessId passé en prop, sinon fallback sur user.business_id
   const businessId = propBusinessId || (user as any)?.business_id;
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,12 +39,15 @@ export default function ProductSelector({
     if (businessId) {
       loadProducts();
     }
-  }, [businessId]);
+  }, [businessId, filterByType]);
 
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const data = await productsApi.getAll(businessId!, { is_active: true });
+      const data = await productsApi.getAll(businessId!, { 
+        is_active: true,
+        ...(filterByType ? { type: filterByType } : {}),
+      });
       setProducts(data);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -68,6 +80,15 @@ export default function ProductSelector({
     return product.is_stockable && product.current_stock <= 0;
   };
 
+  const getProductLabel = (product: Product) => {
+    const typeLabel = showType ? `${PRODUCT_TYPE_LABELS[product.type]} ` : '';
+    const priceLabel = `${product.sale_price_ht.toFixed(3)} DT`;
+    const stockLabel = product.is_stockable ? ` (Stock: ${product.current_stock})` : '';
+    const outOfStockLabel = isProductDisabled(product) ? ' - RUPTURE DE STOCK' : '';
+    
+    return `${typeLabel}${product.name} - ${priceLabel}${stockLabel}${outOfStockLabel}`;
+  };
+
   return (
     <select
       value={value || ''}
@@ -75,16 +96,14 @@ export default function ProductSelector({
       disabled={disabled || loading}
       className={className}
     >
-      <option value="">Sélectionner un produit</option>
+      <option value="">Sélectionner un produit/service</option>
       {products.map((product) => (
         <option
           key={product.id}
           value={product.id}
           disabled={isProductDisabled(product)}
         >
-          {product.name} - {product.sale_price_ht.toFixed(3)} DT
-          {product.is_stockable && ` (Stock: ${product.current_stock})`}
-          {isProductDisabled(product) && ' - RUPTURE DE STOCK'}
+          {getProductLabel(product)}
         </option>
       ))}
     </select>

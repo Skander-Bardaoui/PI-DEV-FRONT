@@ -11,6 +11,11 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ProductSelector from './ProductSelector';
 import { Product } from '@/types/product';
 
+// Extended form values to include salesOrderId for UI purposes
+type ExtendedDeliveryNoteFormValues = DeliveryNoteFormValues & {
+  salesOrderId?: string;
+};
+
 // ── Composant Field avec erreur ───────────────────────────────────────────────
 const Field = ({
   label, error, required, children,
@@ -82,15 +87,16 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
   }, []);
 
   // Compute default values — stable, runs only once on mount
-  const defaultValues = useMemo((): DeliveryNoteFormValues => {
+  const defaultValues = useMemo((): ExtendedDeliveryNoteFormValues => {
     if (isEdit && note) {
       const uniqueItems = deduplicateItems(note.items ?? []);
       return {
         delivery_date: note.deliveryDate?.split('T')[0] || new Date().toISOString().split('T')[0],
         notes: note.notes || '',
+        salesOrderId: note.salesOrderId || '',
         items: uniqueItems.map((item: any) => ({
-          sales_order_item_id: item.salesOrderItemId ?? '',
-          quantity_delivered: Number(item.deliveredQuantity),
+          sales_order_item_id: item.salesOrderItemId || item.id || '',
+          quantity_delivered: Number(item.deliveredQuantity || 0),
         })),
       };
     }
@@ -98,6 +104,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
     return {
       delivery_date: new Date().toISOString().split('T')[0],
       notes: '',
+      salesOrderId: '',
       items: [{ sales_order_item_id: '', quantity_delivered: 0 }],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,7 +117,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
     watch,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm<DeliveryNoteFormValues>({
+  } = useForm<ExtendedDeliveryNoteFormValues>({
     resolver: zodResolver(createDeliveryNoteSchema(orderCreatedDate)),
     mode: 'onSubmit',
     reValidateMode: 'onChange',
@@ -123,7 +130,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
     keyName: 'fieldId',
   });
 
-  const watchedSalesOrderId = watch('salesOrderId' as any);
+  const watchedSalesOrderId = watch('salesOrderId');
   const watchedItems = watch('items') || [];
 
   // ─── KEY FIX ────────────────────────────────────────────────────────────────
@@ -190,9 +197,12 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
     return null;
   };
 
-  const onSubmit = async (values: DeliveryNoteFormValues) => {
+  const onSubmit = async (values: ExtendedDeliveryNoteFormValues) => {
     try {
       setError(null);
+      
+      console.log('=== Form values ===');
+      console.log('values.items:', values.items);
       
       // Validate stock for all items
       for (let i = 0; i < values.items.length; i++) {
@@ -203,31 +213,81 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
         }
       }
       
+      // In edit mode, use the existing salesOrderId from the note
+      const salesOrderId = isEdit ? note.salesOrderId : values.salesOrderId;
+      
       // Get the selected order to extract client and item details
-      const selectedOrder = ordersData?.data?.find((o: any) => o.id === watchedSalesOrderId);
-      if (!selectedOrder) {
+      const selectedOrder = ordersData?.data?.find((o: any) => o.id === salesOrderId);
+      if (!selectedOrder && !isEdit) {
         setError('Commande introuvable');
         return;
       }
       
-      const items = values.items.map((item) => {
-        const orderItem = selectedOrder.items?.find((oi: any) => oi.id === item.sales_order_item_id);
-        return {
-          description: orderItem?.description || '',
-          quantity: Number(orderItem?.quantity) || 0,
-          deliveredQuantity: Number(item.quantity_delivered) || 0,
-          salesOrderItemId: item.sales_order_item_id,
-          ...(orderItem?.productId ? { productId: orderItem.productId } : {}),
-        };
-      }) as CreateDeliveryNoteItemDto[];
+      console.log('=== Before mapping items ===');
+      console.log('isEdit:', isEdit);
+      console.log('note.items:', note?.items);
+      console.log('selectedOrder:', selectedOrder);
+      
+      const items = values.items
+        .filter(item => {
+          // Filter out items with invalid data
+          const qty = parseFloat(String(item.quantity_delivered || 0));
+          console.log('Filtering item:', item, 'qty:', qty);
+          return !isNaN(qty) && qty >= 0;
+        })
+        .map((item, index) => {
+          if (isEdit) {
+            // In edit mode, match by index since salesOrderItemId might not be stored
+            const existingItem = note.items?.[index];
+            
+            console.log(`Edit mode - item ${index}:`, {
+              formItem: item,
+              existingItem: existingItem
+            });
+            
+            const quantity = parseFloat(String(existingItem?.quantity || 1));
+            const deliveredQuantity = parseFloat(String(item.quantity_delivered || 0));
+            
+            return {
+              description: existingItem?.description || 'Article',
+              quantity: isNaN(quantity) || quantity === 0 ? 1 : quantity,
+              deliveredQuantity: isNaN(deliveredQuantity) ? 0 : deliveredQuantity,
+              ...(existingItem?.productId ? { productId: existingItem.productId } : {}),
+            };
+          } else {
+            // In create mode, use order item data
+            const orderItem = selectedOrder?.items?.find((oi: any) => oi.id === item.sales_order_item_id);
+            const quantity = parseFloat(String(orderItem?.quantity || 0));
+            const deliveredQuantity = parseFloat(String(item.quantity_delivered || 0));
+            
+            return {
+              description: orderItem?.description || '',
+              quantity: isNaN(quantity) ? 0 : quantity,
+              deliveredQuantity: isNaN(deliveredQuantity) ? 0 : deliveredQuantity,
+              ...(orderItem?.productId ? { productId: orderItem.productId } : {}),
+            };
+          }
+        }) as CreateDeliveryNoteItemDto[];
+      
+      // Validate that we have at least one item
+      if (items.length === 0) {
+        setError('Au moins une ligne avec une quantité livrée valide est requise');
+        return;
+      }
 
       const payload = {
-        clientId: selectedOrder.clientId,
-        salesOrderId: watchedSalesOrderId,
+        clientId: isEdit ? note.clientId : selectedOrder!.clientId,
+        ...(salesOrderId ? { salesOrderId } : {}),
         deliveryDate: values.delivery_date || undefined,
         notes: values.notes || undefined,
         items,
       };
+
+      console.log('=== Delivery note payload ===');
+      console.log(JSON.stringify(payload, null, 2));
+      console.log('=== Items detail ===');
+      console.log('Items count:', items.length);
+      console.log('Items:', items);
 
       if (isEdit) {
         await update.mutateAsync(payload);
@@ -237,11 +297,32 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
       onClose();
     } catch (err: any) {
       console.error('❌ Erreur bon de livraison:', err);
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Erreur lors de l'opération",
-      );
+      console.error('Response data:', JSON.stringify(err?.response?.data, null, 2));
+      console.error('Response status:', err?.response?.status);
+      
+      // Extract detailed error message
+      let errorMessage = "Erreur lors de l'opération";
+      
+      if (err?.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.message) {
+          if (Array.isArray(data.message)) {
+            errorMessage = data.message.join(', ');
+          } else {
+            errorMessage = data.message;
+          }
+        } else if (Array.isArray(data)) {
+          errorMessage = data.join(', ');
+        } else {
+          errorMessage = JSON.stringify(data);
+        }
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -270,8 +351,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
                 Commande client <span className="text-red-500">*</span>
               </label>
               <select
-                value={watchedSalesOrderId || ''}
-                onChange={(e) => setValue('salesOrderId' as any, e.target.value)}
+                {...register('salesOrderId')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
                 disabled={isEdit}
               >
@@ -283,7 +363,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Sélectionnez une commande pour créer le bon de livraison
+                {isEdit ? 'Commande liée (non modifiable)' : 'Sélectionnez une commande pour créer le bon de livraison'}
               </p>
             </div>
 
@@ -297,7 +377,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
           </div>
 
           {/* Lignes */}
-          {watchedSalesOrderId && (
+          {(watchedSalesOrderId || isEdit) && (
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -336,18 +416,42 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
                     {fields.map((field, i) => {
                       const stockWarning = getStockWarning(i);
                       const hasError = errors.items?.[i];
-                      const orderItem = ordersData?.data
-                        ?.find((o: any) => o.id === watchedSalesOrderId)
-                        ?.items?.find((item: any) => item.id === watchedItems[i]?.sales_order_item_id);
+                      
+                      // Get the current item data - using correct field names
+                      let itemDescription = 'Article';
+                      let itemQuantity = 0;
+                      
+                      if (isEdit && note.items) {
+                        // In edit mode, find the existing delivery note item
+                        // Try by index first, then by salesOrderItemId
+                        const existingItem = note.items[i] || note.items?.find((ni: any) => 
+                          ni.salesOrderItemId === watchedItems[i]?.sales_order_item_id
+                        );
+                        
+                        if (existingItem) {
+                          itemDescription = existingItem.description || 'Article';
+                          itemQuantity = existingItem.quantity || 0;
+                        }
+                      } else if (!isEdit && watchedSalesOrderId) {
+                        // In create mode, find the sales order item
+                        const orderItem = ordersData?.data
+                          ?.find((o: any) => o.id === watchedSalesOrderId)
+                          ?.items?.find((item: any) => item.id === watchedItems[i]?.sales_order_item_id);
+                        
+                        if (orderItem) {
+                          itemDescription = orderItem.description || 'Article';
+                          itemQuantity = orderItem.quantity || 0;
+                        }
+                      }
                       
                       return (
                       <tr key={field.fieldId} className={stockWarning || hasError ? 'bg-red-50' : ''}>
                         <td className="px-4 py-2">
                           <div className="text-sm font-medium text-gray-900">
-                            {orderItem?.description || 'Article'}
+                            {itemDescription}
                           </div>
                           <div className="text-xs text-gray-500">
-                            Qté commandée: {orderItem?.quantity || 0}
+                            Qté commandée: {Number(itemQuantity).toFixed(3)}
                           </div>
                           <input type="hidden" {...register(`items.${i}.sales_order_item_id`)} />
                         </td>
@@ -360,7 +464,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
                             className={`w-full px-3 py-2 border-2 rounded text-sm text-center font-semibold focus:ring-2 ${
                               stockWarning || hasError?.quantity_delivered
                                 ? 'border-red-500 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-200' 
-                                : 'border-green-300 text-green-700 focus:border-green-500 focus:ring-green-200'
+                                : 'border-green-300 text-green-700 focus:border-green-500 focus:ring-green-200 bg-white'
                             }`}
                             placeholder="0.000"
                           />
@@ -380,7 +484,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
             </div>
           )}
 
-          {!watchedSalesOrderId && (
+          {!(watchedSalesOrderId || isEdit) && (
             <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
               Veuillez sélectionner une commande client pour continuer
             </div>
@@ -405,7 +509,7 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !watchedSalesOrderId}
+              disabled={isSubmitting || (!watchedSalesOrderId && !isEdit)}
               className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
             >
               {isSubmitting

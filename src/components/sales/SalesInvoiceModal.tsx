@@ -1,7 +1,7 @@
 // src/components/sales/SalesInvoiceModal.tsx
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Package, Wrench } from 'lucide-react';
 import { salesInvoiceSchema } from '@/schemas/sales.schemas';
 import { z } from 'zod';
 import { useCreateSalesInvoice, useUpdateSalesInvoice } from '@/hooks/useSalesInvoices';
@@ -9,7 +9,7 @@ import { useClients } from '@/hooks/useClients';
 import { CreateSalesInvoiceItemDto, SalesInvoiceType } from '@/types/sales-invoice';
 import { useState } from 'react';
 import ProductSelector from './ProductSelector';
-import { Product } from '@/types/product';
+import { Product, ProductType } from '@/types/product';
 
 const TIMBRE_FISCAL = 1.000;
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -51,7 +51,15 @@ type SalesInvoiceFormValues = z.infer<typeof salesInvoiceSchema> & {
     quantity: number;
     unit_price: number;
     tax_rate_value: number;
+    product_type_filter?: ProductType; // Add product type filter for each item
   }[];
+};
+
+const INVOICE_TYPE_LABELS: Record<SalesInvoiceType, string> = {
+  [SalesInvoiceType.NORMAL]: 'Facture normale',
+  [SalesInvoiceType.AVOIR]: 'Avoir (Note de crédit)',
+  [SalesInvoiceType.PROFORMA]: 'Facture proforma',
+  [SalesInvoiceType.ACOMPTE]: 'Facture d\'acompte',
 };
 
 interface Props {
@@ -66,6 +74,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
   const { data: clientsData } = useClients(businessId, { limit: 100 });
   const [error, setError] = useState<string | null>(null);
   const [itemStocks, setItemStocks] = useState<{ [key: number]: { stock: number; isStockable: boolean } }>({});
+  const [itemTypeFilters, setItemTypeFilters] = useState<{ [key: number]: ProductType | undefined }>({});
 
   const isEdit = !!invoice;
 
@@ -73,6 +82,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
     if (isEdit) {
       return {
         client_id: invoice.client_id || '',
+        type: invoice.type || SalesInvoiceType.NORMAL,
         date: invoice.date?.split('T')[0] || new Date().toISOString().split('T')[0],
         due_date: invoice.due_date?.split('T')[0] || '',
         subtotal_ht: invoice.subtotal_ht || 0,
@@ -87,12 +97,14 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
           quantity: item.quantity || 1,
           unit_price: item.unit_price || 0,
           tax_rate_value: item.tax_rate_value || 19,
-        })) || [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19 }],
+          product_type_filter: undefined, // Default to no filter
+        })) || [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19, product_type_filter: undefined }],
       };
     }
 
     return {
       client_id: '',
+      type: SalesInvoiceType.NORMAL,
       date: new Date().toISOString().split('T')[0],
       due_date: '',
       subtotal_ht: 0,
@@ -101,7 +113,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
       notes: '',
       sales_order_id: '',
       quote_id: '',
-      items: [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19 }],
+      items: [{ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19, product_type_filter: undefined }],
     };
   };
 
@@ -138,6 +150,22 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
   // Auto-update calculated fields
   setValue('subtotal_ht', subtotal_ht);
   setValue('tax_amount', tax_amount);
+
+  const handleProductTypeFilterChange = (index: number, productType: ProductType | undefined) => {
+    setItemTypeFilters(prev => ({
+      ...prev,
+      [index]: productType
+    }));
+    // Clear selected product when changing filter
+    setValue(`items.${index}.productId`, undefined);
+    setValue(`items.${index}.description`, '');
+    setValue(`items.${index}.unit_price`, 0);
+    setItemStocks(prev => {
+      const newStocks = { ...prev };
+      delete newStocks[index];
+      return newStocks;
+    });
+  };
 
   const handleProductSelect = (index: number, product: Product | null) => {
     if (product) {
@@ -176,7 +204,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
       setError(null);
       
       // Validate stock for all items
-      for (let i = 0; i < values.items.length; i++) {
+      for (let i = 0; i < (values.items || []).length; i++) {
         const warning = getStockWarning(i);
         if (warning) {
           setError(`Ligne ${i + 1}: ${warning}`);
@@ -184,7 +212,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
         }
       }
       
-      const items = values.items.map((item, i) => ({
+      const items = (values.items || []).map((item, i) => ({
         description: item.description,
         quantity: Number(item.quantity) || 0,
         unit_price: Number(item.unit_price) || 0,
@@ -195,6 +223,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
 
       const payload = {
         client_id: values.client_id,
+        type: values.type as SalesInvoiceType,
         date: values.date || undefined,
         due_date: values.due_date || undefined,
         subtotal_ht: values.subtotal_ht,
@@ -250,6 +279,21 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
               </select>
             </Field>
 
+            <Field label="Type de facture" error={errors.type?.message} required>
+              <select
+                {...register('type')}
+                className={inputCls(errors.type?.message)}
+              >
+                {Object.entries(INVOICE_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <Field label="Date de facture" error={errors.date?.message} required>
               <input
                 type="date"
@@ -284,7 +328,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
               <span className="font-medium text-gray-900">Lignes</span>
               <button
                 type="button"
-                onClick={() => append({ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19 })}
+                onClick={() => append({ description: '', quantity: 1, unit_price: 0, tax_rate_value: 19, product_type_filter: undefined })}
                 className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
               >
                 <Plus className="h-4 w-4" /> Ajouter
@@ -295,7 +339,7 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Description *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Type & Description *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">Qté *</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 w-32">Prix HT *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">TVA</th>
@@ -309,11 +353,53 @@ export default function SalesInvoiceModal({ businessId, invoice, onClose }: Prop
                     return (
                     <tr key={field.id} className={stockWarning ? 'bg-red-50' : ''}>
                       <td className="px-4 py-2">
+                        {/* Product Type Filter */}
+                        <div className="flex gap-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => handleProductTypeFilterChange(i, undefined)}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors ${
+                              !itemTypeFilters[i] 
+                                ? 'bg-indigo-100 border-indigo-300 text-indigo-700' 
+                                : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            Tous
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleProductTypeFilterChange(i, ProductType.PHYSICAL)}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors ${
+                              itemTypeFilters[i] === ProductType.PHYSICAL 
+                                ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                                : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Package className="h-3 w-3" />
+                            Produit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleProductTypeFilterChange(i, ProductType.SERVICE)}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors ${
+                              itemTypeFilters[i] === ProductType.SERVICE 
+                                ? 'bg-green-100 border-green-300 text-green-700' 
+                                : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Wrench className="h-3 w-3" />
+                            Service
+                          </button>
+                        </div>
+                        
+                        {/* Product Selector */}
                         <ProductSelector
                           businessId={businessId}
                           value={watchedItems[i]?.productId}
                           onChange={(product) => handleProductSelect(i, product)}
                           className={inputSmallCls()}
+                          filterByType={itemTypeFilters[i]}
+                          showType={false} // Hide type in dropdown since we have buttons
                         />
                         <input type="hidden" {...register(`items.${i}.productId`)} />
                         <input type="hidden" {...register(`items.${i}.description`)} />
