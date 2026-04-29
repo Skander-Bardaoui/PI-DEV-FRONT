@@ -25,6 +25,7 @@ import AlertsPanel               from '@/components/purchases/AlertsPanel';
 import KeyboardShortcutsHelp     from '@/components/KeyboardShortcutsHelp';
 import LanguageSwitcher          from '@/components/LanguageSwitcher';
 import GlobalSearch              from '@/components/GlobalSearch';
+import GlobalAIAssistant         from '@/components/GlobalAIAssistant';
 import { PresenceProvider }      from '../context/PresenceContext';
 
 export default function BackOfficeLayout() {
@@ -559,6 +560,9 @@ export default function BackOfficeLayout() {
         isOpen={shortcutsHelpOpen}
         onClose={() => setShortcutsHelpOpen(false)}
       />
+
+      {/* ── Global AI Assistant ──────────────────────────────────────────── */}
+      <GlobalAIAssistant />
       </div>
     </PresenceProvider>
   );
