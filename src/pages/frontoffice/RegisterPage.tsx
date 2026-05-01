@@ -14,11 +14,14 @@ import {
   Globe, 
   Briefcase, 
   FileText,
-  XCircle
+  XCircle,
+  CreditCard,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import PhoneInput from '../../components/common/PhoneInput';
 import AddressAutocomplete, { AddressData } from '../../components/common/AddressAutocomplete';
+import { plansApi } from '../../api/plans.api';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -29,6 +32,9 @@ export default function RegisterPage() {
   const [error, setError] = useState<string>('');
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submission
+  const [plans, setPlans] = useState<any[]>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -58,6 +64,9 @@ export default function RegisterPage() {
     taxRateName: 'TVA Standard',
     taxRate: 19,
 
+    planId: '',
+    billingCycle: 'monthly' as 'monthly' | 'annual',
+
     acceptTerms: false
   });
 
@@ -75,6 +84,25 @@ export default function RegisterPage() {
   useEffect(() => {
     setPasswordStrength(calculatePasswordStrength(formData.password));
   }, [formData.password]);
+
+  // Fetch plans when component mounts
+  useEffect(() => {
+    const fetchPlans = async () => {
+      setPlansLoading(true);
+      try {
+        const fetchedPlans = await plansApi.getPublicPlans();
+        // Filter out free plan for registration
+        const paidPlans = fetchedPlans.filter((p: any) => p.slug !== 'free');
+        setPlans(paidPlans);
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+        setError('Impossible de charger les plans. Veuillez réessayer.');
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    fetchPlans();
+  }, []);
 
   const validateTaxId = (taxId: string): boolean => {
     if (!taxId) return true;
@@ -124,8 +152,8 @@ export default function RegisterPage() {
       }
       setStep(3);
     } 
-    else {
-      // Final Step 3
+    else if (step === 3) {
+      // Business info validation
       if (!formData.businessName?.trim() || formData.businessName.trim().length < 2) {
         setError('Le nom de l\'entreprise doit contenir au moins 2 caractères');
         return;
@@ -142,6 +170,14 @@ export default function RegisterPage() {
         setError('Le taux de TVA doit être entre 0 et 100');
         return;
       }
+      setStep(4); // Move to plan selection
+    }
+    else {
+      // Final Step 4 - Plan selection and submission
+      if (!formData.planId) {
+        setError('Veuillez sélectionner un plan');
+        return;
+      }
       if (!formData.acceptTerms) {
         setError('Vous devez accepter les conditions d\'utilisation');
         return;
@@ -156,6 +192,9 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
         phone_number: formData.phone_number?.trim() || undefined,
+
+        planId: formData.planId,
+        billingCycle: formData.billingCycle,
 
         tenant: {
           name: formData.tenantName.trim(),
@@ -246,22 +285,35 @@ export default function RegisterPage() {
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-lg transition-all ${
                 step >= 3 ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white scale-110' : 'bg-gray-200 text-gray-500'
               }`}>
-                3
+                {step > 3 ? <CheckCircle className="h-5 w-5" /> : '3'}
               </div>
               <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Entreprise</span>
+            </div>
+            <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div className={`h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-500 ${step > 3 ? 'w-full' : 'w-0'}`} />
+            </div>
+            <div className={`flex items-center gap-2 ${step >= 4 ? 'text-indigo-600' : 'text-gray-400'}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-lg transition-all ${
+                step >= 4 ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white scale-110' : 'bg-gray-200 text-gray-500'
+              }`}>
+                4
+              </div>
+              <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Plan</span>
             </div>
           </div>
 
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-3">
-              {step === 1 ? 'Créez votre compte' : step === 2 ? 'Configuration Tenant' : 'Informations entreprise'}
+              {step === 1 ? 'Créez votre compte' : step === 2 ? 'Configuration Tenant' : step === 3 ? 'Informations entreprise' : 'Choisissez votre plan'}
             </h1>
             <p className="text-lg text-gray-600">
               {step === 1
                 ? 'Commencez votre essai gratuit de 14 jours.'
                 : step === 2
                 ? 'Configurez votre espace de travail.'
-                : 'Finalisez les détails de votre entreprise.'
+                : step === 3
+                ? 'Finalisez les détails de votre entreprise.'
+                : 'Sélectionnez le plan qui correspond à vos besoins.'
               }
             </p>
           </div>
@@ -513,7 +565,7 @@ export default function RegisterPage() {
                   />
                 </div>
               </>
-            ) : (
+            ) : step === 3 ? (
               <>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Nom de l'entreprise</label>
@@ -623,8 +675,123 @@ export default function RegisterPage() {
                     required={false}
                   />
                 </div>
+              </>
+            ) : step === 4 ? (
+              <>
+                {/* Billing Cycle Toggle */}
+                <div className="flex items-center justify-center gap-4 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBillingCycle('monthly');
+                      setFormData({ ...formData, billingCycle: 'monthly' });
+                    }}
+                    className={`px-6 py-2 rounded-full font-semibold transition-all ${
+                      billingCycle === 'monthly'
+                        ? 'bg-indigo-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    disabled={isLoading}
+                  >
+                    Mensuel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBillingCycle('annual');
+                      setFormData({ ...formData, billingCycle: 'annual' });
+                    }}
+                    className={`px-6 py-2 rounded-full font-semibold transition-all ${
+                      billingCycle === 'annual'
+                        ? 'bg-indigo-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    disabled={isLoading}
+                  >
+                    Annuel
+                    <span className="ml-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">-17%</span>
+                  </button>
+                </div>
 
-                <div className="flex items-start gap-3">
+                {/* Plans Grid */}
+                {plansLoading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                  </div>
+                ) : plans.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    Aucun plan disponible pour le moment.
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {plans.map((plan) => {
+                      const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_annual;
+                      const isSelected = formData.planId === plan.id;
+                      const isPopular = plan.slug === 'professional';
+
+                      return (
+                        <div
+                          key={plan.id}
+                          onClick={() => setFormData({ ...formData, planId: plan.id })}
+                          className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-50 shadow-lg'
+                              : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
+                          } ${isPopular ? 'ring-2 ring-purple-500' : ''}`}
+                        >
+                          {isPopular && (
+                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                              Populaire
+                            </div>
+                          )}
+                          
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+                              <div className="mt-2">
+                                <span className="text-3xl font-bold text-indigo-600">{Number(price).toFixed(0)}</span>
+                                <span className="text-gray-500 ml-1">TND/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
+                              </div>
+                            </div>
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                              isSelected ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300'
+                            }`}>
+                              {isSelected && <CheckCircle className="h-5 w-5 text-white" />}
+                            </div>
+                          </div>
+
+                          <ul className="space-y-2">
+                            {plan.max_users && (
+                              <li className="flex items-center gap-2 text-sm text-gray-600">
+                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                <span>{plan.max_users === null ? 'Utilisateurs illimités' : `Jusqu'à ${plan.max_users} utilisateurs`}</span>
+                              </li>
+                            )}
+                            {plan.max_businesses && (
+                              <li className="flex items-center gap-2 text-sm text-gray-600">
+                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                <span>{plan.max_businesses === null ? 'Entreprises illimitées' : `${plan.max_businesses} entreprise${plan.max_businesses > 1 ? 's' : ''}`}</span>
+                              </li>
+                            )}
+                            {Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: string, i: number) => (
+                              <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
+                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                <span>{feature}</span>
+                              </li>
+                            ))}
+                            {Array.isArray(plan.features) && plan.features.length > 3 && (
+                              <li className="text-xs text-indigo-600 font-medium">
+                                +{plan.features.length - 3} autres fonctionnalités
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="flex items-start gap-3 mt-6">
                   <input
                     type="checkbox"
                     id="terms"
@@ -642,7 +809,7 @@ export default function RegisterPage() {
                   </label>
                 </div>
               </>
-            )}
+            ) : null}
 
             <button
               type="submit"
@@ -666,7 +833,7 @@ export default function RegisterPage() {
                   </>
                 ) : (
                   <>
-                    {step < 3 ? 'Continuer' : 'Créer mon compte'}
+                    {step < 4 ? 'Continuer' : 'Créer mon compte'}
                     <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}

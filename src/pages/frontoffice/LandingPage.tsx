@@ -27,6 +27,7 @@ import {
   Layers,
   Quote
 } from 'lucide-react';
+import { plansApi } from '../../api/plans.api';
 
 // --- Custom hook for scroll-triggered animations ---
 const useScrollReveal = (threshold = 0.2) => {
@@ -154,32 +155,7 @@ const teamMembers = [
 ];
 
 // --- Pricing Plans Data ---
-const pricingPlans = [
-  {
-    name: 'Basic',
-    price: '$29',
-    period: '/month',
-    features: ['Up to 500 users', '5 GB storage', 'Basic analytics', 'Email support', 'API access'],
-    cta: 'Start Basic',
-    highlighted: false
-  },
-  {
-    name: 'Pro',
-    price: '$79',
-    period: '/month',
-    features: ['Unlimited users', '50 GB storage', 'Advanced analytics', 'Priority support', 'Custom integrations', 'Team collaboration'],
-    cta: 'Try Pro Free',
-    highlighted: true
-  },
-  {
-    name: 'Premium',
-    price: '$199',
-    period: '/month',
-    features: ['Unlimited everything', '1 TB storage', 'AI-powered insights', '24/7 dedicated support', 'SLA guarantee', 'White-label option'],
-    cta: 'Contact Sales',
-    highlighted: false
-  }
-];
+// Plans will be fetched from API
 
 // --- Statistics Data (for count-up) ---
 const statsData = [
@@ -218,7 +194,27 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [parallaxOffset, setParallaxOffset] = useState(0);
+  const [pricingPlans, setPricingPlans] = useState<any[]>([]);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [plansLoading, setPlansLoading] = useState(true);
   const heroRef = useRef<HTMLElement>(null);
+
+  // Fetch plans from API
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const plans = await plansApi.getPublicPlans();
+        // Filter out the free plan for landing page display
+        const paidPlans = plans.filter((p: any) => p.slug !== 'free');
+        setPricingPlans(paidPlans);
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    fetchPlans();
+  }, []);
 
   // Parallax effect for hero background
   useEffect(() => {
@@ -661,7 +657,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing Section with slide animations - No gradients */}
+      {/* Pricing Section with horizontal scroll */}
       <section id="pricing" ref={pricingRef} className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className={`text-center mb-16 transition-all duration-700 ${pricingRevealed ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -675,35 +671,136 @@ export default function LandingPage() {
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Flexible pricing for businesses of all sizes. Start free, upgrade as you grow.
             </p>
+
+            {/* Billing Cycle Toggle */}
+            <div className="flex items-center justify-center gap-4 mt-8">
+              <button
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-6 py-2 rounded-full font-semibold transition-all ${
+                  billingCycle === 'monthly'
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingCycle('annual')}
+                className={`px-6 py-2 rounded-full font-semibold transition-all ${
+                  billingCycle === 'annual'
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Annual
+                <span className="ml-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">Save 17%</span>
+              </button>
+            </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 items-stretch">
-            {pricingPlans.map((plan, idx) => (
-              <div key={plan.name} className={`relative glass rounded-3xl p-8 transition-all duration-500 delay-${idx * 150} hover:-translate-y-2 flex flex-col ${plan.highlighted ? 'ring-2 ring-purple-500 shadow-2xl shadow-purple-500/20' : 'hover:shadow-xl'} ${pricingRevealed ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}>
-                {plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-sm font-bold px-4 py-1 rounded-full">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                <div className="mb-6">
-                  <span className="text-5xl font-bold text-purple-600">{plan.price}</span>
-                  <span className="text-gray-500">{plan.period}</span>
-                </div>
-                <ul className="space-y-3 mb-8 flex-grow">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2 text-gray-600">
-                      <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link to="/register" className={`w-full text-center py-3 rounded-xl font-semibold transition-all duration-300 ${plan.highlighted ? 'bg-purple-600 text-white shadow-lg hover:shadow-purple-500/30' : 'glass text-gray-700 hover:bg-white/80'}`}>
-                  {plan.cta}
-                </Link>
+          {plansLoading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            </div>
+          ) : pricingPlans.length === 0 ? (
+            <div className="text-center py-20 text-gray-500">
+              No plans available at the moment.
+            </div>
+          ) : (
+            <div className="relative">
+              {/* Scroll Container */}
+              <div 
+                id="plans-scroll-container"
+                className="flex gap-8 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide scroll-smooth"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {pricingPlans.map((plan, idx) => {
+                  const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_annual;
+                  const isPopular = plan.slug === 'professional';
+                  
+                  return (
+                    <div 
+                      key={plan.id} 
+                      className={`flex-shrink-0 w-80 snap-center relative glass rounded-3xl p-8 transition-all duration-500 hover:-translate-y-2 flex flex-col ${
+                        isPopular ? 'ring-2 ring-purple-500 shadow-2xl shadow-purple-500/20' : 'hover:shadow-xl'
+                      } ${pricingRevealed ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}
+                      style={{ transitionDelay: `${idx * 150}ms` }}
+                    >
+                      {isPopular && (
+                        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-sm font-bold px-4 py-1 rounded-full">
+                          Most Popular
+                        </div>
+                      )}
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                      <div className="mb-6">
+                        <span className="text-5xl font-bold text-purple-600">{Number(price).toFixed(0)}</span>
+                        <span className="text-gray-500"> TND/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
+                      </div>
+                      
+                      {/* Features */}
+                      <ul className="space-y-3 mb-8 flex-grow">
+                        {plan.max_users && (
+                          <li className="flex items-center gap-2 text-gray-600">
+                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                            <span>{plan.max_users === null ? 'Utilisateurs illimités' : `Jusqu'à ${plan.max_users} utilisateurs`}</span>
+                          </li>
+                        )}
+                        {plan.max_businesses && (
+                          <li className="flex items-center gap-2 text-gray-600">
+                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                            <span>{plan.max_businesses === null ? 'Entreprises illimitées' : `${plan.max_businesses} entreprise${plan.max_businesses > 1 ? 's' : ''}`}</span>
+                          </li>
+                        )}
+                        {Array.isArray(plan.features) && plan.features.map((feature: string, i: number) => (
+                          <li key={i} className="flex items-center gap-2 text-gray-600">
+                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <Link 
+                        to="/register" 
+                        className={`w-full text-center py-3 rounded-xl font-semibold transition-all duration-300 ${
+                          isPopular 
+                            ? 'bg-purple-600 text-white shadow-lg hover:shadow-purple-500/30' 
+                            : 'glass text-gray-700 hover:bg-white/80'
+                        }`}
+                      >
+                        Get Started
+                      </Link>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+
+              {/* Scroll Arrows - Hidden on mobile */}
+              <button
+                onClick={() => {
+                  const container = document.getElementById('plans-scroll-container');
+                  if (container) container.scrollBy({ left: -350, behavior: 'smooth' });
+                }}
+                className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-12 h-12 bg-white shadow-xl rounded-full items-center justify-center hover:bg-purple-50 transition-colors z-10"
+                aria-label="Scroll left"
+              >
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => {
+                  const container = document.getElementById('plans-scroll-container');
+                  if (container) container.scrollBy({ left: 350, behavior: 'smooth' });
+                }}
+                className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-12 h-12 bg-white shadow-xl rounded-full items-center justify-center hover:bg-purple-50 transition-colors z-10"
+                aria-label="Scroll right"
+              >
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
