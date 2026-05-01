@@ -115,6 +115,33 @@ export interface SalesPermissions {
 }
 
 /**
+ * Purchase permissions structure
+ */
+export interface PurchasePermissions {
+  create_supplier?: boolean;
+  update_supplier?: boolean;
+  delete_supplier?: boolean;
+  invite_supplier?: boolean;
+  create_purchase_order?: boolean;
+  update_purchase_order?: boolean;
+  delete_purchase_order?: boolean;
+  send_purchase_order?: boolean;
+  confirm_purchase_order?: boolean;
+  create_goods_receipt?: boolean;
+  update_goods_receipt?: boolean;
+  delete_goods_receipt?: boolean;
+  validate_goods_receipt?: boolean;
+  create_purchase_invoice?: boolean;
+  update_purchase_invoice?: boolean;
+  delete_purchase_invoice?: boolean;
+  pay_purchase_invoice?: boolean;
+  create_purchase_return?: boolean;
+  update_purchase_return?: boolean;
+  delete_purchase_return?: boolean;
+  approve_purchase_return?: boolean;
+}
+
+/**
  * Business member with permissions
  */
 export interface BusinessMember {
@@ -128,6 +155,7 @@ export interface BusinessMember {
   payment_permissions?: PaymentPermissions;
   salary_permissions?: SalaryPermissions; // Optional for backward compatibility
   sales_permissions?: SalesPermissions;
+  purchase_permissions?: PurchasePermissions;
   is_active: boolean;
   user: {
     id: string;
@@ -151,6 +179,7 @@ export interface UpdatePermissionsDto {
   payment_permissions?: PaymentPermissions;
   salary_permissions?: SalaryPermissions;
   sales_permissions?: SalesPermissions;
+  purchase_permissions?: PurchasePermissions;
 }
 
 /**

@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Loader2, Users, Package, CreditCard, CheckCircle2, ShoppingCart } from 'lucide-react';
+import { X, Loader2, Users, Package, CreditCard, CheckCircle2, ShoppingCart, ShoppingBag } from 'lucide-react';
 import { permissionsApi } from '../api/permissions.api';
-import { BusinessMember, CollaborationPermissions, StockPermissions, PaymentPermissions, SalesPermissions } from '../types/permissions.types';
+import { BusinessMember, CollaborationPermissions, StockPermissions, PaymentPermissions, SalesPermissions, PurchasePermissions } from '../types/permissions.types';
 import { useToast } from './ui/Toast';
 
 interface PermissionManagementModalProps {
@@ -116,6 +116,32 @@ export function PermissionManagementModal({
     }
   );
 
+  const [purchasePermissions, setPurchasePermissions] = useState<PurchasePermissions>(
+    member.purchase_permissions || {
+      create_supplier: false,
+      update_supplier: false,
+      delete_supplier: false,
+      invite_supplier: false,
+      create_purchase_order: false,
+      update_purchase_order: false,
+      delete_purchase_order: false,
+      send_purchase_order: false,
+      confirm_purchase_order: false,
+      create_goods_receipt: false,
+      update_goods_receipt: false,
+      delete_goods_receipt: false,
+      validate_goods_receipt: false,
+      create_purchase_invoice: false,
+      update_purchase_invoice: false,
+      delete_purchase_invoice: false,
+      pay_purchase_invoice: false,
+      create_purchase_return: false,
+      update_purchase_return: false,
+      delete_purchase_return: false,
+      approve_purchase_return: false,
+    }
+  );
+
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -128,7 +154,8 @@ export function PermissionManagementModal({
         collaborationPermissions,
         stockPermissions,
         paymentPermissions,
-        salesPermissions
+        salesPermissions,
+        purchasePermissions
       ),
     onSuccess: () => {
       // Invalidate business members cache to refetch updated data
@@ -183,6 +210,14 @@ export function PermissionManagementModal({
     }));
   };
 
+  // Handle purchase permission toggle
+  const handlePurchaseToggle = (key: keyof PurchasePermissions) => {
+    setPurchasePermissions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
   // Handle save button click
   const handleSave = () => {
     updatePermissionsMutation.mutate();
@@ -193,7 +228,8 @@ export function PermissionManagementModal({
     JSON.stringify(collaborationPermissions) !== JSON.stringify(member.collaboration_permissions) ||
     JSON.stringify(stockPermissions) !== JSON.stringify(member.stock_permissions) ||
     JSON.stringify(paymentPermissions) !== JSON.stringify(member.payment_permissions) ||
-    JSON.stringify(salesPermissions) !== JSON.stringify(member.sales_permissions);
+    JSON.stringify(salesPermissions) !== JSON.stringify(member.sales_permissions) ||
+    JSON.stringify(purchasePermissions) !== JSON.stringify(member.purchase_permissions);
 
   // Don't render if modal is not open
   if (!isOpen) {
@@ -244,7 +280,8 @@ export function PermissionManagementModal({
                 ✓ All Collaboration Features<br />
                 ✓ All Stock Management Features<br />
                 ✓ All Payment Management Features<br />
-                ✓ All Sales Management Features
+                ✓ All Sales Management Features<br />
+                ✓ All Purchases Management Features
               </p>
             </div>
           </div>
@@ -912,6 +949,196 @@ export function PermissionManagementModal({
                   description="delete recurring templates"
                   isGranted={salesPermissions.delete_recurring}
                   onToggle={() => handleSalesToggle('delete_recurring')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Purchases Management Section */}
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingBag className="h-5 w-5 text-purple-600" />
+              <h3 className="text-lg font-semibold text-gray-900">🛒 Purchases Management</h3>
+            </div>
+
+            {/* Suppliers Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Suppliers</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Supplier"
+                  description="add new suppliers"
+                  isGranted={purchasePermissions.create_supplier}
+                  onToggle={() => handlePurchaseToggle('create_supplier')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Supplier"
+                  description="edit supplier information"
+                  isGranted={purchasePermissions.update_supplier}
+                  onToggle={() => handlePurchaseToggle('update_supplier')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Supplier"
+                  description="delete suppliers"
+                  isGranted={purchasePermissions.delete_supplier}
+                  onToggle={() => handlePurchaseToggle('delete_supplier')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Invite Supplier"
+                  description="send portal invitation to supplier"
+                  isGranted={purchasePermissions.invite_supplier}
+                  onToggle={() => handlePurchaseToggle('invite_supplier')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Purchase Orders Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Purchase Orders</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Order"
+                  description="create new purchase orders"
+                  isGranted={purchasePermissions.create_purchase_order}
+                  onToggle={() => handlePurchaseToggle('create_purchase_order')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Order"
+                  description="edit draft purchase orders"
+                  isGranted={purchasePermissions.update_purchase_order}
+                  onToggle={() => handlePurchaseToggle('update_purchase_order')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Order"
+                  description="delete purchase orders"
+                  isGranted={purchasePermissions.delete_purchase_order}
+                  onToggle={() => handlePurchaseToggle('delete_purchase_order')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Send Order"
+                  description="send purchase order by email to supplier"
+                  isGranted={purchasePermissions.send_purchase_order}
+                  onToggle={() => handlePurchaseToggle('send_purchase_order')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Confirm Order"
+                  description="confirm a purchase order"
+                  isGranted={purchasePermissions.confirm_purchase_order}
+                  onToggle={() => handlePurchaseToggle('confirm_purchase_order')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Goods Receipts Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Goods Receipts</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Receipt"
+                  description="create goods receipts"
+                  isGranted={purchasePermissions.create_goods_receipt}
+                  onToggle={() => handlePurchaseToggle('create_goods_receipt')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Receipt"
+                  description="edit goods receipts"
+                  isGranted={purchasePermissions.update_goods_receipt}
+                  onToggle={() => handlePurchaseToggle('update_goods_receipt')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Receipt"
+                  description="delete goods receipts"
+                  isGranted={purchasePermissions.delete_goods_receipt}
+                  onToggle={() => handlePurchaseToggle('delete_goods_receipt')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Validate Receipt"
+                  description="validate receipt (updates stock)"
+                  isGranted={purchasePermissions.validate_goods_receipt}
+                  onToggle={() => handlePurchaseToggle('validate_goods_receipt')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Purchase Invoices Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Purchase Invoices</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Invoice"
+                  description="create or import supplier invoices"
+                  isGranted={purchasePermissions.create_purchase_invoice}
+                  onToggle={() => handlePurchaseToggle('create_purchase_invoice')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Invoice"
+                  description="edit supplier invoices"
+                  isGranted={purchasePermissions.update_purchase_invoice}
+                  onToggle={() => handlePurchaseToggle('update_purchase_invoice')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Invoice"
+                  description="delete supplier invoices"
+                  isGranted={purchasePermissions.delete_purchase_invoice}
+                  onToggle={() => handlePurchaseToggle('delete_purchase_invoice')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Pay Invoice"
+                  description="record a payment for an invoice"
+                  isGranted={purchasePermissions.pay_purchase_invoice}
+                  onToggle={() => handlePurchaseToggle('pay_purchase_invoice')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Purchase Returns Subsection */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Purchase Returns</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Return"
+                  description="create supplier return requests"
+                  isGranted={purchasePermissions.create_purchase_return}
+                  onToggle={() => handlePurchaseToggle('create_purchase_return')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Return"
+                  description="edit return requests"
+                  isGranted={purchasePermissions.update_purchase_return}
+                  onToggle={() => handlePurchaseToggle('update_purchase_return')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Return"
+                  description="delete return requests"
+                  isGranted={purchasePermissions.delete_purchase_return}
+                  onToggle={() => handlePurchaseToggle('delete_purchase_return')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Approve Return"
+                  description="approve, ship, or refund returns"
+                  isGranted={purchasePermissions.approve_purchase_return}
+                  onToggle={() => handlePurchaseToggle('approve_purchase_return')}
                   disabled={updatePermissionsMutation.isPending}
                 />
               </div>
