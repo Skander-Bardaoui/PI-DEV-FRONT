@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Eye, Send, Check, X, ChevronUp, ChevronDown, Filter, Sparkles, ShoppingCart } from 'lucide-react';
 import { useAuth }            from '../../../hooks/useAuth';
+import { useCurrentBusinessMember } from '@/hooks/useCurrentBusinessMember';
 import {
   useSupplierPOs, useSendSupplierPO,
   useConfirmSupplierPO, useCancelSupplierPO,
@@ -45,6 +46,19 @@ export default function SupplierPOsPage() {
   const toast       = useToast();
   const { handleError } = useApiError();
   const { exportBC, loading: pdfLoading } = usePDFExport();
+  const { businessMember: currentMember } = useCurrentBusinessMember();
+
+  // Permission checks
+  const currentUserRole = (user as any)?.role;
+  const isOwner = currentUserRole === 'BUSINESS_OWNER';
+  const purchases = currentMember?.purchase_permissions;
+  
+  const canCreateOrder = isOwner || purchases?.create_purchase_order === true;
+  const canUpdateOrder = isOwner || purchases?.update_purchase_order === true;
+  const canDeleteOrder = isOwner || purchases?.delete_purchase_order === true;
+  const canSendOrder = isOwner || purchases?.send_purchase_order === true;
+  const canConfirmOrder = isOwner || purchases?.confirm_purchase_order === true;
+  const canCancelOrder = isOwner || purchases?.confirm_purchase_order === true;
 
   // ── Filtres ───────────────────────────────────────────────────────────────
   const [statusFilter,     setStatusFilter]     = useState('');
@@ -195,20 +209,24 @@ export default function SupplierPOsPage() {
             Réservations
           </button>
           {/* ==================================================================== */}
-          <button
-            onClick={() => setAiModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/30"
-          >
-            <Sparkles className="h-5 w-5" />
-            Créer avec l'Assistant IA
-          </button>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            Nouveau BC
-          </button>
+          {canCreateOrder && (
+            <>
+              <button
+                onClick={() => setAiModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/30"
+              >
+                <Sparkles className="h-5 w-5" />
+                Créer avec l'Assistant IA
+              </button>
+              <button
+                onClick={() => setModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <Plus className="h-5 w-5" />
+                Nouveau BC
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -259,7 +277,7 @@ export default function SupplierPOsPage() {
             icon={<ShoppingCart className="h-16 w-16 text-gray-400" />}
             message="Aucun bon de commande"
             description={hasActiveFilters ? "Essayez de modifier vos filtres" : "Commencez par créer votre premier bon de commande"}
-            action={!hasActiveFilters ? { label: "Nouveau BC", onClick: () => setModalOpen(true) } : undefined}
+            action={!hasActiveFilters && canCreateOrder ? { label: "Nouveau BC", onClick: () => setModalOpen(true) } : undefined}
           />
         ) : (
           <div className="overflow-x-auto">
@@ -303,19 +321,19 @@ export default function SupplierPOsPage() {
                           <Eye className="h-4 w-4" />
                         </button>
                         <PDFButton variant="icon" loading={pdfLoading} onClick={() => exportBC(po)} label="PDF" />
-                        {po.status === POStatus.DRAFT && (
+                        {canSendOrder && po.status === POStatus.DRAFT && (
                           <button onClick={() => send.mutate(po.id)} disabled={send.isPending} title="Envoyer"
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                             <Send className="h-4 w-4" />
                           </button>
                         )}
-                        {po.status === POStatus.SENT && (
+                        {canConfirmOrder && po.status === POStatus.SENT && (
                           <button onClick={() => confirm.mutate(po.id)} disabled={confirm.isPending} title="Confirmer"
                             className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                             <Check className="h-4 w-4" />
                           </button>
                         )}
-                        {[POStatus.DRAFT, POStatus.SENT].includes(po.status) && (
+                        {canCancelOrder && [POStatus.DRAFT, POStatus.SENT].includes(po.status) && (
                           <button onClick={() => setConfirmCancel(po)} title="Annuler"
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                             <X className="h-4 w-4" />
