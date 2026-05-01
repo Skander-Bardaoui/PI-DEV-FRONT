@@ -106,3 +106,27 @@ export const createSupplierPayment = async (
   );
   return response.data;
 };
+
+// ===================== DEPOSITS =====================
+export interface CreateDepositDto {
+  account_id: string;
+  amount: number;
+  description?: string;
+  reference?: string;
+  notes?: string;
+  deposit_date?: string;
+}
+
+export const createDeposit = async (dto: CreateDepositDto): Promise<{
+  message: string;
+  transaction: Transaction;
+  account: {
+    id: string;
+    name: string;
+    previous_balance: number;
+    new_balance: number;
+  };
+}> => {
+  const response = await axiosInstance.post('/deposits', dto);
+  return response.data;
+};

@@ -133,7 +133,7 @@ export default function BackOfficeLayout() {
         { name: 'Expenses to Pay', href: '/app/treasury/expenses', icon: Receipt },
         { name: 'Salary to Pay', href: '/app/treasury/salaries', icon: Users },
         { name: 'Transactions', href: '/app/treasury/transactions', icon: ArrowRightLeft },
-
+        { name: 'Recurring Invoices', href: '/app/treasury/recurring-invoices', icon: RefreshCw },
       ],
     },
     // Hide Team section for TEAM_MEMBER role

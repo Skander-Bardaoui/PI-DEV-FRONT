@@ -74,6 +74,7 @@ import AccountsPage from './pages/backoffice/treasury/AccountsPage';
 import TreasuryInvoicesPage from './components/treasury/TreasuryInvoicesPage';
 import ExpensesToPayPage from './components/treasury/ExpensesToPayPage';
 import Transactions from './components/treasury/Transactions';
+import RecurringInvoices from './components/treasury/RecurringInvoices';
 
 import SupplierIntelligencePage from './pages/backoffice/purchases/SupplierIntelligencePage';
 import ThreeWayMatchingPage from './pages/backoffice/purchases/ThreeWayMatchingPage';
@@ -217,6 +218,7 @@ function AppContent() {
           <Route path="treasury/expenses" element={<ExpensesToPayPage />} />
           <Route path="treasury/transactions" element={<Transactions />} />
           <Route path="treasury/salaries" element={<SalaryToPayPage />} />
+          <Route path="treasury/recurring-invoices" element={<RecurringInvoices />} />
 
 
           {/* ── Module Ventes ──────────────────────────────────────── */}
