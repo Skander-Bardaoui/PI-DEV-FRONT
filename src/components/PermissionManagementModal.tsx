@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Loader2, Users, Package, CreditCard, CheckCircle2 } from 'lucide-react';
+import { X, Loader2, Users, Package, CreditCard, CheckCircle2, ShoppingCart } from 'lucide-react';
 import { permissionsApi } from '../api/permissions.api';
-import { BusinessMember, CollaborationPermissions, StockPermissions, PaymentPermissions } from '../types/permissions.types';
+import { BusinessMember, CollaborationPermissions, StockPermissions, PaymentPermissions, SalesPermissions } from '../types/permissions.types';
 import { useToast } from './ui/Toast';
 
 interface PermissionManagementModalProps {
@@ -89,6 +89,33 @@ export function PermissionManagementModal({
     }
   );
 
+  const [salesPermissions, setSalesPermissions] = useState<SalesPermissions>(
+    member.sales_permissions || {
+      create_client: false,
+      update_client: false,
+      delete_client: false,
+      invite_client: false,
+      create_quote: false,
+      update_quote: false,
+      delete_quote: false,
+      send_quote: false,
+      convert_quote: false,
+      create_order: false,
+      update_order: false,
+      cancel_order: false,
+      create_delivery: false,
+      update_delivery: false,
+      cancel_delivery: false,
+      create_invoice: false,
+      update_invoice: false,
+      delete_invoice: false,
+      send_invoice: false,
+      create_recurring: false,
+      update_recurring: false,
+      delete_recurring: false,
+    }
+  );
+
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -100,7 +127,8 @@ export function PermissionManagementModal({
         member.user_id,
         collaborationPermissions,
         stockPermissions,
-        paymentPermissions
+        paymentPermissions,
+        salesPermissions
       ),
     onSuccess: () => {
       // Invalidate business members cache to refetch updated data
@@ -147,6 +175,14 @@ export function PermissionManagementModal({
     }));
   };
 
+  // Handle sales permission toggle
+  const handleSalesToggle = (key: keyof SalesPermissions) => {
+    setSalesPermissions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
   // Handle save button click
   const handleSave = () => {
     updatePermissionsMutation.mutate();
@@ -156,7 +192,8 @@ export function PermissionManagementModal({
   const hasChanges =
     JSON.stringify(collaborationPermissions) !== JSON.stringify(member.collaboration_permissions) ||
     JSON.stringify(stockPermissions) !== JSON.stringify(member.stock_permissions) ||
-    JSON.stringify(paymentPermissions) !== JSON.stringify(member.payment_permissions);
+    JSON.stringify(paymentPermissions) !== JSON.stringify(member.payment_permissions) ||
+    JSON.stringify(salesPermissions) !== JSON.stringify(member.sales_permissions);
 
   // Don't render if modal is not open
   if (!isOpen) {
@@ -206,7 +243,8 @@ export function PermissionManagementModal({
               <p className="text-sm text-blue-800 font-medium">
                 ✓ All Collaboration Features<br />
                 ✓ All Stock Management Features<br />
-                ✓ All Payment Management Features
+                ✓ All Payment Management Features<br />
+                ✓ All Sales Management Features
               </p>
             </div>
           </div>
@@ -670,6 +708,210 @@ export function PermissionManagementModal({
                   description="cancel internal transfers"
                   isGranted={paymentPermissions.delete_transfer}
                   onToggle={() => handlePaymentToggle('delete_transfer')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Sales Management Section */}
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingCart className="h-5 w-5 text-orange-600" />
+              <h3 className="text-lg font-semibold text-gray-900">🛒 Sales Management</h3>
+            </div>
+
+            {/* Clients Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Clients</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Client"
+                  description="add new clients"
+                  isGranted={salesPermissions.create_client}
+                  onToggle={() => handleSalesToggle('create_client')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Client"
+                  description="edit client information"
+                  isGranted={salesPermissions.update_client}
+                  onToggle={() => handleSalesToggle('update_client')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Client"
+                  description="delete clients"
+                  isGranted={salesPermissions.delete_client}
+                  onToggle={() => handleSalesToggle('delete_client')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Invite Client"
+                  description="send portal invitation to client"
+                  isGranted={salesPermissions.invite_client}
+                  onToggle={() => handleSalesToggle('invite_client')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Quotes Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Quotes</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Quote"
+                  description="create new quotes"
+                  isGranted={salesPermissions.create_quote}
+                  onToggle={() => handleSalesToggle('create_quote')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Quote"
+                  description="edit draft quotes"
+                  isGranted={salesPermissions.update_quote}
+                  onToggle={() => handleSalesToggle('update_quote')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Quote"
+                  description="delete quotes"
+                  isGranted={salesPermissions.delete_quote}
+                  onToggle={() => handleSalesToggle('delete_quote')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Send Quote"
+                  description="send quote by email to client"
+                  isGranted={salesPermissions.send_quote}
+                  onToggle={() => handleSalesToggle('send_quote')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Convert Quote"
+                  description="convert quote to order or invoice"
+                  isGranted={salesPermissions.convert_quote}
+                  onToggle={() => handleSalesToggle('convert_quote')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Sales Orders Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Sales Orders</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Order"
+                  description="create new sales orders"
+                  isGranted={salesPermissions.create_order}
+                  onToggle={() => handleSalesToggle('create_order')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Order"
+                  description="edit confirmed orders"
+                  isGranted={salesPermissions.update_order}
+                  onToggle={() => handleSalesToggle('update_order')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Cancel Order"
+                  description="cancel sales orders"
+                  isGranted={salesPermissions.cancel_order}
+                  onToggle={() => handleSalesToggle('cancel_order')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Delivery Notes Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Delivery Notes</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Delivery"
+                  description="create delivery notes"
+                  isGranted={salesPermissions.create_delivery}
+                  onToggle={() => handleSalesToggle('create_delivery')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Delivery"
+                  description="edit delivery notes"
+                  isGranted={salesPermissions.update_delivery}
+                  onToggle={() => handleSalesToggle('update_delivery')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Cancel Delivery"
+                  description="cancel deliveries"
+                  isGranted={salesPermissions.cancel_delivery}
+                  onToggle={() => handleSalesToggle('cancel_delivery')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Invoices Subsection */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Invoices</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Invoice"
+                  description="create new invoices"
+                  isGranted={salesPermissions.create_invoice}
+                  onToggle={() => handleSalesToggle('create_invoice')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Invoice"
+                  description="edit draft invoices"
+                  isGranted={salesPermissions.update_invoice}
+                  onToggle={() => handleSalesToggle('update_invoice')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Invoice"
+                  description="delete invoices"
+                  isGranted={salesPermissions.delete_invoice}
+                  onToggle={() => handleSalesToggle('delete_invoice')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Send Invoice"
+                  description="send invoice by email to client"
+                  isGranted={salesPermissions.send_invoice}
+                  onToggle={() => handleSalesToggle('send_invoice')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {/* Recurring Invoices Subsection */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Recurring Invoices</h4>
+              <div className="space-y-3">
+                <PermissionToggle
+                  label="Create Recurring"
+                  description="create recurring invoice templates"
+                  isGranted={salesPermissions.create_recurring}
+                  onToggle={() => handleSalesToggle('create_recurring')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Update Recurring"
+                  description="edit recurring templates"
+                  isGranted={salesPermissions.update_recurring}
+                  onToggle={() => handleSalesToggle('update_recurring')}
+                  disabled={updatePermissionsMutation.isPending}
+                />
+                <PermissionToggle
+                  label="Delete Recurring"
+                  description="delete recurring templates"
+                  isGranted={salesPermissions.delete_recurring}
+                  onToggle={() => handleSalesToggle('delete_recurring')}
                   disabled={updatePermissionsMutation.isPending}
                 />
               </div>

@@ -3,12 +3,24 @@ import { useState, useMemo } from 'react';
 import { Plus, Search, Mail, Phone, MapPin, Edit, Trash2, UserPlus, Users, UserCheck, TrendingUp, Filter } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients, useDeleteClient } from '@/hooks/useClients';
+import { useCurrentBusinessMember } from '@/hooks/useCurrentBusinessMember';
 import ClientInvitationModal from '@/components/sales/ClientInvitationModal';
 import ClientFormModal from '@/components/sales/ClientFormModal';
 
 export default function ClientsPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const { businessMember: currentMember } = useCurrentBusinessMember();
+
+  // Permission checks
+  const currentUserRole = (user as any)?.role;
+  const isOwner = currentUserRole === 'BUSINESS_OWNER';
+  const sales = currentMember?.sales_permissions;
+  
+  const canCreateClient = isOwner || sales?.create_client === true;
+  const canUpdateClient = isOwner || sales?.update_client === true;
+  const canDeleteClient = isOwner || sales?.delete_client === true;
+  const canInviteClient = isOwner || sales?.invite_client === true;
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -63,20 +75,24 @@ export default function ClientsPage() {
           <p className="text-gray-600 mt-1">Gérez vos clients et envoyez des invitations</p>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <Plus className="h-5 w-5" />
-            Ajouter manuellement
-          </button>
-          <button
-            onClick={() => setInviteModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-          >
-            <UserPlus className="h-5 w-5" />
-            Inviter un client
-          </button>
+          {canCreateClient && (
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              <Plus className="h-5 w-5" />
+              Ajouter manuellement
+            </button>
+          )}
+          {canInviteClient && (
+            <button
+              onClick={() => setInviteModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+            >
+              <UserPlus className="h-5 w-5" />
+              Inviter un client
+            </button>
+          )}
         </div>
       </div>
 
@@ -241,20 +257,24 @@ export default function ClientsPage() {
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-3 border-t border-gray-100">
-                  <button
-                    onClick={() => handleEdit(client)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Modifier
-                  </button>
-                  <button
-                    onClick={() => handleDelete(client.id, client.name)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {canUpdateClient && (
+                    <button
+                      onClick={() => handleEdit(client)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Modifier
+                    </button>
+                  )}
+                  {canDeleteClient && (
+                    <button
+                      onClick={() => handleDelete(client.id, client.name)}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

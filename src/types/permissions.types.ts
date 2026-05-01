@@ -87,6 +87,34 @@ export interface SalaryPermissions {
 }
 
 /**
+ * Sales permissions structure
+ */
+export interface SalesPermissions {
+  create_client?: boolean;
+  update_client?: boolean;
+  delete_client?: boolean;
+  invite_client?: boolean;
+  create_quote?: boolean;
+  update_quote?: boolean;
+  delete_quote?: boolean;
+  send_quote?: boolean;
+  convert_quote?: boolean;
+  create_order?: boolean;
+  update_order?: boolean;
+  cancel_order?: boolean;
+  create_delivery?: boolean;
+  update_delivery?: boolean;
+  cancel_delivery?: boolean;
+  create_invoice?: boolean;
+  update_invoice?: boolean;
+  delete_invoice?: boolean;
+  send_invoice?: boolean;
+  create_recurring?: boolean;
+  update_recurring?: boolean;
+  delete_recurring?: boolean;
+}
+
+/**
  * Business member with permissions
  */
 export interface BusinessMember {
@@ -94,10 +122,12 @@ export interface BusinessMember {
   user_id: string;
   business_id: string;
   role: string;
+  permissions?: string; // Legacy 6-character permission string (cudakp format)
   collaboration_permissions?: CollaborationPermissions;
   stock_permissions?: StockPermissions;
   payment_permissions?: PaymentPermissions;
   salary_permissions?: SalaryPermissions; // Optional for backward compatibility
+  sales_permissions?: SalesPermissions;
   is_active: boolean;
   user: {
     id: string;
@@ -120,6 +150,7 @@ export interface UpdatePermissionsDto {
   stock_permissions?: StockPermissions;
   payment_permissions?: PaymentPermissions;
   salary_permissions?: SalaryPermissions;
+  sales_permissions?: SalesPermissions;
 }
 
 /**

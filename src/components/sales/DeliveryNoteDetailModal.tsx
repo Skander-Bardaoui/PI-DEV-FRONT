@@ -49,7 +49,7 @@ export default function DeliveryNoteDetailModal({ note: initialNote, businessId,
   const canEdit = note.status === DeliveryNoteStatus.PENDING;
   const canMarkDelivered = note.status === DeliveryNoteStatus.PENDING;
   const canCancel = note.status === DeliveryNoteStatus.PENDING;
-  const canDelete = note.status === DeliveryNoteStatus.PENDING;
+  const canDelete = note.status === DeliveryNoteStatus.PENDING && onDelete !== undefined;
   
   // Check if all items have delivered quantity > 0
   const hasZeroQuantity = note.items?.some((item: any) => Number(item.deliveredQuantity) === 0);

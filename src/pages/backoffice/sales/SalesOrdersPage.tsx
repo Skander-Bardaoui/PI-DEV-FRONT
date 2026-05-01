@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, Edit, Play, Truck, XCircle, Package, Clock, CheckCircle, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCurrentBusinessMember } from '../../../hooks/useCurrentBusinessMember';
 import { useSalesOrders, useDeleteSalesOrder, useStartProgressSalesOrder, useMarkDeliveredSalesOrder, useConvertSalesOrderToInvoice, useCancelSalesOrder, useSendSalesOrderEmail } from '@/hooks/useSalesOrders';
 import { SALES_ORDER_STATUS_COLORS, SALES_ORDER_STATUS_LABELS, SalesOrderStatus } from '@/types/sales-order';
 import SalesOrderModal from '@/components/sales/SalesOrderModal';
@@ -24,7 +25,17 @@ const LIMIT = 20;
 export default function SalesOrdersPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const { businessMember: currentMember } = useCurrentBusinessMember();
   const toast = useToast();
+
+  // Permission checks
+  const currentUserRole = (user as any)?.role;
+  const isOwner = currentUserRole === 'BUSINESS_OWNER';
+  const sales = currentMember?.sales_permissions;
+
+  const canCreateOrder = isOwner || sales?.create_order === true;
+  const canUpdateOrder = isOwner || sales?.update_order === true;
+  const canCancelOrder = isOwner || sales?.cancel_order === true;
 
   const [statusFilter, setStatusFilter] = useState('');
   const [clientFilter, setClientFilter] = useState('');
@@ -124,13 +135,15 @@ export default function SalesOrdersPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Commandes clients</h1>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          Nouvelle commande
-        </button>
+        {canCreateOrder && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Nouvelle commande
+          </button>
+        )}
       </div>
 
       {/* Statistics Cards */}
@@ -322,32 +335,36 @@ export default function SalesOrdersPage() {
                         
                         {order.status === SalesOrderStatus.CONFIRMED && (
                           <>
-                            <button
-                              onClick={() => setEditingOrder(order)}
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Modifier"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await startProgress.mutateAsync(order.id);
-                                  toast.success('Commande démarrée', 'Un bon de livraison a été créé automatiquement');
-                                } catch (error: any) {
-                                  toast.error('Erreur', error?.response?.data?.message || 'Erreur lors du démarrage');
-                                }
-                              }}
-                              disabled={startProgress.isPending}
-                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Démarrer"
-                            >
-                              <Play className="h-4 w-4" />
-                            </button>
+                            {canUpdateOrder && (
+                              <button
+                                onClick={() => setEditingOrder(order)}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Modifier"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            )}
+                            {canUpdateOrder && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await startProgress.mutateAsync(order.id);
+                                    toast.success('Commande démarrée', 'Un bon de livraison a été créé automatiquement');
+                                  } catch (error: any) {
+                                    toast.error('Erreur', error?.response?.data?.message || 'Erreur lors du démarrage');
+                                  }
+                                }}
+                                disabled={startProgress.isPending}
+                                className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                                title="Démarrer"
+                              >
+                                <Play className="h-4 w-4" />
+                              </button>
+                            )}
                           </>
                         )}
                         
-                        {order.status === SalesOrderStatus.IN_PROGRESS && (
+                        {order.status === SalesOrderStatus.IN_PROGRESS && canUpdateOrder && (
                           <button
                             onClick={async () => {
                               try {
@@ -383,7 +400,7 @@ export default function SalesOrdersPage() {
                           </button>
                         )}
                         
-                        {[SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS].includes(order.status) && (
+                        {[SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS].includes(order.status) && canCancelOrder && (
                           <button
                             onClick={async () => {
                               if (confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) {
@@ -403,7 +420,7 @@ export default function SalesOrdersPage() {
                           </button>
                         )}
                         
-                        {(order.status === SalesOrderStatus.CONFIRMED || order.status === SalesOrderStatus.INVOICED) && (
+                        {(order.status === SalesOrderStatus.CONFIRMED || order.status === SalesOrderStatus.INVOICED) && canCancelOrder && (
                           <button
                             onClick={() => {
                               if (confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {

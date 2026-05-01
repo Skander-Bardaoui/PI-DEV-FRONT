@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Plus, Eye, Send, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, FileCheck, Clock, DollarSign } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCurrentBusinessMember } from '../../../hooks/useCurrentBusinessMember';
 import { useQuotes, useSendQuote, useDeleteQuote } from '@/hooks/useQuotes';
 import { QUOTE_STATUS_COLORS, QUOTE_STATUS_LABELS } from '@/types/quote';
 import QuoteModal from '@/components/sales/QuoteModal';
@@ -24,6 +25,18 @@ const LIMIT = 20;
 export default function QuotesPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const { businessMember: currentMember } = useCurrentBusinessMember();
+
+  // Permission checks
+  const currentUserRole = (user as any)?.role;
+  const isOwner = currentUserRole === 'BUSINESS_OWNER';
+  const sales = currentMember?.sales_permissions;
+
+  const canCreateQuote = isOwner || sales?.create_quote === true;
+  const canUpdateQuote = isOwner || sales?.update_quote === true;
+  const canDeleteQuote = isOwner || sales?.delete_quote === true;
+  const canSendQuote = isOwner || sales?.send_quote === true;
+  const canConvertQuote = isOwner || sales?.convert_quote === true;
 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,10 +122,12 @@ export default function QuotesPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Devis</h1>
-        <button onClick={() => setModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors">
-          <Plus className="h-5 w-5" />
-          Nouveau devis
-        </button>
+        {canCreateQuote && (
+          <button onClick={() => setModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors">
+            <Plus className="h-5 w-5" />
+            Nouveau devis
+          </button>
+        )}
       </div>
 
       {/* Statistics Cards */}
@@ -225,8 +240,8 @@ export default function QuotesPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => setSelectedQuote(quote)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Voir les détails"><Eye className="h-4 w-4" /></button>
                         <button onClick={() => setSelectedQuote(quote)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="PDF"><FileText className="h-4 w-4" /></button>
-                        {quote.status === 'DRAFT' && <button onClick={() => send.mutate(quote.id)} disabled={send.isPending} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Envoyer"><Send className="h-4 w-4" /></button>}
-                        <button onClick={() => deleteQuote.mutate(quote.id)} disabled={deleteQuote.isPending} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer"><Trash2 className="h-4 w-4" /></button>
+                        {canSendQuote && quote.status === 'DRAFT' && <button onClick={() => send.mutate(quote.id)} disabled={send.isPending} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Envoyer"><Send className="h-4 w-4" /></button>}
+                        {canDeleteQuote && <button onClick={() => deleteQuote.mutate(quote.id)} disabled={deleteQuote.isPending} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer"><Trash2 className="h-4 w-4" /></button>}
                       </div>
                     </td>
                   </tr>
@@ -249,7 +264,17 @@ export default function QuotesPage() {
       </div>
 
       {modalOpen && <QuoteModal businessId={businessId} onClose={() => setModalOpen(false)} />}
-      {selectedQuote && <QuoteDetailModal quote={selectedQuote} businessId={businessId} onClose={() => setSelectedQuote(null)} onDelete={(id) => deleteQuote.mutate(id)} />}
+      {selectedQuote && (
+        <QuoteDetailModal 
+          quote={selectedQuote} 
+          businessId={businessId} 
+          onClose={() => setSelectedQuote(null)} 
+          onDelete={canDeleteQuote ? (id) => deleteQuote.mutate(id) : undefined}
+          canUpdate={canUpdateQuote}
+          canSend={canSendQuote}
+          canConvert={canConvertQuote}
+        />
+      )}
     </div>
   );
 }
