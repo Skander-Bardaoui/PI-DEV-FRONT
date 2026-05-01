@@ -31,9 +31,9 @@ export function useWebSocket({ businessId, enabled = true, onNotification }: Use
 
     console.log('🔄 Attempting to connect WebSocket...');
     console.log('📍 Business ID:', businessId);
-    console.log('📍 Server URL:', 'http://localhost:3001/notifications');
+    console.log('📍 Server URL:', `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/notifications`);
 
-    const socket = io('http://localhost:3001/notifications', {
+    const socket = io(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/notifications`, {
       query: { businessId },
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -65,7 +65,7 @@ export function useWebSocket({ businessId, enabled = true, onNotification }: Use
     socket.on('connect_error', (error) => {
       console.error('❌ WebSocket connection error:', error);
       console.error('❌ Error message:', error.message);
-      console.error('❌ Error type:', error.type);
+      console.error('❌ Error type:', (error as any).type);
     });
 
     socket.on('error', (error) => {
