@@ -13,15 +13,13 @@ interface TeamMember {
 interface TeamMembersListProps {
   businessId: string;
   members: TeamMember[];
-  token: string;
 }
 
 export const TeamMembersList: React.FC<TeamMembersListProps> = ({
   businessId,
   members,
-  token,
 }) => {
-  const { userStatuses, isConnected } = usePresence(businessId, token);
+  const { userStatuses, isConnected } = usePresence(businessId);
 
   return (
     <div className="space-y-2">
