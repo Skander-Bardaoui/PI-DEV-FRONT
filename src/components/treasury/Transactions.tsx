@@ -881,7 +881,12 @@ export default function Transactions() {
           <SummaryCardSkeleton />
         </div>
       ) : (
-        filtered.length > 0 && <SummaryBar transactions={filtered} />
+        filtered.length > 0 && (
+          <>
+            <SummaryBar transactions={filtered} />
+            <TransactionsDashboard transactions={filtered} />
+          </>
+        )
       )}
 
       {/* FILTERS */}
