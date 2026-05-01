@@ -8,7 +8,7 @@ metadata:
     tier: presentation
 data:
   # API Configuration
-  VITE_API_URL: "http://backend:3001"
+  VITE_API_URL: http://192.168.33.10:30001
   VITE_ML_API_URL: "http://ml-service:8000"
   
   # Environment
