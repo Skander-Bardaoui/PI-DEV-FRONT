@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { SecureDeleteTenantDialog } from '@/console/components/SecureDeleteTenantDialog';
 import { 
   ArrowLeft, 
   Building2, 
@@ -41,7 +42,8 @@ export function ConsoleTenantDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [actionDialog, setActionDialog] = useState<'approve' | 'reject' | 'suspend' | 'unsuspend' | 'delete' | null>(null);
+  const [actionDialog, setActionDialog] = useState<'approve' | 'reject' | 'suspend' | 'unsuspend' | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [suspendReason, setSuspendReason] = useState('');
 
@@ -74,8 +76,9 @@ export function ConsoleTenantDetailPage() {
       setActionDialog(null);
       setRejectionReason('');
     },
-    onError: () => {
-      toast.error('❌ Failed to reject tenant');
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to reject tenant';
+      toast.error(`❌ ${message}`);
     },
   });
 
@@ -133,6 +136,10 @@ export function ConsoleTenantDetailPage() {
           toast.error('Please provide a rejection reason');
           return;
         }
+        if (rejectionReason.trim().length < 10) {
+          toast.error('Rejection reason must be at least 10 characters');
+          return;
+        }
         rejectMutation.mutate({ id: tenant.id, reason: rejectionReason });
         break;
       case 'suspend':
@@ -140,9 +147,6 @@ export function ConsoleTenantDetailPage() {
         break;
       case 'unsuspend':
         unsuspendMutation.mutate(tenant.id);
-        break;
-      case 'delete':
-        deleteMutation.mutate(tenant.id);
         break;
     }
   };
@@ -188,8 +192,9 @@ export function ConsoleTenantDetailPage() {
       suspended: { variant: 'destructive', label: 'Suspended' },
       pending: { variant: 'secondary', label: 'Pending' },
       rejected: { variant: 'outline', label: 'Rejected' },
+      approved: { variant: 'default', label: 'Approved' },
     };
-    const config = variants[status] || variants.rejected;
+    const config = variants[status] || { variant: 'secondary', label: status };
     return (
       <Badge variant={config.variant} className="flex items-center gap-2">
         {getStatusIcon(status)}
@@ -244,7 +249,18 @@ export function ConsoleTenantDetailPage() {
               </>
             )}
             
-            {tenant.status === 'active' && (
+            {/* Always show Suspend/Unsuspend button */}
+            {tenant.status === 'suspended' ? (
+              <Button
+                size="sm"
+                onClick={() => setActionDialog('unsuspend')}
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={unsuspendMutation.isPending}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                {unsuspendMutation.isPending ? 'Reactivating...' : 'Unsuspend'}
+              </Button>
+            ) : (
               <Button
                 size="sm"
                 variant="outline"
@@ -257,22 +273,10 @@ export function ConsoleTenantDetailPage() {
               </Button>
             )}
             
-            {tenant.status === 'suspended' && (
-              <Button
-                size="sm"
-                onClick={() => setActionDialog('unsuspend')}
-                className="bg-blue-600 hover:bg-blue-700"
-                disabled={unsuspendMutation.isPending}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                {unsuspendMutation.isPending ? 'Reactivating...' : 'Unsuspend'}
-              </Button>
-            )}
-            
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setActionDialog('delete')}
+              onClick={() => setDeleteDialogOpen(true)}
               className="text-red-600 border-red-200 hover:bg-red-50"
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -562,14 +566,12 @@ export function ConsoleTenantDetailPage() {
               {actionDialog === 'reject' && <><XCircle className="h-5 w-5 text-red-600" />Reject Tenant</>}
               {actionDialog === 'suspend' && <><Ban className="h-5 w-5 text-orange-600" />Suspend Tenant</>}
               {actionDialog === 'unsuspend' && <><CheckCircle2 className="h-5 w-5 text-blue-600" />Unsuspend Tenant</>}
-              {actionDialog === 'delete' && <><Trash2 className="h-5 w-5 text-red-600" />Delete Tenant</>}
             </DialogTitle>
             <DialogDescription>
               {actionDialog === 'approve' && `Approve ${tenant?.name}? This will activate their subscription and grant access.`}
               {actionDialog === 'reject' && `Reject ${tenant?.name}? This action cannot be undone.`}
               {actionDialog === 'suspend' && `Suspend ${tenant?.name}? All users will lose access immediately.`}
               {actionDialog === 'unsuspend' && `Unsuspend ${tenant?.name}? This will restore access for all users.`}
-              {actionDialog === 'delete' && `Delete ${tenant?.name}? This action cannot be undone and will permanently remove all tenant data.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -580,9 +582,18 @@ export function ConsoleTenantDetailPage() {
                 id="reason"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Provide a detailed reason for rejection..."
+                placeholder="Provide a detailed reason for rejection (minimum 10 characters)..."
                 rows={4}
+                className={rejectionReason.length > 0 && rejectionReason.length < 10 ? 'border-red-300' : ''}
               />
+              <p className="text-xs text-gray-500">
+                {rejectionReason.length}/10 characters minimum
+                {rejectionReason.length > 0 && rejectionReason.length < 10 && (
+                  <span className="text-red-600 ml-2">
+                    ({10 - rejectionReason.length} more needed)
+                  </span>
+                )}
+              </p>
             </div>
           )}
 
@@ -605,7 +616,7 @@ export function ConsoleTenantDetailPage() {
             </Button>
             <Button
               onClick={handleAction}
-              variant={actionDialog === 'delete' || actionDialog === 'reject' ? 'destructive' : 
+              variant={actionDialog === 'reject' ? 'destructive' : 
                      actionDialog === 'approve' ? 'default' : 'default'}
               className={actionDialog === 'approve' ? 'bg-green-600 hover:bg-green-700' : 
                         actionDialog === 'unsuspend' ? 'bg-blue-600 hover:bg-blue-700' :
@@ -615,11 +626,20 @@ export function ConsoleTenantDetailPage() {
               {actionDialog === 'reject' && 'Reject Tenant'}
               {actionDialog === 'suspend' && 'Suspend Tenant'}
               {actionDialog === 'unsuspend' && 'Unsuspend Tenant'}
-              {actionDialog === 'delete' && 'Delete Tenant'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Secure Delete Dialog */}
+      {tenant && (
+        <SecureDeleteTenantDialog
+          tenant={tenant}
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onSuccess={() => navigate('/console/tenants')}
+        />
+      )}
     </div>
   );
 }

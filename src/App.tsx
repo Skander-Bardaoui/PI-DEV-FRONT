@@ -20,7 +20,7 @@ import { PlatformAdminLayout } from './console/layouts/PlatformAdminLayout';
 import { ConsoleLoginPage } from './console/pages/ConsoleLoginPage';
 import { ConsoleTotpVerifyPage } from './console/pages/ConsoleTotpVerifyPage';
 import { ConsoleDashboardPage } from './console/pages/ConsoleDashboardPage';
-import { ConsoleTenantsPage } from './console/pages/ConsoleTenantsPage';
+
 import { ConsoleTenantDetailPage } from './console/pages/ConsoleTenantDetailPage';
 import { ConsoleSubscriptionsPage } from './console/pages/ConsoleSubscriptionsPage';
 import { ConsolePlansPage } from './console/pages/ConsolePlansPage';
@@ -40,6 +40,8 @@ const queryClient = new QueryClient({
 import LandingPage   from './pages/frontoffice/LandingPage';
 import LoginPage     from './pages/frontoffice/LoginPage';
 import RegisterPage  from './pages/frontoffice/RegisterPage';
+import { PaymentPage } from './pages/PaymentPage';
+import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
 import ForgotPasswordPage from './pages/frontoffice/ForgotPasswordPage';
 import ResetPasswordPage from './pages/frontoffice/ResetPasswordPage';
 import VerifyEmailPage from './pages/frontoffice/VerifyEmailPage';
@@ -106,6 +108,7 @@ import MLPredictionsPage from './pages/backoffice/purchases/MLPredictionsPage';
 import SalaryToPayPage from './components/treasury/SalaryToPayPage';
 import SalaryRespondPage from './pages/frontoffice/SalaryRespondPage';
 import SupplierScheduleResponsePage from './pages/frontoffice/SupplierScheduleResponsePage';
+import { ConsoleTenantsPage } from './console/pages/ConsoleTenantsPage';
 
 // Inner component to access accessibility context
 function AppContent() {
@@ -144,6 +147,8 @@ function AppContent() {
         <Route path="/"        element={<LandingPage />}  />
         <Route path="/login"   element={<LoginPage />}    />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/pay/:token" element={<PaymentPage />} />
+        <Route path="/pay/:token/success" element={<PaymentSuccessPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />

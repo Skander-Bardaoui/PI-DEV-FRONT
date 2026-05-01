@@ -140,8 +140,9 @@ export function ConsoleTenantsPage() {
       suspended: { variant: 'destructive', label: 'Suspended' },
       pending: { variant: 'secondary', label: 'Pending' },
       rejected: { variant: 'outline', label: 'Rejected' },
+      approved: { variant: 'default', label: 'Approved' },
     };
-    const config = variants[status] || variants.rejected;
+    const config = variants[status] || { variant: 'secondary', label: status };
     return (
       <Badge variant={config.variant} className="flex items-center gap-1">
         {getStatusIcon(status)}

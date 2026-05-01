@@ -71,6 +71,10 @@ export interface RegisterRequest {
     rate: number;
     is_default: boolean;
   };
+
+  // Plan Selection
+  planId: string;
+  billingCycle: 'monthly' | 'annual';
 }
 export interface RefreshTokenRequest {
   refresh_token: string;

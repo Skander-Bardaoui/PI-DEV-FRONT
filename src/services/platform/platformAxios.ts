@@ -13,7 +13,9 @@ export const platformAxios = axios.create({
 platformAxios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect to login for 401 errors that are NOT from password verification
+    // (i.e., actual authentication failures, not wrong password in delete flow)
+    if (error.response?.status === 401 && !error.config?.url?.includes('/tenants/')) {
       // Redirect to console login if unauthorized
       window.location.href = '/console/login';
     }

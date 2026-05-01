@@ -28,7 +28,7 @@ export interface Subscription {
   tenant: Tenant;
   plan_id: string;
   plan: Plan;
-  status: 'trial' | 'active' | 'overdue' | 'suspended' | 'cancelled';
+  status: 'pending_payment' | 'payment_submitted' | 'trial' | 'active' | 'overdue' | 'suspended' | 'cancelled';
   billing_cycle: 'monthly' | 'annual';
   current_period_start: string;
   current_period_end: string;
@@ -39,6 +39,7 @@ export interface Subscription {
   last_payment_at?: string;
   next_billing_at?: string;
   notes?: string;
+  payment_token?: string;
   created_at: string;
   updated_at: string;
 }

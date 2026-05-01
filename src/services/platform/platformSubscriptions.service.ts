@@ -31,10 +31,6 @@ export const platformSubscriptionsService = {
     return data;
   },
 
-  async cancelSubscription(id: string): Promise<void> {
-    await platformAxios.post(`/subscriptions/${id}/cancel`);
-  },
-
   async listPlans(): Promise<Plan[]> {
     const { data } = await platformAxios.get('/plans');
     return data;
@@ -52,5 +48,30 @@ export const platformSubscriptionsService = {
 
   async deletePlan(id: string): Promise<void> {
     await platformAxios.delete(`/plans/${id}`);
+  },
+
+  async resendPaymentEmail(id: string): Promise<{ message: string; sentTo: string }> {
+    const { data } = await platformAxios.post(`/subscriptions/${id}/resend-payment-email`);
+    return data;
+  },
+
+  async cancelSubscription(id: string): Promise<{ message: string }> {
+    const { data } = await platformAxios.post(`/subscriptions/${id}/cancel`);
+    return data;
+  },
+
+  async reactivateSubscription(id: string): Promise<{ message: string }> {
+    const { data } = await platformAxios.post(`/subscriptions/${id}/reactivate`);
+    return data;
+  },
+
+  async suspendSubscription(id: string): Promise<{ message: string }> {
+    const { data } = await platformAxios.post(`/subscriptions/${id}/suspend`);
+    return data;
+  },
+
+  async unsuspendSubscription(id: string): Promise<{ message: string }> {
+    const { data } = await platformAxios.post(`/subscriptions/${id}/unsuspend`);
+    return data;
   },
 };
