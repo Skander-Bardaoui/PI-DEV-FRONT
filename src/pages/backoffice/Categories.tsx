@@ -6,6 +6,29 @@ import { categoriesApi } from '../../api/categories.api';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../types/category';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 
+// Simple category row skeleton
+function CategoryRowSkeleton() {
+  return (
+    <tr className="animate-pulse">
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="h-4 bg-gray-200 rounded w-32"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-64"></div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="h-5 bg-gray-200 rounded-full w-16"></div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-right">
+        <div className="flex items-center justify-end gap-2">
+          <div className="h-5 w-5 bg-gray-200 rounded"></div>
+          <div className="h-5 w-5 bg-gray-200 rounded"></div>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface User {
@@ -68,6 +91,7 @@ export default function Categories() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -113,6 +137,18 @@ export default function Categories() {
       loadCategories();
     }
   }, [businessId, searchTerm, showActiveOnly]);
+
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   const loadCategories = async () => {
     try {
@@ -182,6 +218,8 @@ export default function Categories() {
       console.error('Error toggling category status:', error);
     }
   };
+
+  const isDisplayLoading = loading || showSkeleton;
 
   if (!businessId) {
     return (
@@ -261,12 +299,12 @@ export default function Categories() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-4 text-center">
-                  Loading...
-                </td>
-              </tr>
+            {isDisplayLoading ? (
+              <>
+                {[...Array(5)].map((_, i) => (
+                  <CategoryRowSkeleton key={i} />
+                ))}
+              </>
             ) : categories.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-4 text-center text-gray-500">

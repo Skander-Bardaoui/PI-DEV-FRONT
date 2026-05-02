@@ -20,6 +20,12 @@ import { stockDashboardApi, StockDashboardResponse } from '../../api/stock-dashb
 import { productReservationsApi } from '../../api/product-reservations.api';
 import { toast } from 'sonner';
 import axios from 'axios';
+import {
+  StockCardSkeleton,
+  LowStockProductSkeleton,
+  RecentMovementSkeleton,
+  ChartSkeleton,
+} from '../../components/stock/StockSkeletonLoaders';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -97,6 +103,7 @@ export default function StockDashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>('products');
   const [data, setData] = useState<StockDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reservingProductId, setReservingProductId] = useState<string | null>(null);
   const [reservationQuantities, setReservationQuantities] = useState<Record<string, number>>({});
@@ -183,6 +190,18 @@ export default function StockDashboard() {
     fetchDashboard();
   }, [businessId, viewMode]);
 
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
   const handleViewModeChange = async (mode: ViewMode) => {
     if (mode === viewMode) return;
     setViewMode(mode);
@@ -263,15 +282,63 @@ export default function StockDashboard() {
     }).format(value);
   };
 
-  if (loading) {
+  const isDisplayLoading = loading || showSkeleton;
+
+  if (isDisplayLoading) {
     return (
-      <div className="space-y-8 animate-pulse">
-        <div className="h-20 bg-gray-200 rounded-lg"></div>
+      <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-2 animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-48"></div>
+            <div className="h-4 bg-gray-200 rounded w-64"></div>
+          </div>
+          <div className="h-12 bg-gray-200 rounded-lg w-64 animate-pulse"></div>
+        </div>
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+            <StockCardSkeleton key={i} />
           ))}
         </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
+                <div className="space-y-2 flex-1">
+                  <div className="h-5 bg-gray-200 rounded w-32"></div>
+                  <div className="h-3 bg-gray-200 rounded w-48"></div>
+                </div>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {[...Array(3)].map((_, i) => (
+                <LowStockProductSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
+                <div className="space-y-2 flex-1">
+                  <div className="h-5 bg-gray-200 rounded w-40"></div>
+                  <div className="h-3 bg-gray-200 rounded w-52"></div>
+                </div>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {[...Array(5)].map((_, i) => (
+                <RecentMovementSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <ChartSkeleton />
+        <ChartSkeleton />
       </div>
     );
   }

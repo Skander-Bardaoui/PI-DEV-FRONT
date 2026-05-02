@@ -13,6 +13,7 @@ import {
   Trash2,
   Package,
 } from 'lucide-react';
+import { StockCardSkeleton } from '../../components/stock/StockSkeletonLoaders';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -83,6 +84,7 @@ export default function Warehouses() {
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
   const [formData, setFormData] = useState<CreateWarehouseDto>({
@@ -132,6 +134,18 @@ export default function Warehouses() {
       loadWarehouses();
     }
   }, [businessId]);
+
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   const loadWarehouses = async () => {
     try {
@@ -198,6 +212,8 @@ export default function Warehouses() {
     setEditingWarehouse(null);
   };
 
+  const isDisplayLoading = loading || showSkeleton;
+
   if (!businessId) {
     return (
       <div className="p-6">
@@ -229,10 +245,11 @@ export default function Warehouses() {
         )}
       </div>
 
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-600">Loading warehouses...</p>
+      {isDisplayLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <StockCardSkeleton key={i} />
+          ))}
         </div>
       ) : warehouses.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
