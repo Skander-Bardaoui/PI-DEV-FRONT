@@ -8,6 +8,7 @@ import { Product, CreateProductDto, ProductType } from '../../types/product';
 import { Category } from '../../types/category';
 import { Plus, Edit, Trash2, Search, Info, Sparkles, RefreshCw, CheckCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { StockMovementRowSkeleton } from '../../components/stock/StockSkeletonLoaders';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -71,6 +72,7 @@ export default function Services() {
   const [services, setServices] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showActiveOnly, setShowActiveOnly] = useState(true);
@@ -146,6 +148,18 @@ export default function Services() {
       loadCategories();
     }
   }, [businessId, searchTerm, selectedCategory, showActiveOnly]);
+
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   const loadServices = async () => {
     try {
@@ -465,6 +479,8 @@ export default function Services() {
   };
   // ====================================================================
 
+  const isDisplayLoading = loading || showSkeleton;
+
   if (!businessId) {
     return (
       <div className="p-6">
@@ -583,12 +599,34 @@ export default function Services() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-4 text-center">
-                  Loading...
-                </td>
-              </tr>
+            {isDisplayLoading ? (
+              <>
+                {[...Array(5)].map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-gray-200 rounded w-40"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded w-28"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-5 bg-gray-200 rounded-full w-16"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                        <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </>
             ) : services.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-4 text-center text-gray-500">

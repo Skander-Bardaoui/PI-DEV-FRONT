@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -51,6 +51,7 @@ import { io, Socket } from 'socket.io-client';
 import { activitiesApi, Activity } from '../../api/activities.api';
 import StatisticsDashboard from '../../components/StatisticsDashboard';
 import { PermissionManagementModal } from '../../components/PermissionManagementModal';
+import { TeamMemberRowSkeleton, TaskCardSkeleton, ActivityItemSkeleton } from '../../components/collaboration/CollaborationSkeletonLoaders';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -331,8 +332,17 @@ export default function Collaboration() {
   const [currentBusiness, setCurrentBusiness] = useState<Business | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [membersError, setMembersError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Infinite scroll state for team members
+  const [displayedMembersCount, setDisplayedMembersCount] = useState(10);
+  const membersObserverTarget = useRef<HTMLDivElement>(null);
+
+  // Infinite scroll state for activities
+  const [displayedActivitiesCount, setDisplayedActivitiesCount] = useState(20);
+  const activitiesObserverTarget = useRef<HTMLDivElement>(null);
 
   // Tasks state
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -492,6 +502,18 @@ export default function Collaboration() {
     loadData();
   }, []);
 
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loadingMembers || loadingTasks) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loadingMembers, loadingTasks]);
+
   // ── Redirect to tasks tab if user doesn't have permission for current tab ──
   useEffect(() => {
     if (!currentUser) return;
@@ -580,6 +602,62 @@ export default function Collaboration() {
     const q = searchQuery.toLowerCase();
     return name.includes(q) || email.includes(q) || role.includes(q);
   });
+
+  const displayedMembers = filteredMembers.slice(0, displayedMembersCount);
+  const hasMoreMembers = displayedMembersCount < filteredMembers.length;
+
+  const displayedActivities = activities.slice(0, displayedActivitiesCount);
+  const hasMoreActivities = displayedActivitiesCount < activities.length;
+
+  const isDisplayLoading = loadingMembers || loadingTasks || showSkeleton;
+
+  // Infinite scroll observer for team members
+  useEffect(() => {
+    if (activeTab !== 'team') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && displayedMembersCount < filteredMembers.length) {
+          setDisplayedMembersCount((prev) => Math.min(prev + 10, filteredMembers.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (membersObserverTarget.current) {
+      observer.observe(membersObserverTarget.current);
+    }
+
+    return () => {
+      if (membersObserverTarget.current) {
+        observer.unobserve(membersObserverTarget.current);
+      }
+    };
+  }, [activeTab, displayedMembersCount, filteredMembers.length]);
+
+  // Infinite scroll observer for activities
+  useEffect(() => {
+    if (activeTab !== 'activity') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && displayedActivitiesCount < activities.length) {
+          setDisplayedActivitiesCount((prev) => Math.min(prev + 20, activities.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (activitiesObserverTarget.current) {
+      observer.observe(activitiesObserverTarget.current);
+    }
+
+    return () => {
+      if (activitiesObserverTarget.current) {
+        observer.unobserve(activitiesObserverTarget.current);
+      }
+    };
+  }, [activeTab, displayedActivitiesCount, activities.length]);
 
   // ── Tasks by status ────────────────────────────────────────────────────────
   const tasksByStatus = {
@@ -1120,21 +1198,27 @@ export default function Collaboration() {
           {/* ── Tasks Tab ───────────────────────────────────────────────────── */}
           {activeTab === 'tasks' && (
             <div className="space-y-6">
-              {loadingTasks && (
-                <div className="flex items-center justify-center py-16 gap-3 text-gray-500">
-                  <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-                  <span>Loading tasks...</span>
+              {isDisplayLoading && (
+                <div className="grid lg:grid-cols-4 gap-4">
+                  {[...Array(4)].map((_, colIndex) => (
+                    <div key={colIndex} className="space-y-3">
+                      <div className="h-10 bg-gray-200 rounded animate-pulse mb-4"></div>
+                      {[...Array(3)].map((_, cardIndex) => (
+                        <TaskCardSkeleton key={cardIndex} />
+                      ))}
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {!loadingTasks && tasksError && (
+              {!isDisplayLoading && tasksError && (
                 <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
                   <span>{tasksError}</span>
                 </div>
               )}
 
-              {!loadingTasks && !tasksError && (
+              {!isDisplayLoading && !tasksError && (
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCorners}
@@ -1252,15 +1336,31 @@ export default function Collaboration() {
               </div>
 
               {/* Loading state */}
-              {loadingMembers && (
-                <div className="flex items-center justify-center py-16 gap-3 text-gray-500">
-                  <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-                  <span>Chargement des membres...</span>
+              {isDisplayLoading && (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Nom</th>
+                        <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Rôle</th>
+                        <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Email</th>
+                        <th className="text-center px-6 py-3 text-sm font-medium text-gray-500">Présence</th>
+                        <th className="text-center px-6 py-3 text-sm font-medium text-gray-500">Statut</th>
+                        <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Rejoint le</th>
+                        <th className="text-right px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {[...Array(5)].map((_, i) => (
+                        <TeamMemberRowSkeleton key={i} />
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
 
               {/* Error state */}
-              {!loadingMembers && membersError && (
+              {!isDisplayLoading && membersError && (
                 <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
                   <span>{membersError}</span>
@@ -1268,7 +1368,7 @@ export default function Collaboration() {
               )}
 
               {/* Empty state */}
-              {!loadingMembers && !membersError && filteredMembers.length === 0 && (
+              {!isDisplayLoading && !membersError && filteredMembers.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
                   <Users className="h-12 w-12" />
                   <p className="text-lg font-medium text-gray-500">
@@ -1287,7 +1387,7 @@ export default function Collaboration() {
               )}
 
               {/* Members table */}
-              {!loadingMembers && !membersError && filteredMembers.length > 0 && (
+              {!isDisplayLoading && !membersError && filteredMembers.length > 0 && (
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-gray-50">
@@ -1302,7 +1402,7 @@ export default function Collaboration() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {filteredMembers.map((member, index) => {
+                      {displayedMembers.map((member, index) => {
                         const name = getMemberName(member);
                         const initials = getInitials(name);
                         const color = avatarColors[index % avatarColors.length];
@@ -1392,6 +1492,12 @@ export default function Collaboration() {
                   <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-500">
                     {filteredMembers.length} membre{filteredMembers.length > 1 ? 's' : ''} au total
                   </div>
+                  {/* Infinite scroll trigger */}
+                  {hasMoreMembers && (
+                    <div ref={membersObserverTarget} className="py-4 text-center bg-white">
+                      <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mx-auto" />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1410,8 +1516,10 @@ export default function Collaboration() {
               )}
 
               {loadingActivities ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                <div className="relative">
+                  {[...Array(5)].map((_, i) => (
+                    <ActivityItemSkeleton key={i} />
+                  ))}
                 </div>
               ) : activitiesError ? (
                 <div className="text-center py-12">
@@ -1433,7 +1541,7 @@ export default function Collaboration() {
                 </div>
               ) : (
                 <div className="relative">
-                  {activities.map((activity, index) => {
+                  {displayedActivities.map((activity, index) => {
                     const userName = activity.user.firstName && activity.user.lastName
                       ? `${activity.user.firstName} ${activity.user.lastName}`
                       : activity.user.email;
@@ -1531,6 +1639,12 @@ export default function Collaboration() {
                       </div>
                     );
                   })}
+                  {/* Infinite scroll trigger for activities */}
+                  {hasMoreActivities && (
+                    <div ref={activitiesObserverTarget} className="py-4 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mx-auto" />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

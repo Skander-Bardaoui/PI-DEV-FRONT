@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import JsBarcode from 'jsbarcode';
+import { StockMovementRowSkeleton } from '../../components/stock/StockSkeletonLoaders';
 
 // ─── tiny reusable image picker ───────────────────────────────────────────────
 interface ImagePickerProps {
@@ -146,6 +147,7 @@ export default function Products() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading]       = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [searchTerm, setSearchTerm]           = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showActiveOnly, setShowActiveOnly]   = useState(true);
@@ -275,6 +277,18 @@ export default function Products() {
     }
   }, [businessId, searchTerm, selectedCategory, showActiveOnly, showLowStock]);
 
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -337,6 +351,8 @@ export default function Products() {
 
   const isLowStock = (p: Product) =>
     p.is_stockable && p.current_stock < p.min_stock_threshold;
+
+  const isDisplayLoading = loading || showSkeleton;
 
   // ─── submit create/edit ────────────────────────────────────────────────────
 
@@ -778,8 +794,12 @@ export default function Products() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr><td colSpan={9} className="px-6 py-4 text-center">Loading...</td></tr>
+            {isDisplayLoading ? (
+              <>
+                {[...Array(5)].map((_, i) => (
+                  <StockMovementRowSkeleton key={i} />
+                ))}
+              </>
             ) : products.length === 0 ? (
               <tr><td colSpan={9} className="px-6 py-4 text-center text-gray-500">No products found</td></tr>
             ) : (
