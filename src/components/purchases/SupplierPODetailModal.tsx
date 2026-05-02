@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   X, Package, FileText, Plus, ChevronDown, ChevronUp,
-  AlertCircle, Send, Check, Loader2, ExternalLink, Edit, XCircle,
+  AlertCircle, Send, Check, Loader2, Edit, XCircle,
 } from 'lucide-react';
 import { useGoodsReceiptsByPO }  from '@/hooks/useGoodsReceipts';
 import {
@@ -17,7 +17,6 @@ import EditSupplierPOModal           from '@/components/purchases/EditSupplierPO
 import GoodsReceiptModal             from '@/components/purchases/GoodsReceiptModal';
 import CreateInvoiceFromPOModal      from '@/components/purchases/CreateInvoiceFromPOModal';
 import InvoiceDetailModal            from '@/components/purchases/Invoicedetailmodal ';
-import PDFButton                     from '@/components/purchases/PDFButton';
 import { ActionButton, ActionSection } from '@/components/ui/ActionButton';
 import {
   formatAmount, formatDate,
@@ -40,6 +39,9 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
   const [showReceipts,setShowReceipts]= useState(true);
   const [showInvoices,setShowInvoices]= useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<PurchaseInvoice | null>(null);
+
+  // Garde une ref snapshot du PO au moment où l'edit s'ouvre
+  const editPORef = useRef<SupplierPO | null>(null);
 
   const toast = useToast();
 
@@ -66,7 +68,6 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
   const hasReceipts = receipts && receipts.length > 0;
   const hasInvoices = existingInvoices && existingInvoices.length > 0;
   const isFullyReceived = po.status === POStatus.FULLY_RECEIVED;
-  const isPartiallyReceived = po.status === POStatus.PARTIALLY_RECEIVED;
   const isConfirmedNoReceipt = po.status === POStatus.CONFIRMED;
   
   // 1. Montant total du BC
@@ -89,7 +90,8 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
   }, 0) || 0;
   
   // Total réceptionné SANS timbre (le timbre est ajouté à chaque facture, pas à chaque réception)
-  const totalReceived = round3(totalReceivedHT + totalReceivedTax);
+  // const totalReceived = round3(totalReceivedHT + totalReceivedTax); // Unused but kept for reference
+  
   // 3. Montant total facturé
   const totalInvoiced = existingInvoices?.reduce((sum, inv) => sum + Number(inv.net_amount), 0) || 0;
   
@@ -156,6 +158,11 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
     } catch (err: any) {
       toast.error('Erreur', err?.response?.data?.message ?? 'Impossible d\'annuler ce BC');
     }
+  };
+
+  const handleOpenEdit = () => {
+    editPORef.current = po; // snapshot figé au moment du clic
+    setEditOpen(true);
   };
 
   return (
@@ -455,7 +462,7 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
                       icon={Edit}
                       label="Modifier"
                       description="Éditer les détails"
-                      onClick={() => setEditOpen(true)}
+                      onClick={handleOpenEdit}
                       variant="secondary"
                     />
                   )}
@@ -544,7 +551,13 @@ export default function SupplierPODetailModal({ po: initialPO, businessId, onClo
         </div>
       </div>
 
-      {editOpen    && <EditSupplierPOModal po={po} businessId={businessId} onClose={() => setEditOpen(false)} />}
+      {editOpen && editPORef.current && (
+        <EditSupplierPOModal 
+          po={editPORef.current}  // ← PO figé, ne change plus
+          businessId={businessId} 
+          onClose={() => setEditOpen(false)} 
+        />
+      )}
       {grOpen      && <GoodsReceiptModal  po={po} businessId={businessId} onClose={() => setGrOpen(false)} />}
       {invoiceOpen && <CreateInvoiceFromPOModal po={po} businessId={businessId} onClose={() => setInvoiceOpen(false)} />}
       {selectedInvoice && (

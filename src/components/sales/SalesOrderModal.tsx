@@ -189,10 +189,14 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
       } else {
         await create.mutateAsync(payload);
       }
+      
+      // Close modal after successful submission
       onClose();
     } catch (err: any) {
-      console.error('Error creating sales order:', err);
-      setError(err?.response?.data?.message || err?.message || 'Erreur lors de la création de la commande');
+      console.error('Error submitting sales order:', err);
+      const errorMessage = err?.response?.data?.message || err?.message || 
+        (isEdit ? 'Erreur lors de la modification de la commande' : 'Erreur lors de la création de la commande');
+      setError(errorMessage);
     }
   };
 

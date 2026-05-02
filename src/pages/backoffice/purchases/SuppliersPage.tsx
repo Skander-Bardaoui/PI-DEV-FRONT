@@ -5,7 +5,7 @@ import {
   Plus, Search, Edit, Trash2, RotateCcw, Eye,
   Phone, Mail, Building2, ChevronUp, ChevronDown,
   Filter, Award, UserPlus, Sparkles,
-  Brain, MessageCircle,
+  Brain,
 } from 'lucide-react';
 import { useAuth }             from '../../../hooks/useAuth';
 import { useCurrentBusinessMember } from '@/hooks/useCurrentBusinessMember';
@@ -21,7 +21,6 @@ import SupplierModal           from '@/components/purchases/SupplierModal';
 import SupplierInviteModal     from '@/components/purchases/SupplierInviteModal';
 import SupplierScoreModal      from '@/components/purchases/SupplierScoreModal';
 import SupplierAIInsightsModal from '@/components/purchases/SupplierAIInsightsModal';
-import PurchaseAIAssistant     from '@/components/purchases/PurchaseAIAssistant';
 import PDFButton               from '@/components/purchases/PDFButton';
 import { Supplier } from '@/types';
 import SupplierScoreBadge from './SupplierScoreBadge';
@@ -74,7 +73,6 @@ export default function SuppliersPage() {
   const [detailSupplier, setDetailSupplier] = useState<Supplier | null>(null);
   const [scoreSupplier,  setScoreSupplier]  = useState<Supplier | null>(null);
   const [aiInsightsSupplier, setAiInsightsSupplier] = useState<Supplier | null>(null);
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
 
   const { data, isLoading } = useSuppliers(businessId, {
     search:   search || undefined,
@@ -169,34 +167,19 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      {/* Cartes d'actions IA */}
-      <div className="grid sm:grid-cols-2 gap-4">
-        <button onClick={() => setAiAssistantOpen(true)}
-          className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 hover:shadow-md transition-all text-left group">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
-              <MessageCircle className="h-5 w-5 text-purple-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 mb-1">Poser une question</h3>
-              <p className="text-sm text-gray-600">Interrogez vos données en langage naturel</p>
-            </div>
+      {/* Carte d'action IA */}
+      <button onClick={() => navigate('/app/purchases/supplier-intelligence')}
+        className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-4 hover:shadow-md transition-all text-left group w-full">
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+            <Brain className="h-5 w-5 text-indigo-600" />
           </div>
-        </button>
-
-        <button onClick={() => navigate('/app/purchases/supplier-intelligence')}
-          className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-4 hover:shadow-md transition-all text-left group">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
-              <Brain className="h-5 w-5 text-indigo-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 mb-1">Évaluer la performance</h3>
-              <p className="text-sm text-gray-600">Analyse intelligente de vos fournisseurs</p>
-            </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 mb-1">Évaluer la performance</h3>
+            <p className="text-sm text-gray-600">Analyse intelligente de vos fournisseurs</p>
           </div>
-        </button>
-      </div>
+        </div>
+      </button>
 
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-4 border border-gray-200">
@@ -461,13 +444,6 @@ export default function SuppliersPage() {
           supplierId={aiInsightsSupplier.id}
           supplierName={aiInsightsSupplier.name} 
           onClose={() => setAiInsightsSupplier(null)} 
-        />
-      )}
-
-      {aiAssistantOpen && (
-        <PurchaseAIAssistant
-          businessId={businessId}
-          onClose={() => setAiAssistantOpen(false)}
         />
       )}
     </div>
