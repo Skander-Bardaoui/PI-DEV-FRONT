@@ -270,9 +270,6 @@ export default function QuotesPage() {
           businessId={businessId} 
           onClose={() => setSelectedQuote(null)} 
           onDelete={canDeleteQuote ? (id) => deleteQuote.mutate(id) : undefined}
-          canUpdate={canUpdateQuote}
-          canSend={canSendQuote}
-          canConvert={canConvertQuote}
         />
       )}
     </div>

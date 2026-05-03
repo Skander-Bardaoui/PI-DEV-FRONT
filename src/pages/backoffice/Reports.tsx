@@ -36,6 +36,7 @@ import { usePurchaseInvoices } from '@/hooks/usePurchaseInvoices';
 import { useClients } from '@/hooks/useClients';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { formatAmount } from '@/types';
+import { SalesInvoiceStatus } from '@/types/sales-invoice';
 import { stockDashboardApi } from '@/api/stock-dashboard.api';
 import { useToast } from '@/components/ui/Toast';
 
@@ -68,7 +69,7 @@ export default function Reports() {
 
   const salesInvoices = salesInvoicesData?.data || [];
   const purchaseInvoices = purchaseInvoicesData?.data || [];
-  const clients = clientsData?.data || [];
+  const clients = clientsData?.clients || [];
   const suppliers = suppliersData?.data || [];
   const totalProducts = stockData?.summary?.total_products || 0;
 
@@ -81,12 +82,12 @@ export default function Reports() {
     
     return months.map((month, index) => {
       const monthSales = salesInvoices.filter(inv => {
-        const date = new Date(inv.invoice_date);
+        const date = new Date(inv.date); // SalesInvoice uses 'date' property
         return date.getMonth() === index && date.getFullYear() === currentYear;
       });
       
       const monthPurchases = purchaseInvoices.filter(inv => {
-        const date = new Date(inv.invoice_date);
+        const date = new Date(inv.invoice_date); // PurchaseInvoice uses 'invoice_date' property
         return date.getMonth() === index && date.getFullYear() === currentYear;
       });
       
@@ -149,9 +150,9 @@ export default function Reports() {
 
   // Calculate invoice status
   const invoicesByStatus = useMemo(() => {
-    const paid = salesInvoices.filter(inv => inv.status === 'PAID');
-    const pending = salesInvoices.filter(inv => inv.status === 'PENDING');
-    const overdue = salesInvoices.filter(inv => inv.status === 'OVERDUE');
+    const paid = salesInvoices.filter(inv => inv.status === SalesInvoiceStatus.PAID);
+    const pending = salesInvoices.filter(inv => inv.status === SalesInvoiceStatus.SENT || inv.status === SalesInvoiceStatus.DRAFT);
+    const overdue = salesInvoices.filter(inv => inv.status === SalesInvoiceStatus.OVERDUE);
     
     return [
       {

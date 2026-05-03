@@ -53,6 +53,7 @@ export default function ReservationsModal({ businessId, onClose }: Props) {
         notes: `Commande automatique pour réservation - ${reservation.name} (SKU: ${reservation.sku})`,
         items: [
           {
+            product_id: reservation.id, // Product ID from the reservation
             description: reservation.name,
             quantity_ordered: Number(reservation.reserved_quantity),
             unit_price_ht: Number(reservation.cost || reservation.price),
