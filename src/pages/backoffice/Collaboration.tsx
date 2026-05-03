@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Plus,
   Search,
@@ -25,6 +27,7 @@ import {
   X,
   BarChart2,
 } from 'lucide-react';
+import { taskSchema, type TaskFormData } from '../../schemas/task.schema';
 import {
   DndContext,
   DragEndEvent,
@@ -368,14 +371,33 @@ export default function Collaboration() {
     })
   );
 
-  // New task form state
-  const [newTaskForm, setNewTaskForm] = useState({
-    title: '',
-    description: '',
-    priority: 'MEDIUM' as Task['priority'],
-    assignedToIds: [] as string[],
-    dueDate: '',
+  // React Hook Form with Zod validation
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, touchedFields },
+    reset,
+    setValue,
+    watch,
+    setError,
+  } = useForm<TaskFormData>({
+    resolver: zodResolver(taskSchema),
+    mode: 'onBlur',
+    defaultValues: {
+      title: '',
+      description: '',
+      priority: 'MEDIUM',
+      status: 'TODO',
+      dueDate: '',
+      assignedToIds: [],
+    },
   });
+
+  // Watch form values for character counter and AI features
+  const watchedDescription = watch('description');
+  const watchedTitle = watch('title');
+  const watchedPriority = watch('priority');
+  const watchedAssignedToIds = watch('assignedToIds');
 
   // AI Priority Detection state
   const [aiSuggestedPriority, setAiSuggestedPriority] = useState<Task['priority'] | null>(null);
@@ -531,13 +553,21 @@ export default function Collaboration() {
   useEffect(() => {
     if (!currentBusiness) return;
 
-    const newSocket = io(API_BASE, {
+    const newSocket = io(`${API_BASE}/messages`, {
       withCredentials: true,
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      timeout: 20000,
     });
 
     newSocket.on('connect', () => {
       console.log('WebSocket connected');
-      newSocket.emit('joinBusiness', currentBusiness.id);
+      if (newSocket && newSocket.connected) {
+        newSocket.emit('joinBusiness', currentBusiness.id);
+      }
     });
 
     newSocket.on('taskMoved', (data: {
@@ -668,42 +698,48 @@ export default function Collaboration() {
   };
 
   // ── Handle create task ─────────────────────────────────────────────────────
-  const handleCreateTask = async () => {
-    if (!newTaskForm.title.trim()) {
-      alert('Please enter a task title');
-      return;
-    }
+  const onSubmitTask = async (data: TaskFormData) => {
     if (!currentBusiness) {
-      alert('No business selected');
+      toast.error('No business selected');
       return;
     }
 
     try {
-      const assignedUsers = newTaskForm.assignedToIds
+      const assignedUsers = (data.assignedToIds || [])
         .map(id => teamMembers.find(m => m.user_id === id)?.user)
         .filter(Boolean) as User[];
 
       const taskData: Partial<Task> = {
-        title: newTaskForm.title,
-        description: newTaskForm.description || undefined,
-        priority: newTaskForm.priority,
+        title: data.title,
+        description: data.description || undefined,
+        priority: data.priority,
         assignedTo: assignedUsers,
-        dueDate: newTaskForm.dueDate || undefined,
-        status: 'TODO',
+        dueDate: data.dueDate || undefined,
+        status: editingTask ? editingTask.status : 'TODO',
         businessId: currentBusiness.id,
       };
-      const created = await createTask(taskData);
-      setTasks([...tasks, created]);
+
+      if (editingTask) {
+        // Update existing task
+        const updated = await updateTask(editingTask.id, taskData);
+        setTasks(tasks.map((t) => (t.id === editingTask.id ? updated : t)));
+        toast.success('Task updated successfully');
+      } else {
+        // Create new task
+        const created = await createTask(taskData);
+        setTasks([...tasks, created]);
+        toast.success('Task created successfully');
+      }
+
+      // Reset form and close modal
+      reset();
       setShowNewTask(false);
-      setNewTaskForm({
-        title: '',
-        description: '',
-        priority: 'MEDIUM',
-        assignedToIds: [],
-        dueDate: '',
-      });
+      setEditingTask(null);
+      setAiSuggestedPriority(null);
+      setAiImprovedDescription(null);
     } catch (err: any) {
-      alert(err.message ?? 'Failed to create task');
+      // Keep form values on error
+      toast.error(err.message ?? 'Failed to save task');
     }
   };
 
@@ -753,10 +789,11 @@ export default function Collaboration() {
     console.log('✅ Opening edit modal for OWNER/ADMIN');
     // Sinon, ouvrir le modal d'édition complet
     setEditingTask(task);
-    setNewTaskForm({
+    reset({
       title: task.title,
       description: task.description || '',
       priority: task.priority,
+      status: task.status,
       assignedToIds: task.assignedTo?.map(u => u.id) || [],
       dueDate: task.dueDate || '',
     });
@@ -764,40 +801,7 @@ export default function Collaboration() {
   };
 
   // ── Handle update task ─────────────────────────────────────────────────────
-  const handleUpdateTask = async () => {
-    if (!editingTask) return;
-    if (!newTaskForm.title.trim()) {
-      alert('Please enter a task title');
-      return;
-    }
-
-    try {
-      const assignedUsers = newTaskForm.assignedToIds
-        .map(id => teamMembers.find(m => m.user_id === id)?.user)
-        .filter(Boolean) as User[];
-
-      const updates: Partial<Task> = {
-        title: newTaskForm.title,
-        description: newTaskForm.description || undefined,
-        priority: newTaskForm.priority,
-        assignedTo: assignedUsers,
-        dueDate: newTaskForm.dueDate || undefined,
-      };
-      const updated = await updateTask(editingTask.id, updates);
-      setTasks(tasks.map((t) => (t.id === editingTask.id ? updated : t)));
-      setShowNewTask(false);
-      setEditingTask(null);
-      setNewTaskForm({
-        title: '',
-        description: '',
-        priority: 'MEDIUM',
-        assignedToIds: [],
-        dueDate: '',
-      });
-    } catch (err: any) {
-      alert(err.message ?? 'Failed to update task');
-    }
-  };
+  // Removed - now handled by onSubmitTask
 
   // ── Close modal ────────────────────────────────────────────────────────────
   const handleCloseTaskModal = () => {
@@ -807,23 +811,16 @@ export default function Collaboration() {
     setDetectingPriority(false);
     setImprovingDescription(false);
     setAiImprovedDescription(null);
-    setNewTaskForm({
-      title: '',
-      description: '',
-      priority: 'MEDIUM',
-      assignedToIds: [],
-      dueDate: '',
-    });
+    reset();
   };
 
   // ── Toggle assigned member ─────────────────────────────────────────────────
   const toggleAssignedMember = (userId: string) => {
-    setNewTaskForm(prev => ({
-      ...prev,
-      assignedToIds: prev.assignedToIds.includes(userId)
-        ? prev.assignedToIds.filter(id => id !== userId)
-        : [...prev.assignedToIds, userId],
-    }));
+    const currentIds = watchedAssignedToIds || [];
+    const newIds = currentIds.includes(userId)
+      ? currentIds.filter(id => id !== userId)
+      : [...currentIds, userId];
+    setValue('assignedToIds', newIds, { shouldValidate: true });
   };
 
   // ── Detect priority with AI ────────────────────────────────────────────────
@@ -834,8 +831,8 @@ export default function Collaboration() {
       return;
     }
 
-    const description = newTaskForm.description.trim();
-    const title = newTaskForm.title.trim();
+    const description = (watchedDescription || '').trim();
+    const title = (watchedTitle || '').trim();
 
     console.log('🔍 handleDetectPriority called');
     console.log('Title:', title);
@@ -866,7 +863,7 @@ export default function Collaboration() {
         const data = await response.json();
         console.log('✅ AI detected priority:', data.priority);
         setAiSuggestedPriority(data.priority);
-        setNewTaskForm(prev => ({ ...prev, priority: data.priority }));
+        setValue('priority', data.priority, { shouldValidate: true });
       } else {
         const errorText = await response.text();
         console.error('❌ API Error:', errorText);
@@ -882,8 +879,8 @@ export default function Collaboration() {
 
   // ── Improve description with AI ────────────────────────────────────────────
   const handleImproveDescription = async () => {
-    const description = newTaskForm.description.trim();
-    const title = newTaskForm.title.trim();
+    const description = (watchedDescription || '').trim();
+    const title = (watchedTitle || '').trim();
 
     // Only trigger if description has more than 15 characters
     if (description.length <= 15) {
@@ -917,7 +914,7 @@ export default function Collaboration() {
   // ── Apply AI improved description ──────────────────────────────────────────
   const handleApplyImprovedDescription = () => {
     if (aiImprovedDescription) {
-      setNewTaskForm(prev => ({ ...prev, description: aiImprovedDescription }));
+      setValue('description', aiImprovedDescription, { shouldValidate: true });
       setAiImprovedDescription(null);
       toast.success('AI suggestion applied');
     }
@@ -1660,12 +1657,12 @@ export default function Collaboration() {
       {/* ── New/Edit Task Modal ─────────────────────────────────────────────────────── */}
       {showNewTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <form onSubmit={handleSubmit(onSubmitTask)} className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h2 className="text-xl font-bold text-gray-900">
                 {editingTask ? 'Edit Task' : 'Create New Task'}
               </h2>
-              <button onClick={handleCloseTaskModal} className="text-gray-400 hover:text-gray-500">
+              <button type="button" onClick={handleCloseTaskModal} className="text-gray-400 hover:text-gray-500">
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
@@ -1674,11 +1671,19 @@ export default function Collaboration() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Task Title</label>
                 <input
                   type="text"
-                  value={newTaskForm.title}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  {...register('title')}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                    errors.title 
+                      ? 'border-red-500' 
+                      : touchedFields.title 
+                      ? 'border-green-500' 
+                      : 'border-gray-300'
+                  }`}
                   placeholder="Enter task title"
                 />
+                {errors.title && (
+                  <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
@@ -1686,7 +1691,7 @@ export default function Collaboration() {
                   <button
                     type="button"
                     onClick={handleImproveDescription}
-                    disabled={improvingDescription || newTaskForm.description.trim().length <= 15}
+                    disabled={improvingDescription || (watchedDescription || '').trim().length <= 15}
                     className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   >
                     {improvingDescription ? (
@@ -1704,12 +1709,28 @@ export default function Collaboration() {
                 </label>
                 <textarea
                   rows={3}
-                  value={newTaskForm.description}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
-                  onBlur={handleDetectPriority}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  {...register('description')}
+                  onBlur={(e) => {
+                    register('description').onBlur(e);
+                    handleDetectPriority();
+                  }}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                    errors.description 
+                      ? 'border-red-500' 
+                      : touchedFields.description 
+                      ? 'border-green-500' 
+                      : 'border-gray-300'
+                  }`}
                   placeholder="Task description (min 16 characters for AI improvement)"
                 />
+                {errors.description && (
+                  <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+                )}
+                {watchedDescription && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {watchedDescription.length} / 500 characters
+                  </p>
+                )}
                 
                 {/* AI Improved Description Preview */}
                 {aiImprovedDescription && (
@@ -1751,17 +1772,26 @@ export default function Collaboration() {
                     )}
                   </label>
                   <select
-                    value={newTaskForm.priority}
+                    {...register('priority')}
                     onChange={(e) => {
-                      setNewTaskForm({ ...newTaskForm, priority: e.target.value as Task['priority'] });
+                      register('priority').onChange(e);
                       setAiSuggestedPriority(null); // Clear suggestion when manually changed
                     }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                      errors.priority 
+                        ? 'border-red-500' 
+                        : touchedFields.priority 
+                        ? 'border-green-500' 
+                        : 'border-gray-300'
+                    }`}
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
                     <option value="HIGH">High</option>
                   </select>
+                  {errors.priority && (
+                    <p className="mt-1 text-sm text-red-600">{errors.priority.message}</p>
+                  )}
                   {aiSuggestedPriority && (
                     <div className="mt-2 flex items-center gap-2 text-sm">
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md">
@@ -1769,6 +1799,7 @@ export default function Collaboration() {
                         AI suggested: {aiSuggestedPriority}
                       </span>
                       <button
+                        type="button"
                         onClick={() => setAiSuggestedPriority(null)}
                         className="text-gray-400 hover:text-gray-600"
                         title="Dismiss suggestion"
@@ -1782,10 +1813,18 @@ export default function Collaboration() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
                   <input
                     type="date"
-                    value={newTaskForm.dueDate}
-                    onChange={(e) => setNewTaskForm({ ...newTaskForm, dueDate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    {...register('dueDate')}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                      errors.dueDate 
+                        ? 'border-red-500' 
+                        : touchedFields.dueDate 
+                        ? 'border-green-500' 
+                        : 'border-gray-300'
+                    }`}
                   />
+                  {errors.dueDate && (
+                    <p className="mt-1 text-sm text-red-600">{errors.dueDate.message}</p>
+                  )}
                 </div>
               </div>
               <div>
@@ -1797,7 +1836,7 @@ export default function Collaboration() {
                     teamMembers.map((member) => {
                       const name = getMemberName(member);
                       const initials = getInitials(name);
-                      const isChecked = newTaskForm.assignedToIds.includes(member.user_id);
+                      const isChecked = (watchedAssignedToIds || []).includes(member.user_id);
                       
                       return (
                         <label
@@ -1824,9 +1863,9 @@ export default function Collaboration() {
                     })
                   )}
                 </div>
-                {newTaskForm.assignedToIds.length > 0 && (
+                {(watchedAssignedToIds || []).length > 0 && (
                   <p className="text-xs text-gray-500 mt-2">
-                    {newTaskForm.assignedToIds.length} member{newTaskForm.assignedToIds.length > 1 ? 's' : ''} selected
+                    {watchedAssignedToIds.length} member{watchedAssignedToIds.length > 1 ? 's' : ''} selected
                   </p>
                 )}
               </div>
@@ -1836,8 +1875,8 @@ export default function Collaboration() {
                 <div className="pt-4 border-t border-gray-200">
                   <SubtaskList
                     taskId={editingTask.id}
-                    taskTitle={newTaskForm.title}
-                    taskDescription={newTaskForm.description}
+                    taskTitle={watchedTitle || ''}
+                    taskDescription={watchedDescription || ''}
                     businessId={currentBusiness.id}
                     currentMember={currentMember}
                     canMarkComplete={currentUser?.role === 'TEAM_MEMBER' || currentUser?.role === 'ACCOUNTANT'}
@@ -1853,19 +1892,29 @@ export default function Collaboration() {
             </div>
             <div className="p-6 border-t border-gray-200 flex gap-3 flex-shrink-0">
               <button
+                type="button"
                 onClick={handleCloseTaskModal}
-                className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={isSubmitting}
+                className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
-                onClick={editingTask ? handleUpdateTask : handleCreateTask}
-                className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                type="submit"
+                disabled={isSubmitting || Object.keys(errors).length > 0}
+                className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {editingTask ? 'Update Task' : 'Create Task'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    {editingTask ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  editingTask ? 'Update Task' : 'Create Task'
+                )}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
@@ -1933,16 +1982,6 @@ export default function Collaboration() {
       )}
 
       {/* ── Subtask View Modal (TEAM_MEMBER) ──────────────────────────────────── */}
-      {(() => {
-        console.log('🔍 DEBUG Modal Render Check:', {
-          viewingTask: !!viewingTask,
-          viewingTaskId: viewingTask?.id,
-          currentBusiness: !!currentBusiness,
-          currentBusinessId: currentBusiness?.id,
-          willRender: !!(viewingTask && currentBusiness)
-        });
-        return null;
-      })()}
       {viewingTask && currentBusiness ? (
         <SubtaskViewModal
           task={viewingTask}

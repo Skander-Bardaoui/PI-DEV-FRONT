@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { productsApi } from '../../api/products.api';
-import { Product } from '../../types/product';
+import { Product, ProductType } from '../../types/product';
 
 interface ProductSelectorPurchaseProps {
   value?: string;
@@ -34,7 +34,9 @@ export default function ProductSelectorPurchase({
     try {
       setLoading(true);
       const data = await productsApi.getAll(businessId!, { is_active: true });
-      setProducts(data);
+      // Filter out services - only show physical and digital products for purchase orders
+      const purchasableProducts = data.filter(p => p.type !== ProductType.SERVICE);
+      setProducts(purchasableProducts);
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
