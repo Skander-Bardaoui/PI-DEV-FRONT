@@ -1,5 +1,7 @@
 // src/pages/backoffice/Team.tsx
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Search,
   Edit,
@@ -30,6 +32,7 @@ import {
 import { getMyBusinesses } from '../../api/business.api';
 import { PermissionManagementModal } from '../../components/PermissionManagementModal';
 import { TeamMemberRowSkeleton, StatsCardSkeleton, InvitationCardSkeleton } from '../../components/collaboration/CollaborationSkeletonLoaders';
+import { teamInvitationSchema, type TeamInvitationFormData } from '../../schemas/team-invitation.schema';
 
 const roles = [
   {
@@ -89,9 +92,23 @@ export default function Team() {
   const [displayedMembersCount, setDisplayedMembersCount] = useState(10);
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  // Form state
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('TEAM_MEMBER');
+  // React Hook Form with Zod validation for invitation
+  const {
+    register,
+    handleSubmit: handleInviteSubmit,
+    formState: { errors, isSubmitting, touchedFields },
+    reset: resetInviteForm,
+    setError,
+  } = useForm<TeamInvitationFormData>({
+    resolver: zodResolver(teamInvitationSchema),
+    mode: 'onBlur',
+    defaultValues: {
+      email: '',
+      role: 'TEAM_MEMBER',
+      firstName: '',
+      lastName: '',
+    },
+  });
   const [editRole, setEditRole] = useState('');
 
   // Load businesses on mount
@@ -204,32 +221,32 @@ export default function Team() {
     };
   }, [displayedMembersCount, filteredMembers.length]);
 
-  const handleSendInvitation = async () => {
-    if (!inviteEmail.trim()) {
-      toast.error('Veuillez saisir une adresse email');
-      return;
-    }
-
+  const onSubmitInvitation = async (data: TeamInvitationFormData) => {
     if (!selectedBusinessId) {
       toast.error('Veuillez sélectionner une entreprise');
       return;
     }
 
     try {
-      setIsSending(true);
-      await sendInvitation(selectedBusinessId, inviteEmail, inviteRole);
-      toast.success(`Invitation envoyée à ${inviteEmail}`);
+      await sendInvitation(selectedBusinessId, data.email, data.role);
+      toast.success(`Invitation envoyée à ${data.email}`);
       setShowInvite(false);
-      setInviteEmail('');
-      setInviteRole('TEAM_MEMBER');
+      resetInviteForm();
       await loadMembersAndInvitations();
     } catch (error: any) {
-      const errorMsg =
-        error.response?.data?.message || 'Erreur lors de l\'envoi de l\'invitation';
-      toast.error(errorMsg);
+      // Handle 409 Conflict - email already exists
+      if (error.response?.status === 409) {
+        setError('email', {
+          type: 'manual',
+          message: 'This email is already a team member',
+        });
+      } else {
+        // Generic error message at the top
+        const errorMsg =
+          error.response?.data?.message || 'Erreur lors de l\'envoi de l\'invitation';
+        toast.error(errorMsg);
+      }
       console.error('Error sending invitation:', error);
-    } finally {
-      setIsSending(false);
     }
   };
 
@@ -630,13 +647,17 @@ export default function Team() {
       {/* Invite Modal */}
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl max-w-lg w-full">
+          <form onSubmit={handleInviteSubmit(onSubmitInvitation)} className="bg-white rounded-2xl max-w-lg w-full">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
                 Inviter un membre
               </h2>
               <button
-                onClick={() => setShowInvite(false)}
+                type="button"
+                onClick={() => {
+                  setShowInvite(false);
+                  resetInviteForm();
+                }}
                 className="text-gray-400 hover:text-gray-500"
               >
                 <X className="h-6 w-6" />
@@ -645,26 +666,81 @@ export default function Team() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  {...register('firstName')}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                    errors.firstName 
+                      ? 'border-red-500' 
+                      : touchedFields.firstName 
+                      ? 'border-green-500' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="John"
+                  disabled={isSubmitting}
+                />
+                {errors.firstName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  {...register('lastName')}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                    errors.lastName 
+                      ? 'border-red-500' 
+                      : touchedFields.lastName 
+                      ? 'border-green-500' 
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Doe"
+                  disabled={isSubmitting}
+                />
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Adresse email
                 </label>
                 <input
                   type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  {...register('email')}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                    errors.email 
+                      ? 'border-red-500' 
+                      : touchedFields.email 
+                      ? 'border-green-500' 
+                      : 'border-gray-300'
+                  }`}
                   placeholder="email@exemple.com"
-                  disabled={isSending}
+                  disabled={isSubmitting}
                 />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Rôle
                 </label>
                 <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  disabled={isSending}
+                  {...register('role')}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                    errors.role 
+                      ? 'border-red-500' 
+                      : touchedFields.role 
+                      ? 'border-green-500' 
+                      : 'border-gray-300'
+                  }`}
+                  disabled={isSubmitting}
                 >
                   {roles.map((role) => (
                     <option key={role.value} value={role.value}>
@@ -672,6 +748,9 @@ export default function Team() {
                     </option>
                   ))}
                 </select>
+                {errors.role && (
+                  <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
+                )}
               </div>
               <div className="bg-indigo-50 rounded-lg p-4">
                 <p className="text-sm text-indigo-800">
@@ -682,18 +761,22 @@ export default function Team() {
             </div>
             <div className="p-6 border-t border-gray-200 flex gap-3">
               <button
-                onClick={() => setShowInvite(false)}
-                disabled={isSending}
+                type="button"
+                onClick={() => {
+                  setShowInvite(false);
+                  resetInviteForm();
+                }}
+                disabled={isSubmitting}
                 className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Annuler
               </button>
               <button
-                onClick={handleSendInvitation}
-                disabled={isSending}
-                className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                type="submit"
+                disabled={isSubmitting || Object.keys(errors).length > 0}
+                className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSending ? (
+                {isSubmitting ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     Envoi...
@@ -706,7 +789,7 @@ export default function Team() {
                 )}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 

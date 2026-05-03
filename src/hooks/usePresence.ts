@@ -35,13 +35,12 @@ export const usePresence = (businessId: string | null): UsePresenceReturn => {
       return;
     }
 
-    // Connect to WebSocket root (no namespace) - same as messages gateway
+    // Connect to WebSocket /presence namespace
     // Use withCredentials to send HTTP-only cookies
-    const newSocket = io(API_BASE, {
+    const newSocket = io(`${API_BASE}/presence`, {
       withCredentials: true,
       query: {
         businessId,
-        presence: 'true', // Flag to identify presence connections
       },
       transports: ['websocket', 'polling'],
       reconnection: true,
