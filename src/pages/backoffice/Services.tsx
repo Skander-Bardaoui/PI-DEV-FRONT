@@ -9,6 +9,9 @@ import { Category } from '../../types/category';
 import { Plus, Edit, Trash2, Search, Info, Sparkles, RefreshCw, CheckCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { StockMovementRowSkeleton } from '../../components/stock/StockSkeletonLoaders';
+import { CreateServiceSchema, UpdateServiceSchema } from '../../validation/product.schema';
+import { useFormValidation } from '../../hooks/useFormValidation';
+import { FieldError } from '../../components/common/ValidationErrorDisplay';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -115,6 +118,10 @@ export default function Services() {
     is_stockable: false,
   });
 
+  // Validation hook
+  const schema = editingService ? UpdateServiceSchema : CreateServiceSchema;
+  const { errors, validate, validateField, clearErrors } = useFormValidation(schema);
+
   // Load current user and member on mount
   useEffect(() => {
     async function loadUserData() {
@@ -191,6 +198,13 @@ export default function Services() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!validate(formData)) {
+      toast.error('Veuillez corriger les erreurs de validation');
+      return;
+    }
+    
     try {
       const serviceData = {
         ...formData,
@@ -278,8 +292,7 @@ export default function Services() {
 
   const handleGenerateSku = async () => {
     if (formData.reference && formData.reference.trim()) {
-      const confirmed = window.confirm('This will replace your current SKU. Continue?');
-      if (!confirmed) return;
+      toast.info('Génération d\'un nouveau SKU...');
     }
 
     setGeneratingSku(true);
@@ -428,6 +441,13 @@ export default function Services() {
 
   const handleSaveAiScannedService = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!validate(formData)) {
+      toast.error('Veuillez corriger les erreurs de validation');
+      return;
+    }
+    
     try {
       const serviceData = {
         ...formData,
@@ -700,7 +720,7 @@ export default function Services() {
             <h2 className="text-xl font-bold mb-4">
               {editingService ? 'Edit Service' : 'New Service'}
             </h2>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -708,11 +728,16 @@ export default function Services() {
                   </label>
                   <input
                     type="text"
-                    required
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    onChange={(e) => {
+                      setFormData({ ...formData, name: e.target.value });
+                      validateField('name', e.target.value);
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg ${
+                      errors.name ? 'border-red-300 bg-red-50' : ''
+                    }`}
                   />
+                  <FieldError error={errors.name} />
                 </div>
 
                 <div>
@@ -720,13 +745,21 @@ export default function Services() {
                     SKU/Reference *
                   </label>
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      value={formData.reference}
-                      onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                      className="flex-1 px-3 py-2 border rounded-lg"
-                    />
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={formData.reference}
+                        onChange={(e) => {
+                          const upperValue = e.target.value.toUpperCase();
+                          setFormData({ ...formData, reference: upperValue });
+                          validateField('reference', upperValue);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg ${
+                          errors.reference ? 'border-red-300 bg-red-50' : ''
+                        }`}
+                      />
+                      <FieldError error={errors.reference} />
+                    </div>
                     <button
                       type="button"
                       onClick={handleGenerateSku}
@@ -755,20 +788,26 @@ export default function Services() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
+                    Category *
                   </label>
                   <select
                     value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    onChange={(e) => {
+                      setFormData({ ...formData, category_id: e.target.value });
+                      validateField('category_id', e.target.value);
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg ${
+                      errors.category_id ? 'border-red-300 bg-red-50' : ''
+                    }`}
                   >
-                    <option value="">No Category</option>
+                    <option value="">Sélectionner une catégorie</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
                       </option>
                     ))}
                   </select>
+                  <FieldError error={errors.category_id} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -779,13 +818,17 @@ export default function Services() {
                     <input
                       type="number"
                       step="0.001"
-                      required
                       value={formData.sale_price_ht}
-                      onChange={(e) =>
-                        setFormData({ ...formData, sale_price_ht: parseFloat(e.target.value) || 0 })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        setFormData({ ...formData, sale_price_ht: value });
+                        validateField('sale_price_ht', value);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg ${
+                        errors.sale_price_ht ? 'border-red-300 bg-red-50' : ''
+                      }`}
                     />
+                    <FieldError error={errors.sale_price_ht} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -936,7 +979,7 @@ export default function Services() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSaveAiScannedService}>
+              <form onSubmit={handleSaveAiScannedService} noValidate>
                 {aiScanResult?.confidence_note && (
                   <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                     <p className="text-sm text-gray-600">{aiScanResult.confidence_note}</p>
@@ -967,11 +1010,16 @@ export default function Services() {
                     </label>
                     <input
                       type="text"
-                      required
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg"
+                      onChange={(e) => {
+                        setFormData({ ...formData, name: e.target.value });
+                        validateField('name', e.target.value);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg ${
+                        errors.name ? 'border-red-300 bg-red-50' : ''
+                      }`}
                     />
+                    <FieldError error={errors.name} />
                   </div>
 
                   <div>
@@ -979,13 +1027,21 @@ export default function Services() {
                       SKU/Reference *
                     </label>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
-                        required
-                        value={formData.reference}
-                        onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={formData.reference}
+                          onChange={(e) => {
+                            const upperValue = e.target.value.toUpperCase();
+                            setFormData({ ...formData, reference: upperValue });
+                            validateField('reference', upperValue);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg ${
+                            errors.reference ? 'border-red-300 bg-red-50' : ''
+                          }`}
+                        />
+                        <FieldError error={errors.reference} />
+                      </div>
                       <button
                         type="button"
                         onClick={handleGenerateSku}
@@ -1014,20 +1070,26 @@ export default function Services() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category
+                      Category *
                     </label>
                     <select
                       value={formData.category_id}
-                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg"
+                      onChange={(e) => {
+                        setFormData({ ...formData, category_id: e.target.value });
+                        validateField('category_id', e.target.value);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg ${
+                        errors.category_id ? 'border-red-300 bg-red-50' : ''
+                      }`}
                     >
-                      <option value="">No Category</option>
+                      <option value="">Sélectionner une catégorie</option>
                       {categories.map((cat) => (
                         <option key={cat.id} value={cat.id}>
                           {cat.name}
                         </option>
                       ))}
                     </select>
+                    <FieldError error={errors.category_id} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -1038,13 +1100,17 @@ export default function Services() {
                       <input
                         type="number"
                         step="0.001"
-                        required
                         value={formData.sale_price_ht}
-                        onChange={(e) =>
-                          setFormData({ ...formData, sale_price_ht: parseFloat(e.target.value) || 0 })
-                        }
-                        className="w-full px-3 py-2 border rounded-lg"
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          setFormData({ ...formData, sale_price_ht: value });
+                          validateField('sale_price_ht', value);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg ${
+                          errors.sale_price_ht ? 'border-red-300 bg-red-50' : ''
+                        }`}
                       />
+                      <FieldError error={errors.sale_price_ht} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">

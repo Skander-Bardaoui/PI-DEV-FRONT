@@ -159,6 +159,14 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
     try {
       setError(null);
       
+      // Validate that all items have a product selected
+      for (let i = 0; i < values.items.length; i++) {
+        if (!values.items[i].product_id || values.items[i].product_id.trim() === '') {
+          setError(`Ligne ${i + 1}: Vous devez sélectionner un produit pour le suivi des stocks`);
+          return;
+        }
+      }
+      
       // Validate stock for all items
       for (let i = 0; i < values.items.length; i++) {
         const warning = getStockWarning(i);
@@ -173,7 +181,7 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
         quantity: Number(item.quantity) || 0,
         unitPrice: Number(item.unit_price) || 0,
         taxRate: Number(item.tax_rate) || 0,
-        ...(item.product_id ? { productId: item.product_id } : {}),
+        productId: item.product_id, // ✅ Always include productId (now required)
       })) as CreateSalesOrderItemDto[];
 
       const payload = {
@@ -267,7 +275,9 @@ export default function SalesOrderModal({ businessId, order, onClose }: Props) {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Type & Produit *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">
+                      Type & Produit <span className="text-red-500">*</span>
+                    </th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">Qté *</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 w-32">Prix HT *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">TVA</th>

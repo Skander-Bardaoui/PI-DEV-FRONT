@@ -245,26 +245,37 @@ export default function DeliveryNoteModal({ businessId, note, onClose }: Props) 
               existingItem: existingItem
             });
             
+            // CRITICAL: productId MUST be present
+            if (!existingItem?.productId) {
+              throw new Error(`Product ID manquant pour l'article: ${existingItem?.description || 'Article'}`);
+            }
+            
             const quantity = parseFloat(String(existingItem?.quantity || 1));
             const deliveredQuantity = parseFloat(String(item.quantity_delivered || 0));
             
             return {
+              productId: existingItem.productId, // ALWAYS include productId
               description: existingItem?.description || 'Article',
               quantity: isNaN(quantity) || quantity === 0 ? 1 : quantity,
               deliveredQuantity: isNaN(deliveredQuantity) ? 0 : deliveredQuantity,
-              ...(existingItem?.productId ? { productId: existingItem.productId } : {}),
             };
           } else {
             // In create mode, use order item data
             const orderItem = selectedOrder?.items?.find((oi: any) => oi.id === item.sales_order_item_id);
+            
+            // CRITICAL: productId MUST be present
+            if (!orderItem?.productId) {
+              throw new Error(`Product ID manquant pour l'article: ${orderItem?.description || 'Article'}`);
+            }
+            
             const quantity = parseFloat(String(orderItem?.quantity || 0));
             const deliveredQuantity = parseFloat(String(item.quantity_delivered || 0));
             
             return {
+              productId: orderItem.productId, // ALWAYS include productId
               description: orderItem?.description || '',
               quantity: isNaN(quantity) ? 0 : quantity,
               deliveredQuantity: isNaN(deliveredQuantity) ? 0 : deliveredQuantity,
-              ...(orderItem?.productId ? { productId: orderItem.productId } : {}),
             };
           }
         }) as CreateDeliveryNoteItemDto[];

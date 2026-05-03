@@ -275,8 +275,8 @@ export default function SupplierPOsPage() {
         ) : !isNonEmptyArray(sorted) ? (
           <EmptyState 
             icon={<ShoppingCart className="h-16 w-16 text-gray-400" />}
-            message="Aucun bon de commande"
-            description={hasActiveFilters ? "Essayez de modifier vos filtres" : "Commencez par créer votre premier bon de commande"}
+            title="Aucun bon de commande"
+            message={hasActiveFilters ? "Essayez de modifier vos filtres" : "Commencez par créer votre premier bon de commande"}
             action={!hasActiveFilters && canCreateOrder ? { label: "Nouveau BC", onClick: () => setModalOpen(true) } : undefined}
           />
         ) : (

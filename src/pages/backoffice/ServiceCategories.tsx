@@ -6,6 +6,32 @@ import { useBusinessId } from '../../hooks/useBusinessId';
 import { categoriesApi } from '../../api/categories.api';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../types/category';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { CategoryFormModal } from '../../components/stock/CategoryFormModal';
+import { ConfirmationModal } from '../../components/common/ConfirmationModal';
+import { toast } from 'sonner';
+
+// Simple category row skeleton
+function CategoryRowSkeleton() {
+  return (
+    <tr className="animate-pulse">
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="h-4 bg-gray-200 rounded w-32"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-64"></div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="h-5 bg-gray-200 rounded-full w-16"></div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-right">
+        <div className="flex items-center justify-end gap-2">
+          <div className="h-5 w-5 bg-gray-200 rounded"></div>
+          <div className="h-5 w-5 bg-gray-200 rounded"></div>
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 // Simple category row skeleton
 function CategoryRowSkeleton() {
@@ -97,11 +123,11 @@ export default function ServiceCategories() {
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState<CreateCategoryDto>({
-    name: '',
-    description: '',
-    category_type: 'SERVICE',
-  });
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  
+  // Delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   
   // User and member state for permissions
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -163,47 +189,58 @@ export default function ServiceCategories() {
       setCategories(data);
     } catch (error) {
       console.error('Error loading service categories:', error);
+      toast.error('Erreur lors du chargement des catégories de service');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const dataToSend = { ...formData, category_type: 'SERVICE' };
-      if (editingCategory) {
-        await categoriesApi.update(businessId!, editingCategory.id, dataToSend);
-      } else {
-        await categoriesApi.create(businessId!, dataToSend);
-      }
-      setShowModal(false);
-      setEditingCategory(null);
-      setFormData({ name: '', description: '', category_type: 'SERVICE' });
-      await loadCategories();
-    } catch (error) {
-      console.error('Error saving service category:', error);
-    }
-  };
-
-  const handleEdit = (category: Category) => {
-    setEditingCategory(category);
-    setFormData({
-      name: category.name,
-      description: category.description || '',
-      category_type: 'SERVICE',
-    });
+  const handleCreateCategory = () => {
+    setModalMode('create');
+    setEditingCategory(null);
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this service category?')) {
-      try {
-        await categoriesApi.delete(businessId!, id);
-        loadCategories();
-      } catch (error: any) {
-        alert(error.response?.data?.message || 'Error deleting service category');
+  const handleEditCategory = (category: Category) => {
+    setModalMode('edit');
+    setEditingCategory(category);
+    setShowModal(true);
+  };
+
+  const handleCategorySubmit = async (data: CreateCategoryDto) => {
+    try {
+      const dataToSend = { ...data, category_type: 'SERVICE' };
+      if (modalMode === 'edit' && editingCategory) {
+        await categoriesApi.update(businessId!, editingCategory.id, dataToSend);
+        toast.success('Catégorie de service mise à jour avec succès');
+      } else {
+        await categoriesApi.create(businessId!, dataToSend);
+        toast.success('Catégorie de service créée avec succès');
       }
+      await loadCategories();
+    } catch (error: any) {
+      // Error is handled in the modal component
+      throw error;
+    }
+  };
+
+  const handleDeleteClick = (category: Category) => {
+    setCategoryToDelete(category);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!categoryToDelete) return;
+    
+    try {
+      await categoriesApi.softDelete(businessId!, categoryToDelete.id);
+      toast.success('Catégorie de service supprimée avec succès');
+      await loadCategories();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
+    } finally {
+      setShowDeleteModal(false);
+      setCategoryToDelete(null);
     }
   };
 
@@ -212,9 +249,11 @@ export default function ServiceCategories() {
       await categoriesApi.update(businessId!, category.id, {
         is_active: !category.is_active,
       });
+      toast.success(`Catégorie ${category.is_active ? 'désactivée' : 'activée'} avec succès`);
       loadCategories();
     } catch (error) {
       console.error('Error toggling service category status:', error);
+      toast.error('Erreur lors de la modification du statut');
     }
   };
 
@@ -238,11 +277,7 @@ export default function ServiceCategories() {
         <h1 className="text-2xl font-bold">Service Categories</h1>
         {canCreateServiceCategory && (
           <button
-            onClick={() => {
-              setEditingCategory(null);
-              setFormData({ name: '', description: '', category_type: 'SERVICE' });
-              setShowModal(true);
-            }}
+            onClick={handleCreateCategory}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
             <Plus size={20} />
@@ -332,16 +367,18 @@ export default function ServiceCategories() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canUpdateServiceCategory && (
                       <button
-                        onClick={() => handleEdit(category)}
+                        onClick={() => handleEditCategory(category)}
                         className="text-blue-600 hover:text-blue-900 mr-4"
+                        title="Modifier"
                       >
                         <Edit size={18} />
                       </button>
                     )}
                     {canDeleteServiceCategory && (
                       <button
-                        onClick={() => handleDelete(category.id)}
+                        onClick={() => handleDeleteClick(category)}
                         className="text-red-600 hover:text-red-900"
+                        title="Supprimer"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -354,60 +391,40 @@ export default function ServiceCategories() {
         </table>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
-              {editingCategory ? 'Edit Service Category' : 'New Service Category'}
-            </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  rows={3}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingCategory(null);
-                    setFormData({ name: '', description: '', category_type: 'SERVICE' });
-                  }}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  {editingCategory ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </form>
+      {/* Category Form Modal */}
+      <CategoryFormModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingCategory(null);
+        }}
+        onSubmit={handleCategorySubmit}
+        category={editingCategory}
+        mode={modalMode}
+        categoryType="SERVICE"
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setCategoryToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer la catégorie de service"
+        message={
+          <div>
+            <p>Êtes-vous sûr de vouloir supprimer <strong>{categoryToDelete?.name}</strong> ?</p>
+            <p className="mt-2 text-sm text-gray-600">
+              Cette action peut être annulée depuis les archives.
+            </p>
           </div>
-        </div>
-      )}
+        }
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        variant="danger"
+      />
     </div>
   );
 }

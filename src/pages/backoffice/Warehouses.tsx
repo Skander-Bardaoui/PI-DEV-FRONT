@@ -170,8 +170,9 @@ export default function Warehouses() {
       setShowModal(false);
       resetForm();
       loadWarehouses();
+      toast.success(editingWarehouse ? 'Entrepôt mis à jour avec succès' : 'Entrepôt créé avec succès');
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error saving warehouse');
+      toast.error(error.response?.data?.message || 'Erreur lors de l\'enregistrement de l\'entrepôt');
     }
   };
 
@@ -190,12 +191,12 @@ export default function Warehouses() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this warehouse?')) return;
     try {
       await warehousesApi.delete(businessId!, id);
       loadWarehouses();
+      toast.success('Entrepôt supprimé avec succès');
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error deleting warehouse');
+      toast.error(error.response?.data?.message || 'Erreur lors de la suppression de l\'entrepôt');
     }
   };
 
@@ -356,7 +357,7 @@ export default function Warehouses() {
               </h2>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6">
+            <form onSubmit={handleSubmit} noValidate className="p-6">
               <div className="space-y-6">
                 {/* Basic Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

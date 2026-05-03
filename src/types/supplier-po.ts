@@ -72,7 +72,7 @@ export interface SupplierPO {
 // ── DTOs ─────────────────────────────────────────────────────────────────
 export interface CreateSupplierPOItemDto {
   item_type?:     'PRODUCT' | 'SERVICE';
-  product_id?:    string;
+  product_id:     string; // ✅ Made REQUIRED for stock tracking
   description:    string;
   quantity_ordered: number;
   unit_price_ht:  number;

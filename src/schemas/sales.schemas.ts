@@ -248,7 +248,10 @@ export type QuoteFormValues = z.infer<typeof quoteSchema>;
 // 4. LIGNE DE COMMANDE CLIENT
 // ══════════════════════════════════════════════════════════════════════════════
 export const salesOrderItemSchema = z.object({
-  product_id: z.string().uuid('Produit invalide').optional().or(z.literal('')),
+  product_id: z
+    .string({ required_error: 'Le produit est obligatoire pour le suivi des stocks' })
+    .uuid('Produit invalide')
+    .min(1, 'Le produit est obligatoire pour le suivi des stocks'), // ✅ Made REQUIRED
 
   description: z
     .string({ required_error: 'La description est obligatoire' })

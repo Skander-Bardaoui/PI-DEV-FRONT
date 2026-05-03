@@ -131,7 +131,9 @@ export default function StockMovements() {
   const loadProducts = async () => {
     try {
       const data = await productsApi.getAll(businessId!, { is_active: true });
-      setProducts(data);
+      // Filter out SERVICE and DIGITAL products - only show PHYSICAL products for stock movements
+      const physicalProducts = data.filter(p => p.type === 'PHYSICAL' || p.is_stockable);
+      setProducts(physicalProducts);
     } catch (error) {
       console.error('Error loading products:', error);
     }
@@ -153,8 +155,9 @@ export default function StockMovements() {
       setShowModal(false);
       resetForm();
       loadMovements();
+      toast.success('Mouvement de stock créé avec succès');
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error creating movement');
+      toast.error(error.response?.data?.message || 'Erreur lors de la création du mouvement');
     }
   };
 
@@ -437,7 +440,7 @@ export default function StockMovements() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">New Stock Movement</h2>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Product *
@@ -538,7 +541,7 @@ export default function StockMovements() {
                   }
                   className="w-full px-3 py-2 border rounded-lg"
                   rows={3}
-                />v2/PI-DEV-FRONT/src/pages/backoffice/Archive.tsx:9:22A
+                />
               </div>
 
               <div className="flex justify-end gap-2">
