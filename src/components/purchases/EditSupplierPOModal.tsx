@@ -75,7 +75,13 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
   const setLine = (i: number, key: keyof CreateSupplierPOItemDto, value: any) =>
     setLines(ls => ls.map((l, idx) => idx === i ? { ...l, [key]: value } : l));
 
-  const addLine    = () => setLines(ls => [...ls, { description: '', quantity_ordered: 1, unit_price_ht: 0, tax_rate_value: 19 }]);
+  const addLine = () => setLines(ls => [...ls, { 
+    product_id: undefined as any, // Will be set when product is selected
+    description: '', 
+    quantity_ordered: 1, 
+    unit_price_ht: 0, 
+    tax_rate_value: 19 
+  }]);
   const removeLine = (i: number) => setLines(ls => ls.filter((_, idx) => idx !== i));
 
   const handleProductSelect = (index: number, product: Product | null) => {

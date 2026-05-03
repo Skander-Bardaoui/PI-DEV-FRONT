@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBusinessId } from '../../hooks/useBusinessId';
 import { categoriesApi } from '../../api/categories.api';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../types/category';
+import { CreateCategoryInput } from '../../validation/category.schema';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { CategoryFormModal } from '../../components/stock/CategoryFormModal';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
@@ -207,9 +208,20 @@ export default function ServiceCategories() {
     setShowModal(true);
   };
 
-  const handleCategorySubmit = async (data: CreateCategoryDto) => {
+  const handleCategorySubmit = async (data: CreateCategoryInput) => {
     try {
-      const dataToSend = { ...data, category_type: 'SERVICE' };
+      // Ensure name is present (validated by Zod schema)
+      if (!data.name) {
+        toast.error('Le nom de la catégorie est requis');
+        return;
+      }
+      
+      const dataToSend: CreateCategoryDto = {
+        name: data.name,
+        description: data.description || undefined,
+        category_type: 'SERVICE',
+      };
+      
       if (modalMode === 'edit' && editingCategory) {
         await categoriesApi.update(businessId!, editingCategory.id, dataToSend);
         toast.success('Catégorie de service mise à jour avec succès');

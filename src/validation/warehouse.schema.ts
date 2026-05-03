@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-// Create Warehouse Schema
-export const CreateWarehouseSchema = z.object({
+// Base Warehouse Schema (without refinement)
+const BaseWarehouseSchema = z.object({
   name: z.string({
     required_error: 'Le nom de l\'entrepôt est requis',
     invalid_type_error: 'Le nom doit être une chaîne de caractères',
@@ -52,7 +52,10 @@ export const CreateWarehouseSchema = z.object({
   is_active: z.boolean()
     .optional()
     .nullable(),
-}).refine((data) => {
+});
+
+// Create Warehouse Schema (with refinement)
+export const CreateWarehouseSchema = BaseWarehouseSchema.refine((data) => {
   // If latitude is provided, longitude must also be provided and vice versa
   const hasLatitude = data.latitude !== null && data.latitude !== undefined;
   const hasLongitude = data.longitude !== null && data.longitude !== undefined;
@@ -66,8 +69,20 @@ export const CreateWarehouseSchema = z.object({
   path: ['latitude'],
 });
 
-// Update Warehouse Schema (all fields optional)
-export const UpdateWarehouseSchema = CreateWarehouseSchema.partial();
+// Update Warehouse Schema (all fields optional, with same refinement)
+export const UpdateWarehouseSchema = BaseWarehouseSchema.partial().refine((data) => {
+  // If latitude is provided, longitude must also be provided and vice versa
+  const hasLatitude = data.latitude !== null && data.latitude !== undefined;
+  const hasLongitude = data.longitude !== null && data.longitude !== undefined;
+  
+  if (hasLatitude !== hasLongitude) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'La latitude et la longitude doivent être fournies ensemble',
+  path: ['latitude'],
+});
 
 // Type exports
 export type CreateWarehouseInput = z.infer<typeof CreateWarehouseSchema>;
