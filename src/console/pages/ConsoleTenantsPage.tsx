@@ -318,7 +318,7 @@ export function ConsoleTenantsPage() {
                         <div className="flex items-center gap-2">
                           <Crown className="h-4 w-4 text-yellow-500" />
                           <div>
-                            <div className="text-sm font-medium">{tenant.owner.email}</div>
+                            <div className="text-sm font-medium">{tenant.owner?.email || 'No owner'}</div>
                             <div className="text-xs text-gray-500">Business Owner</div>
                           </div>
                         </div>

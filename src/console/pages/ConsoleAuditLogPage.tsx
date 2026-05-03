@@ -82,7 +82,7 @@ export function ConsoleAuditLogPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{log.admin.email}</span>
+                        <span className="font-medium">{log.admin?.email || 'Unknown'}</span>
                         {getActionBadge(log.action)}
                       </div>
                       {log.target_type && (

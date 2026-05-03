@@ -138,7 +138,7 @@ export function ConsoleSupportPage() {
                       <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
                       <TableCell>
                         <div className="font-medium">{ticket.tenant.name}</div>
-                        <div className="text-sm text-gray-500">{ticket.submitted_by.email}</div>
+                        <div className="text-sm text-gray-500">{ticket.submitted_by?.email || 'Unknown'}</div>
                       </TableCell>
                       <TableCell className="max-w-md">
                         <div className="font-medium truncate">{ticket.subject}</div>
@@ -200,7 +200,7 @@ export function ConsoleSupportPage() {
           <SheetHeader>
             <SheetTitle>Ticket Details</SheetTitle>
             <SheetDescription>
-              {selectedTicket?.tenant.name} - {selectedTicket?.submitted_by.email}
+              {selectedTicket?.tenant.name} - {selectedTicket?.submitted_by?.email || 'Unknown'}
             </SheetDescription>
           </SheetHeader>
 

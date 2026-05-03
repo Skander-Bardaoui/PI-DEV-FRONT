@@ -231,7 +231,7 @@ export function ConsoleDashboardPage() {
                     </div>
                     <div>
                       <div className="font-medium text-sm">{tenant.name}</div>
-                      <div className="text-xs text-gray-500">{tenant.owner.email}</div>
+                      <div className="text-xs text-gray-500">{tenant.owner?.email || 'No owner'}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -314,11 +314,11 @@ export function ConsoleDashboardPage() {
               {recentAuditLogs?.data.map((log) => (
                 <div key={log.id} className="flex items-start gap-3 py-2 border-b last:border-0">
                   <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-medium">{log.admin.email[0].toUpperCase()}</span>
+                    <span className="text-xs font-medium">{log.admin?.email?.[0]?.toUpperCase() || 'A'}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm">
-                      <span className="font-medium">{log.admin.email}</span>
+                      <span className="font-medium">{log.admin?.email || 'Unknown'}</span>
                       <span className="text-gray-600"> {log.action}</span>
                     </div>
                     <div className="text-xs text-gray-500">
