@@ -3,7 +3,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // ─── Base Configuration ──────────────────────────────────────────────────
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:3001', // Your NestJS backend
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001', // Your NestJS backend
   headers: {
     'Content-Type': 'application/json',
   },
@@ -90,7 +90,7 @@ axiosInstance.interceptors.response.use(
       try {
         // Call refresh endpoint - cookies are sent automatically
         await axios.post(
-          'http://localhost:3001/auth/refresh',
+          `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/refresh`,
           {},
           { withCredentials: true }
         );

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { X, Mail, Send, Loader2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { useEmailDraft } from '../../hooks/useEmailDraft';
+import { API_URL } from '@/config/api.config';
 
 interface SendInvoiceEmailModalProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export default function SendInvoiceEmailModal({
 
       // Send email immediately with AI-generated content
       const response = await fetch(
-        `http://localhost:3001/businesses/${businessId}/invoices/${invoice.id}/send-email`,
+        `${API_URL}/businesses/${businessId}/invoices/${invoice.id}/send-email`,
         {
           method: 'POST',
           headers: {
@@ -115,7 +116,7 @@ export default function SendInvoiceEmailModal({
 
     try {
       const response = await fetch(
-        `http://localhost:3001/businesses/${businessId}/invoices/${invoice.id}/send-email`,
+        `${API_URL}/businesses/${businessId}/invoices/${invoice.id}/send-email`,
         {
           method: 'POST',
           headers: {

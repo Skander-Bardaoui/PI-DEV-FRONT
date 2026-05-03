@@ -6,6 +6,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { PaymentForm } from '@/components/payment/PaymentForm';
 import { PaymentStatusScreen } from '@/components/payment/PaymentStatusScreen';
 import axios from 'axios';
+import { API_URL } from '@/config/api.config';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
@@ -41,13 +42,13 @@ export function PaymentPage() {
   const fetchPaymentData = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`http://localhost:3001/subscriptions/pay/${token}`);
+      const { data } = await axios.get(`${API_URL}/subscriptions/pay/${token}`);
       setPaymentData(data);
 
       // If status is pending_payment, create payment intent
       if (data.status === 'pending_payment') {
         const { data: intentData } = await axios.post(
-          `http://localhost:3001/subscriptions/pay/${token}/create-payment-intent`
+          `${API_URL}/subscriptions/pay/${token}/create-payment-intent`
         );
         setClientSecret(intentData.clientSecret);
       }

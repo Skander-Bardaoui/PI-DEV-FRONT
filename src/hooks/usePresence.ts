@@ -13,7 +13,7 @@ interface UsePresenceReturn {
   isConnected: boolean;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://pi-dev-backend.onrender.com';
 
 export const usePresence = (businessId: string | null): UsePresenceReturn => {
   const [socket, setSocket] = useState<Socket | null>(null);

@@ -46,7 +46,7 @@ interface TaskChatProps {
   businessId?: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://pi-dev-backend.onrender.com';
 
 // Compress image before upload
 async function compressImage(file: File, maxSizeMB: number = 1): Promise<File> {

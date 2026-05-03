@@ -11,7 +11,7 @@ import {
 
 // Create a separate axios instance for platform admin
 const platformAxios = axios.create({
-  baseURL: 'http://localhost:3001',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
   headers: {
     'Content-Type': 'application/json',
   },

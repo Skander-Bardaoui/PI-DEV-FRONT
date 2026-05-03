@@ -340,7 +340,7 @@ export default function SalesOcrModal({
         ? `/businesses/${businessId}/sales/ocr/scan-${documentType}`
         : `/businesses/${businessId}/sales/ocr/scan`;
 
-      const response = await fetch(`http://localhost:3001${endpoint}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}${endpoint}`, {
         method: 'POST',
         credentials: 'include',
         body: formData,

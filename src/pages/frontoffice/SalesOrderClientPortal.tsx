@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Building2, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+import { API_URL } from '@/config/api.config';
 
 interface PortalData {
   business: {
@@ -66,7 +67,7 @@ export default function SalesOrderClientPortal() {
 
   const fetchPortalData = async () => {
     try {
-      const response = await axios.get(`http://localhost:3001/client-portal/data`, {
+      const response = await axios.get(`${API_URL}/client-portal/data`, {
         params: { token },
       });
       setData(response.data);
@@ -83,7 +84,7 @@ export default function SalesOrderClientPortal() {
 
     setActionLoading(true);
     try {
-      await axios.post(`http://localhost:3001/client-portal/confirm`, { token });
+      await axios.post(`${API_URL}/client-portal/confirm`, { token });
       // Show recurring invoice modal after confirmation
       setShowRecurringModal(true);
     } catch (err: any) {
@@ -98,7 +99,7 @@ export default function SalesOrderClientPortal() {
 
     setRecurringLoading(true);
     try {
-      await axios.post(`http://localhost:3001/client-portal/create-recurring`, {
+      await axios.post(`${API_URL}/client-portal/create-recurring`, {
         token,
         frequency: recurringFrequency,
       });
@@ -124,7 +125,7 @@ export default function SalesOrderClientPortal() {
 
     setActionLoading(true);
     try {
-      await axios.post(`http://localhost:3001/client-portal/refuse`, {
+      await axios.post(`${API_URL}/client-portal/refuse`, {
         token,
         reason: refuseReason,
       });

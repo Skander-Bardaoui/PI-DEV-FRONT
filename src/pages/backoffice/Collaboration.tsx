@@ -233,7 +233,7 @@ function formatTimeAgo(date: Date): string {
 
 // ─── API calls ────────────────────────────────────────────────────────────────
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://pi-dev-backend.onrender.com';
 
 async function fetchMyBusinesses(): Promise<Business[]> {
   const res = await fetch(`${API_BASE}/businesses/my`, {

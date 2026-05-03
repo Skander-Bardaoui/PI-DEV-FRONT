@@ -27,6 +27,7 @@ import LanguageSwitcher          from '@/components/LanguageSwitcher';
 import GlobalSearch              from '@/components/GlobalSearch';
 import GlobalAIAssistant         from '@/components/GlobalAIAssistant';
 import { PresenceProvider }      from '../context/PresenceContext';
+import { getAssetUrl }           from '@/config/api.config';
 
 export default function BackOfficeLayout() {
   const { t } = useTranslation();
@@ -334,7 +335,7 @@ export default function BackOfficeLayout() {
               <div className="sidebar-user-avatar h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
                 {avatarUrl ? (
                   <img
-                    src={`http://localhost:3001${avatarUrl}`}
+                    src={getAssetUrl(avatarUrl)}
                     alt="Profile"
                     className="h-full w-full object-cover"
                   />
@@ -378,7 +379,7 @@ export default function BackOfficeLayout() {
               <div className="sidebar-user-avatar h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden flex-shrink-0">
                 {avatarUrl ? (
                   <img
-                    src={`http://localhost:3001${avatarUrl}`}
+                    src={getAssetUrl(avatarUrl)}
                     alt="Profile"
                     className="h-full w-full object-cover"
                   />
@@ -503,7 +504,7 @@ export default function BackOfficeLayout() {
                 <div className="user-avatar h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
                   {avatarUrl ? (
                     <img
-                      src={`http://localhost:3001${avatarUrl}`}
+                      src={getAssetUrl(avatarUrl)}
                       alt={`Photo de profil de ${getUserFullName()}`}
                       className="h-full w-full object-cover"
                     />
