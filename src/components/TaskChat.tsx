@@ -118,7 +118,7 @@ function formatFileSize(bytes: number): string {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, businessId }: TaskChatProps) {
+export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, businessId }: TaskChatProps): JSX.Element {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -142,6 +142,7 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -250,23 +251,119 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
     return 'Someone';
   };
 
-  // Socket.io connection
+  // Refs to store taskId and currentUserId without causing re-renders
+  const taskIdRef = useRef(taskId);
+  const currentUserIdRef = useRef(currentUserId);
+
+  // Update refs when props change
   useEffect(() => {
-    const newSocket = io(API_BASE, {
+    taskIdRef.current = taskId;
+  }, [taskId]);
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+
+  // Socket.io connection - runs ONCE on mount
+  useEffect(() => {
+    // Prevent double socket creation (React StrictMode mounts twice in dev)
+    if (socketRef.current && socketRef.current.connected) {
+      console.log('⚠️ Socket already exists and is connected, reusing it');
+      setSocket(socketRef.current);
+      return;
+    }
+
+    // If socket exists but is disconnected, clean it up first
+    if (socketRef.current) {
+      console.log('⚠️ Socket exists but is disconnected, cleaning up');
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    console.log('🔌 Initializing socket connection to:', API_BASE);
+    console.log('🔑 Current user ID:', currentUserIdRef.current);
+    console.log('📋 Task ID:', taskIdRef.current);
+    
+    // Extract token from cookies for socket authentication
+    const getCookieValue = (name: string): string | undefined => {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return match ? match[2] : undefined;
+    };
+    
+    const token = getCookieValue('access_token') || getCookieValue('token') || '';
+    
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT = 3;
+    
+    const newSocket = io(`${API_BASE}/messages`, {
       withCredentials: true,
+      transports: ['polling', 'websocket'], // Polling first for better compatibility
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      timeout: 20000,
+      auth: {
+        token: token, // Send token for authentication
+      },
     });
+
+    socketRef.current = newSocket;
 
     newSocket.on('connect', () => {
-      console.log('Connected to socket');
-      newSocket.emit('joinTask', taskId);
+      console.log('✅ Connected to socket, Socket ID:', newSocket.id);
+      reconnectAttempts = 0; // Reset on successful connection
+      // Emit joinTask AFTER connection is confirmed
+      const taskIdValue = taskIdRef.current;
+      console.log('📤 Joining task room:', taskIdValue, 'Type:', typeof taskIdValue, 'Socket ID:', newSocket.id);
+      newSocket.emit('joinTask', taskIdValue);
     });
 
+    newSocket.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from socket:', reason);
+      if (reason === 'io server disconnect') {
+        reconnectAttempts++;
+        if (reconnectAttempts <= MAX_RECONNECT) {
+          console.log(`Server disconnected, attempt ${reconnectAttempts}/${MAX_RECONNECT}`);
+          setTimeout(() => {
+            if (socketRef.current) {
+              socketRef.current.connect();
+            }
+          }, 2000 * reconnectAttempts);
+        } else {
+          console.error('Max reconnect attempts reached, giving up');
+        }
+      }
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error.message);
+    });
+
+    newSocket.on('joinedTask', (data) => {
+      console.log('✅ Successfully joined task room:', data);
+    });
+
+    newSocket.on('error', (error) => {
+      console.error('❌ Socket error:', error);
+    });
+
+    // Remove old listeners before adding new ones
+    newSocket.off('newMessage');
     newSocket.on('newMessage', (message: Message) => {
-      setMessages((prev) => [...prev, message]);
+      console.log('📨 Received new message via socket:', message.id);
+      setMessages((prev) => {
+        if (prev.find(m => m.id === message.id)) {
+          console.log('⚠️ Message already exists, skipping:', message.id);
+          return prev;
+        }
+        console.log('✅ Adding new message to state');
+        return [...prev, message];
+      });
     });
 
+    newSocket.off('newReply');
     newSocket.on('newReply', (data: { reply: Message; parentMessageId: string; newReplyCount: number }) => {
-      // Update the reply count of the parent message
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === data.parentMessageId
@@ -276,30 +373,43 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       );
     });
 
+    newSocket.off('userTyping');
     newSocket.on('userTyping', (data: { userId: string; userName: string; isTyping: boolean }) => {
-      if (data.userId !== currentUserId) {
-        setTypingUsers((prev) => {
-          if (data.isTyping) {
-            // Ajouter l'utilisateur s'il n'est pas déjà dans la liste
-            if (!prev.find(u => u.userId === data.userId)) {
-              return [...prev, { userId: data.userId, userName: data.userName }];
-            }
-            return prev;
-          } else {
-            // Retirer l'utilisateur de la liste
-            return prev.filter(u => u.userId !== data.userId);
-          }
-        });
+      console.log('📝 Received userTyping event:', data);
+      if (data.userId === currentUserIdRef.current) {
+        console.log('⚠️ Ignoring own typing event');
+        return;
       }
+      
+      setTypingUsers((prev) => {
+        if (data.isTyping) {
+          if (!prev.find(u => u.userId === data.userId)) {
+            return [...prev, { userId: data.userId, userName: data.userName }];
+          }
+          return prev;
+        } else {
+          return prev.filter(u => u.userId !== data.userId);
+        }
+      });
     });
 
     setSocket(newSocket);
 
     return () => {
-      newSocket.emit('leaveTask', taskId);
+      console.log('🧹 Cleaning up socket on unmount');
+      newSocket.emit('leaveTask', taskIdRef.current);
+      newSocket.off('connect');
+      newSocket.off('disconnect');
+      newSocket.off('connect_error');
+      newSocket.off('joinedTask');
+      newSocket.off('error');
+      newSocket.off('newMessage');
+      newSocket.off('newReply');
+      newSocket.off('userTyping');
       newSocket.disconnect();
+      socketRef.current = null;
     };
-  }, [taskId, currentUserId]);
+  }, []); // Empty dependencies - runs ONCE on mount, cleanup ONLY on unmount
 
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && !selectedFile) || sending) return;
@@ -311,16 +421,16 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
     if (socket && typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       socket.emit('userTyping', {
-        taskId,
-        userId: currentUserId,
-        userName: '',
+        taskId: taskIdRef.current,
+        userId: currentUserIdRef.current,
+        userName: getCurrentUserName(),
         isTyping: false,
       });
     }
 
     try {
       const formData = new FormData();
-      formData.append('taskId', taskId);
+      formData.append('taskId', taskIdRef.current);
       
       if (newMessage.trim()) {
         formData.append('content', newMessage.trim());
@@ -345,8 +455,6 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
         formData.append('parentMessageId', replyingTo.id);
       }
 
-      // Note: messageColor is now saved in user profile, not per message
-
       const res = await fetch(`${API_BASE}/messages`, {
         method: 'POST',
         credentials: 'include',
@@ -354,19 +462,28 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       });
 
       if (res.ok) {
-        // Message will be received via socket broadcast
+        const sentMessage = await res.json();
+        
+        // Do NOT add message optimistically - let the socket event handle it
+        // This ensures both sender and receiver see the message at the same time
+        
+        // Clear form
         setNewMessage('');
         setSelectedFile(null);
         setUploadProgress(0);
         setSelectedMentions([]);
         setShowMentions(false);
         setReplyingTo(null);
+        
+        console.log('✅ Message sent successfully:', sentMessage);
       } else {
+        const errorText = await res.text();
+        console.error('❌ Failed to send message:', errorText);
         throw new Error('Failed to send message');
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
-      alert('Failed to send message');
+      console.error('❌ Error sending message:', error);
+      alert('Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }
@@ -427,7 +544,15 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
   };
 
   const emitTypingEvent = (isTyping: boolean) => {
-    if (!socket) return;
+    if (!socket) {
+      console.log('⚠️ Socket not connected, cannot emit typing event');
+      return;
+    }
+
+    if (!socket.connected) {
+      console.log('⚠️ Socket not connected (disconnected state)');
+      return;
+    }
 
     // Annuler le timeout précédent
     if (typingTimeoutRef.current) {
@@ -437,19 +562,24 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
     // Récupérer le nom de l'utilisateur actuel
     const userName = getCurrentUserName();
     
-    // Émettre l'événement typing
-    socket.emit('userTyping', {
-      taskId,
-      userId: currentUserId,
+    const typingData = {
+      taskId: taskIdRef.current,
+      userId: currentUserIdRef.current,
       userName: userName,
-      isTyping: true,
-    });
+      isTyping: isTyping,
+    };
+    
+    console.log('📤 Emitting userTyping event:', typingData);
+    
+    // Émettre l'événement typing
+    socket.emit('userTyping', typingData);
 
     // Arrêter le typing après 2 secondes d'inactivité
     typingTimeoutRef.current = setTimeout(() => {
+      console.log('⏱️ Typing timeout - stopping typing indicator');
       socket.emit('userTyping', {
-        taskId,
-        userId: currentUserId,
+        taskId: taskIdRef.current,
+        userId: currentUserIdRef.current,
         userName: userName,
         isTyping: false,
       });
@@ -494,6 +624,30 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
       return `${sender.firstName || ''} ${sender.lastName || ''}`.trim();
     }
     return sender.email;
+  };
+
+  const getFileUrl = (fileUrl: string | undefined) => {
+    if (!fileUrl) return '';
+    return fileUrl.startsWith('http')
+      ? fileUrl
+      : `${API_BASE}${fileUrl}`;
+  };
+
+  const handleFileDownload = (fileUrl: string, fileName: string) => {
+    const fullUrl = fileUrl.startsWith('http')
+      ? fileUrl
+      : `${API_BASE}${fileUrl}`;
+    
+    const link = document.createElement('a');
+    link.href = fullUrl;
+    link.download = fileName;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log('✅ File download initiated:', fileName);
   };
 
   const formatTime = (dateString: string) => {
@@ -674,23 +828,22 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
                         <div className="mt-2">
                           {isImage ? (
                             <a
-                              href={`${API_BASE}${message.fileUrl}`}
+                              href={getFileUrl(message.fileUrl)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="block"
                             >
                               <img
-                                src={`${API_BASE}${message.fileUrl}`}
+                                src={getFileUrl(message.fileUrl)}
                                 alt={message.fileName}
                                 className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                                 style={{ maxHeight: '300px' }}
                               />
                             </a>
                           ) : (
-                            <a
-                              href={`${API_BASE}${message.fileUrl}`}
-                              download={message.fileName}
-                              className="flex items-center gap-2 p-2 rounded-lg transition-colors"
+                            <button
+                              onClick={() => handleFileDownload(message.fileUrl!, message.fileName!)}
+                              className="flex items-center gap-2 p-2 rounded-lg transition-colors w-full text-left"
                               style={{
                                 backgroundColor: `${messageColor || '#4F46E5'}dd`,
                               }}
@@ -713,14 +866,14 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
                                 )}
                               </div>
                               <Download className="h-4 w-4 flex-shrink-0" />
-                            </a>
+                            </button>
                           )}
                         </div>
                       )}
                     </div>
                     
                     {/* Thread button */}
-                    {message.replyCount && message.replyCount > 0 && (
+                    {message.replyCount !== undefined && message.replyCount > 0 && (
                       <button
                         onClick={() => setOpenThread(message)}
                         className="flex items-center gap-2 mt-2 px-3 py-1 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -749,7 +902,7 @@ export default function TaskChat({ taskId, taskTitle, currentUserId, onClose, bu
 
         {/* Typing indicator */}
         {typingUsers.length > 0 && (
-          <div className="px-4 py-2 border-t border-gray-100">
+          <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <div className="flex gap-1">
                 <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
