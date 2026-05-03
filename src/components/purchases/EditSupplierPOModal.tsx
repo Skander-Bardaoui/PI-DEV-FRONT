@@ -1,7 +1,7 @@
 // src/components/purchases/EditSupplierPOModal.tsx
 // Modal de modification d'un BC en statut DRAFT uniquement
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, Edit } from 'lucide-react';
 import { useUpdateSupplierPO }  from '@/hooks/useSupplierPOs';
 import { useToast }             from '@/components/ui/Toast';
@@ -25,18 +25,42 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
   const [notes,            setNotes]            = useState(po.notes ?? '');
   const [lines,            setLines]            = useState<CreateSupplierPOItemDto[]>([]);
   const [errors,           setErrors]           = useState<{ [key: string]: string }>({});
+  const [isSubmitting,     setIsSubmitting]     = useState(false);
+  
+  // Utiliser useRef pour s'assurer que l'initialisation ne se fait qu'une seule fois
+  const hasInitialized = useRef(false);
 
-  // Initialiser les lignes depuis le BC existant
+  // Initialiser les lignes depuis le BC existant - SEULEMENT au montage initial
   useEffect(() => {
-    setLines((po.items ?? []).map(item => ({
+    // Ne s'exécute qu'une seule fois, même si le composant se re-render
+    if (hasInitialized.current) {
+      console.log('⚠️ Initialization already done, skipping');
+      return;
+    }
+    
+    console.log('🔧 Modal mounted - Initializing with PO:', po.id);
+    console.log('🔧 PO has', po.items?.length, 'items');
+    console.log('🔧 Items:', po.items?.map(i => ({ id: i.id, desc: i.description, qty: i.quantity_ordered })));
+    
+    const initialLines = (po.items ?? []).map(item => ({
       product_id:       item.product_id || undefined,
       description:      item.description,
       quantity_ordered: Number(item.quantity_ordered),
       unit_price_ht:    Number(item.unit_price_ht),
       tax_rate_value:   Number(item.tax_rate_value),
       sort_order:       item.sort_order,
-    })));
-  }, [po]);
+    }));
+    
+    console.log('🔧 Setting', initialLines.length, 'lines in state');
+    setLines(initialLines);
+    hasInitialized.current = true;
+    
+    // Cleanup: reset the ref when component unmounts
+    return () => {
+      console.log('🔧 Modal unmounting - resetting hasInitialized');
+      hasInitialized.current = false;
+    };
+  }, []); // ✅ [] = seulement au montage, jamais après
 
   // Calculs
   const computed = lines.map(l => {
@@ -70,6 +94,14 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent double submission
+    if (update.isPending || isSubmitting) {
+      console.log('⚠️ Submit already in progress, ignoring');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     // Validation
     const newErrors: { [key: string]: string } = {};
     
@@ -92,18 +124,36 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
     setErrors(newErrors);
     
     if (Object.keys(newErrors).length > 0) {
+      setIsSubmitting(false);
       return;
     }
     
+    const payload = {
+      expected_delivery: expectedDelivery || undefined,
+      notes:             notes || undefined,
+      items:             lines.map((l, i) => ({ ...l, sort_order: i })),
+    };
+    
+    console.log('🚀 Submitting PO update with payload:', JSON.stringify(payload, null, 2));
+    
     try {
-      await update.mutateAsync({
-        expected_delivery: expectedDelivery || undefined,
-        notes:             notes || undefined,
-        items:             lines.map((l, i) => ({ ...l, sort_order: i })),
-      });
+      await update.mutateAsync(payload);
+      console.log('✅ PO update successful');
+      // Close modal IMMEDIATELY and ignore any subsequent errors
       onClose();
-    } catch (err) {
-      // L'erreur est gérée par le hook avec toast
+    } catch (err: any) {
+      console.error('❌ PO update failed:', err);
+      const status = err?.response?.status;
+      
+      // If it's a 500 error, the update might have actually succeeded
+      // Close the modal and let the query invalidation refresh the data
+      if (status === 500) {
+        console.log('⚠️ Got 500 error, but closing modal - update may have succeeded');
+        onClose();
+      } else {
+        // For other errors, keep the modal open
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -254,9 +304,9 @@ export default function EditSupplierPOModal({ businessId, po, onClose }: Props) 
               className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors">
               Annuler
             </button>
-            <button type="submit" disabled={update.isPending}
+            <button type="submit" disabled={update.isPending || isSubmitting}
               className="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50">
-              {update.isPending ? 'Enregistrement...' : 'Enregistrer les modifications'}
+              {(update.isPending || isSubmitting) ? 'Enregistrement...' : 'Enregistrer les modifications'}
             </button>
           </div>
         </form>

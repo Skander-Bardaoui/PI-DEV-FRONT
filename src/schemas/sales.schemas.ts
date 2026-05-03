@@ -248,7 +248,10 @@ export type QuoteFormValues = z.infer<typeof quoteSchema>;
 // 4. LIGNE DE COMMANDE CLIENT
 // ══════════════════════════════════════════════════════════════════════════════
 export const salesOrderItemSchema = z.object({
-  product_id: z.string().uuid('Produit invalide').optional().or(z.literal('')),
+  product_id: z
+    .string({ required_error: 'Le produit est obligatoire pour le suivi des stocks' })
+    .uuid('Produit invalide')
+    .min(1, 'Le produit est obligatoire pour le suivi des stocks'), // ✅ Made REQUIRED
 
   description: z
     .string({ required_error: 'La description est obligatoire' })
@@ -371,6 +374,36 @@ export const deliveryNoteSchema = createDeliveryNoteSchema();
 export type DeliveryNoteFormValues = z.infer<typeof deliveryNoteSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 7. LIGNE DE FACTURE CLIENT
+// ══════════════════════════════════════════════════════════════════════════════
+export const salesInvoiceItemSchema = z.object({
+  productId: z.string().uuid('Produit invalide').optional().or(z.literal('')),
+
+  description: z
+    .string({ required_error: 'La description est obligatoire' })
+    .trim()
+    .min(1, 'La description est obligatoire')
+    .max(500, 'Description trop longue'),
+
+  quantity: z.coerce
+    .number({ invalid_type_error: 'La quantité doit être un nombre', required_error: 'La quantité est obligatoire' })
+    .positive('La quantité doit être supérieure à 0')
+    .multipleOf(0.001, 'Précision maximale : 3 décimales'),
+
+  unit_price: z.coerce
+    .number({ invalid_type_error: 'Le prix unitaire doit être un nombre', required_error: 'Le prix unitaire est obligatoire' })
+    .positive('Le prix unitaire doit être supérieur à 0')
+    .max(9999999.999, 'Le prix unitaire ne peut pas dépasser 9999999.999 TND')
+    .multipleOf(0.001, 'Précision maximale : 3 décimales'),
+
+  tax_rate_value: z.coerce
+    .number({ invalid_type_error: 'Le taux de TVA doit être un nombre' })
+    .refine(v => [0, 7, 13, 19].includes(v), 'Taux TVA invalide (0, 7, 13 ou 19%)'),
+});
+
+export type SalesInvoiceItemFormValues = z.infer<typeof salesInvoiceItemSchema>;
+
+// ══════════════════════════════════════════════════════════════════════════════
 // 7. FACTURE CLIENT
 // ══════════════════════════════════════════════════════════════════════════════
 export const salesInvoiceSchema = z.object({
@@ -379,6 +412,11 @@ export const salesInvoiceSchema = z.object({
     .trim()
     .min(1, 'Le client est obligatoire')
     .uuid('Veuillez sélectionner un client valide'),
+
+  type: z.enum(['NORMAL', 'AVOIR', 'PROFORMA', 'ACOMPTE'], {
+    required_error: 'Le type de facture est obligatoire',
+    invalid_type_error: 'Type de facture invalide',
+  }).default('NORMAL'),
 
   sales_order_id: z
     .string()
@@ -420,6 +458,11 @@ export const salesInvoiceSchema = z.object({
     .max(1000, 'Notes trop longues')
     .optional()
     .or(z.literal('')),
+
+  items: z
+    .array(salesInvoiceItemSchema)
+    .min(1, 'La facture doit contenir au moins une ligne')
+    .max(100, 'Maximum 100 lignes par facture'),
 }).refine(
   (data) => {
     if (!data.due_date || !data.date) return true;

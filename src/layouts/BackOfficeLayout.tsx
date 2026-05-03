@@ -25,6 +25,7 @@ import AlertsPanel               from '@/components/purchases/AlertsPanel';
 import KeyboardShortcutsHelp     from '@/components/KeyboardShortcutsHelp';
 import LanguageSwitcher          from '@/components/LanguageSwitcher';
 import GlobalSearch              from '@/components/GlobalSearch';
+import GlobalAIAssistant         from '@/components/GlobalAIAssistant';
 import { PresenceProvider }      from '../context/PresenceContext';
 
 export default function BackOfficeLayout() {
@@ -132,7 +133,7 @@ export default function BackOfficeLayout() {
         { name: 'Expenses to Pay', href: '/app/treasury/expenses', icon: Receipt },
         { name: 'Salary to Pay', href: '/app/treasury/salaries', icon: Users },
         { name: 'Transactions', href: '/app/treasury/transactions', icon: ArrowRightLeft },
-
+        { name: 'Recurring Invoices', href: '/app/treasury/recurring-invoices', icon: RefreshCw },
       ],
     },
     // Hide Team section for TEAM_MEMBER role
@@ -559,6 +560,9 @@ export default function BackOfficeLayout() {
         isOpen={shortcutsHelpOpen}
         onClose={() => setShortcutsHelpOpen(false)}
       />
+
+      {/* ── Global AI Assistant ──────────────────────────────────────────── */}
+      <GlobalAIAssistant />
       </div>
     </PresenceProvider>
   );

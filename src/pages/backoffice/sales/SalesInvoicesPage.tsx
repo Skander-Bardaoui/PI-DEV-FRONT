@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Mail, ScanLine, Bell, GitCompare, DollarSign, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCurrentBusinessMember } from '../../../hooks/useCurrentBusinessMember';
 import { useSalesInvoices, useDeleteSalesInvoice } from '@/hooks/useSalesInvoices';
 import { SALES_INVOICE_STATUS_COLORS, SALES_INVOICE_STATUS_LABELS, SalesInvoiceType } from '@/types/sales-invoice';
 import SalesInvoiceModal from '@/components/sales/SalesInvoiceModal';
@@ -41,6 +42,17 @@ const LIMIT = 20;
 export default function SalesInvoicesPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const { businessMember: currentMember } = useCurrentBusinessMember();
+
+  // Permission checks
+  const currentUserRole = (user as any)?.role;
+  const isOwner = currentUserRole === 'BUSINESS_OWNER';
+  const sales = currentMember?.sales_permissions;
+
+  const canCreateInvoice = isOwner || sales?.create_invoice === true;
+  const canUpdateInvoice = isOwner || sales?.update_invoice === true;
+  const canDeleteInvoice = isOwner || sales?.delete_invoice === true;
+  const canSendInvoice = isOwner || sales?.send_invoice === true;
 
   const [statusFilter, setStatusFilter] = useState('');
   const [clientFilter, setClientFilter] = useState('');
@@ -140,20 +152,24 @@ export default function SalesInvoicesPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Factures clients</h1>
         <div className="flex gap-3">
-          <button
-            onClick={() => setShowOcrModal(true)}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition-colors"
-          >
-            <ScanLine className="h-5 w-5" />
-            Importer une facture
-          </button>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            Nouvelle facture
-          </button>
+          {canCreateInvoice && (
+            <button
+              onClick={() => setShowOcrModal(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition-colors"
+            >
+              <ScanLine className="h-5 w-5" />
+              Importer une facture
+            </button>
+          )}
+          {canCreateInvoice && (
+            <button
+              onClick={() => setModalOpen(true)}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+            >
+              <Plus className="h-5 w-5" />
+              Nouvelle facture
+            </button>
+          )}
         </div>
       </div>
 
@@ -372,17 +388,19 @@ export default function SalesInvoicesPage() {
                             <GitCompare className="h-4 w-4" />
                           </button>
                         )}
-                        <button
-                          onClick={() => {
-                            setInvoiceForEmail(invoice);
-                            setShowEmailModal(true);
-                          }}
-                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Envoyer par email"
-                        >
-                          <Mail className="h-4 w-4" />
-                        </button>
-                        {(invoice.status === 'OVERDUE' || invoice.status === 'SENT') && (
+                        {canSendInvoice && (
+                          <button
+                            onClick={() => {
+                              setInvoiceForEmail(invoice);
+                              setShowEmailModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Envoyer par email"
+                          >
+                            <Mail className="h-4 w-4" />
+                          </button>
+                        )}
+                        {(invoice.status === 'OVERDUE' || invoice.status === 'SENT') && canSendInvoice && (
                           <button
                             onClick={() => {
                               setInvoiceForEmail(invoice);
@@ -401,14 +419,16 @@ export default function SalesInvoicesPage() {
                         >
                           <FileText className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => deleteInvoice.mutate(invoice.id)}
-                          disabled={deleteInvoice.isPending}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canDeleteInvoice && (
+                          <button
+                            onClick={() => deleteInvoice.mutate(invoice.id)}
+                            disabled={deleteInvoice.isPending}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

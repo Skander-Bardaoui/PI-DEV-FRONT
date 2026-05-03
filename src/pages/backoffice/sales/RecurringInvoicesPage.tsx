@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react';
 import { Plus, Edit, Trash2, Power, PowerOff, Pause, Play, Calendar, RefreshCw, History, Search, Tag, Percent } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCurrentBusinessMember } from '../../../hooks/useCurrentBusinessMember';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   useRecurringInvoices,
@@ -22,6 +23,16 @@ const LIMIT = 20;
 export default function RecurringInvoicesPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const { businessMember: currentMember } = useCurrentBusinessMember();
+
+  // Permission checks
+  const currentUserRole = (user as any)?.role;
+  const isOwner = currentUserRole === 'BUSINESS_OWNER';
+  const sales = currentMember?.sales_permissions;
+
+  const canCreateRecurring = isOwner || sales?.create_recurring === true;
+  const canUpdateRecurring = isOwner || sales?.update_recurring === true;
+  const canDeleteRecurring = isOwner || sales?.delete_recurring === true;
 
   const [statusFilter, setStatusFilter] = useState<RecurringInvoiceStatus | undefined>(undefined);
   const [frequencyFilter, setFrequencyFilter] = useState<RecurringFrequency | undefined>(undefined);
@@ -166,13 +177,15 @@ export default function RecurringInvoicesPage() {
             Gérez vos factures automatiques et abonnements
           </p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          Nouvelle facture récurrente
-        </button>
+        {canCreateRecurring && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Nouvelle facture récurrente
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -366,47 +379,53 @@ export default function RecurringInvoicesPage() {
                         >
                           <History className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleEdit(recurring)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleStatus(recurring)}
-                          disabled={activate.isPending || pause.isPending || resume.isPending}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            recurring.status === RecurringInvoiceStatus.ACTIVE
-                              ? 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
-                              : recurring.status === RecurringInvoiceStatus.PAUSED
-                              ? 'text-gray-400 hover:text-green-600 hover:bg-green-50'
-                              : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
-                          }`}
-                          title={
-                            recurring.status === RecurringInvoiceStatus.ACTIVE
-                              ? 'Mettre en pause'
-                              : recurring.status === RecurringInvoiceStatus.PAUSED
-                              ? 'Reprendre'
-                              : 'Activer'
-                          }
-                        >
-                          {recurring.status === RecurringInvoiceStatus.ACTIVE ? (
-                            <Pause className="h-4 w-4" />
-                          ) : recurring.status === RecurringInvoiceStatus.PAUSED ? (
-                            <Play className="h-4 w-4" />
-                          ) : (
-                            <Power className="h-4 w-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => deleteRecurring.mutate(recurring.id)}
-                          disabled={deleteRecurring.isPending}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canUpdateRecurring && (
+                          <button
+                            onClick={() => handleEdit(recurring)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canUpdateRecurring && (
+                          <button
+                            onClick={() => handleToggleStatus(recurring)}
+                            disabled={activate.isPending || pause.isPending || resume.isPending}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              recurring.status === RecurringInvoiceStatus.ACTIVE
+                                ? 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                                : recurring.status === RecurringInvoiceStatus.PAUSED
+                                ? 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                                : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                            }`}
+                            title={
+                              recurring.status === RecurringInvoiceStatus.ACTIVE
+                                ? 'Mettre en pause'
+                                : recurring.status === RecurringInvoiceStatus.PAUSED
+                                ? 'Reprendre'
+                                : 'Activer'
+                            }
+                          >
+                            {recurring.status === RecurringInvoiceStatus.ACTIVE ? (
+                              <Pause className="h-4 w-4" />
+                            ) : recurring.status === RecurringInvoiceStatus.PAUSED ? (
+                              <Play className="h-4 w-4" />
+                            ) : (
+                              <Power className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+                        {canDeleteRecurring && (
+                          <button
+                            onClick={() => deleteRecurring.mutate(recurring.id)}
+                            disabled={deleteRecurring.isPending}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

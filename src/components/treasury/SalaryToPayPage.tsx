@@ -5,8 +5,40 @@ import { AuthContext } from '../../context/AuthContext';
 import { getMyBusinesses } from '../../api/business.api';
 import axiosInstance from '../../api/axiosInstance';
 import SendSalarycomponent from './SendSalarycomponent';
+import { SummaryCardSkeleton, MemberCardSkeleton } from './SkeletonLoaders';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}
+
+interface BusinessMember {
+  id: string;
+  user_id: string;
+  business_id: string;
+  role: string;
+  salary_permissions?: {
+    create_salary: boolean;
+    update_salary: boolean;
+    delete_salary: boolean;
+    send_proposal: boolean;
+    pay_salary: boolean;
+  };
+  is_active: boolean;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
 interface ProposalState {
   memberId: string;
   amount: string;
@@ -28,6 +60,23 @@ interface ProposalInfo {
   counterAmount: number | null;
   currency: string;
   respondedAt: string | null;
+}
+
+async function fetchCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  return res.json();
+}
+
+async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[]> {
+  const res = await fetch(`${API_URL}/businesses/${businessId}/members`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch members');
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.members || []);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -217,10 +266,53 @@ export default function SalaryToPayPage() {
   const [members, setMembers]           = useState<SalaryMember[]>([]);
   const [proposalMap, setProposalMap]   = useState<Record<string, ProposalInfo>>({});
   const [loading, setLoading]           = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [search, setSearch]             = useState('');
   const [selectedMember, setSelectedMember] = useState<SalaryMember | null>(null);
   const [toasts, setToasts]             = useState<Toast[]>([]);
+  const [currentUser, setCurrentUser]   = useState<User | null>(null);
+  const [currentMember, setCurrentMember] = useState<BusinessMember | null>(null);
+
+  // Load current user and member on mount
+  useEffect(() => {
+    async function loadUserData() {
+      if (!businessId) return;
+      
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUser(user);
+        
+        const members = await fetchBusinessMembers(businessId);
+        const member = members.find(m => m.user_id === user.id);
+        setCurrentMember(member || null);
+        
+        // Debug log
+        console.log('salary_permissions:', member?.salary_permissions);
+      } catch (err: any) {
+        console.error('Failed to load user data:', err);
+      }
+    }
+    loadUserData();
+  }, [businessId]);
+
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
+  // Permission checks
+  const isOwner = currentUser?.role === 'BUSINESS_OWNER';
+  const salary = currentMember?.salary_permissions;
+  
+  const canSendProposal = isOwner || salary?.send_proposal === true;
 
   const addToast = (type: 'success' | 'error', message: string) => {
     const id = Date.now();
@@ -275,15 +367,27 @@ export default function SalaryToPayPage() {
       (m.user.jobTitle ?? '').toLowerCase().includes(q) || m.role.toLowerCase().includes(q);
   });
 
+  const isDisplayLoading = loading || showSkeleton;
+
   return (
     <>
       <style>{`
         @keyframes spin    { to { transform: rotate(360deg); } }
         @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes fadeIn  { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
-        .member-card:hover { background:#f8faff !important; transform:translateY(-1px); box-shadow:0 4px 16px rgba(37,99,235,0.08) !important; }
-        .member-card { transition:all 0.18s ease !important; }
-        .propose-btn:hover { background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%) !important; color:white !important; }
+        .member-card:hover { 
+          background:#f8faff !important; 
+          transform:translateY(-2px); 
+          box-shadow:0 8px 24px rgba(37,99,235,0.12) !important; 
+          border-color: #bfdbfe !important;
+        }
+        .member-card { transition:all 0.2s ease !important; }
+        .propose-btn:hover { 
+          background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%) !important; 
+          color:white !important; 
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(37,99,235,0.3) !important;
+        }
         .propose-btn { transition:all 0.15s ease !important; }
       `}</style>
 
@@ -314,20 +418,56 @@ export default function SalaryToPayPage() {
         </div>
 
         {/* Stats */}
-        {!loading && !error && (
-          <div style={{ display: 'flex', gap: 14, marginBottom: 24, flexWrap: 'wrap' }}>
+        {isDisplayLoading ? (
+          <div className="grid grid-cols-5 gap-4 mb-6">
+            <SummaryCardSkeleton />
+            <SummaryCardSkeleton />
+            <SummaryCardSkeleton />
+            <SummaryCardSkeleton />
+            <SummaryCardSkeleton />
+          </div>
+        ) : !error && (
+          <div className="grid grid-cols-5 gap-4 mb-6">
             {[
-              { label: 'Total Members',  value: members.length,                                                               icon: '👥', color: '#2563eb' },
-              { label: 'Active',         value: members.filter((m) => m.isActive).length,                                    icon: '✅', color: '#16a34a' },
-              { label: 'Proposals Sent', value: Object.keys(proposalMap).length,                                             icon: '📨', color: '#d97706' },
-              { label: 'Accepted',       value: Object.values(proposalMap).filter((p) => p.status === 'ACCEPTED').length,   icon: '🎉', color: '#16a34a' },
-              { label: 'Pending',        value: Object.values(proposalMap).filter((p) => p.status === 'PENDING').length,    icon: '⏳', color: '#2563eb' },
+              { label: 'Total Members',  value: members.length,                                                               icon: '👥', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+              { label: 'Active',         value: members.filter((m) => m.isActive).length,                                    icon: '✅', color: '#16a34a', bg: '#dcfce7', border: '#bbf7d0' },
+              { label: 'Proposals Sent', value: Object.keys(proposalMap).length,                                             icon: '📨', color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
+              { label: 'Accepted',       value: Object.values(proposalMap).filter((p) => p.status === 'ACCEPTED').length,   icon: '🎉', color: '#16a34a', bg: '#dcfce7', border: '#bbf7d0' },
+              { label: 'Pending',        value: Object.values(proposalMap).filter((p) => p.status === 'PENDING').length,    icon: '⏳', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
             ].map((s) => (
-              <div key={s.label} style={{ background: 'white', borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', minWidth: 140 }}>
-                <span style={{ fontSize: 22 }}>{s.icon}</span>
-                <div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>{s.label}</div>
+              <div key={s.label} style={{ 
+                background: `linear-gradient(to bottom right, ${s.bg}, white)`, 
+                borderRadius: 12, 
+                padding: '20px 24px', 
+                border: `1px solid ${s.border}`,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ 
+                    width: 32, 
+                    height: 32, 
+                    borderRadius: 8, 
+                    background: s.bg,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    fontSize: 16
+                  }}>
+                    {s.icon}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}>
+                    {s.label}
+                  </div>
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: s.color, letterSpacing: '-0.02em' }}>
+                  {s.value}
+                </div>
+                <div style={{ fontSize: 11, color: s.color, marginTop: 2 }}>
+                  {s.label === 'Total Members' ? 'team member' + (s.value !== 1 ? 's' : '') : 
+                   s.label === 'Active' ? 'active' :
+                   s.label === 'Proposals Sent' ? 'sent' :
+                   s.label === 'Accepted' ? 'accepted' :
+                   'awaiting'}
                 </div>
               </div>
             ))}
@@ -335,29 +475,79 @@ export default function SalaryToPayPage() {
         )}
 
         {/* Search */}
-        {!loading && !error && members.length > 0 && (
-          <div style={{ marginBottom: 20, position: 'relative', maxWidth: 400 }}>
-            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: '#94a3b8' }}>🔍</span>
-            <input type="text" placeholder="Search by name, email, role..." value={search} onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '100%', padding: '10px 14px 10px 38px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box', background: 'white' }} />
+        {!isDisplayLoading && !error && members.length > 0 && (
+          <div style={{ 
+            background: 'white', 
+            borderRadius: 12, 
+            padding: 16, 
+            marginBottom: 24,
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+          }}>
+            <div style={{ position: 'relative', maxWidth: 500 }}>
+              <span style={{ 
+                position: 'absolute', 
+                left: 14, 
+                top: '50%', 
+                transform: 'translateY(-50%)', 
+                fontSize: 16, 
+                color: '#94a3b8' 
+              }}>
+                🔍
+              </span>
+              <input 
+                type="text" 
+                placeholder="Search by name, email, role, or job title..." 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  padding: '11px 14px 11px 42px', 
+                  borderRadius: 8, 
+                  border: '1.5px solid #e2e8f0', 
+                  fontSize: 14, 
+                  outline: 'none', 
+                  boxSizing: 'border-box', 
+                  background: 'white',
+                  transition: 'border-color 0.15s ease'
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#2563eb')} 
+                onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
+              />
+              {search && (
+                <span style={{ 
+                  position: 'absolute', 
+                  right: 14, 
+                  top: '50%', 
+                  transform: 'translateY(-50%)', 
+                  fontSize: 11, 
+                  color: '#94a3b8',
+                  fontWeight: 600
+                }}>
+                  {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
           </div>
         )}
 
-        {loading && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 16 }}>
-            <div style={{ width: 48, height: 48, border: '4px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            <p style={{ color: '#64748b', fontSize: 15, margin: 0 }}>Loading team members...</p>
+        {isDisplayLoading && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20 }}>
+            <MemberCardSkeleton />
+            <MemberCardSkeleton />
+            <MemberCardSkeleton />
+            <MemberCardSkeleton />
           </div>
         )}
 
-        {!loading && error && (
+        {!isDisplayLoading && error && (
           <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '20px 24px', color: '#dc2626', display: 'flex', gap: 12, alignItems: 'center' }}>
             <span style={{ fontSize: 22 }}>⚠️</span>
             <div><div style={{ fontWeight: 600 }}>Unable to load members</div><div style={{ fontSize: 13, marginTop: 4 }}>{error}</div></div>
           </div>
         )}
 
-        {!loading && !error && members.length === 0 && (
+        {!isDisplayLoading && !error && members.length === 0 && (
           <div style={{ background: 'white', borderRadius: 16, padding: '60px 40px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>👤</div>
             <h3 style={{ margin: '0 0 8px', color: '#1e293b' }}>No team members yet</h3>
@@ -365,7 +555,7 @@ export default function SalaryToPayPage() {
           </div>
         )}
 
-        {!loading && !error && filtered.length === 0 && members.length > 0 && (
+        {!isDisplayLoading && !error && filtered.length === 0 && members.length > 0 && (
           <div style={{ background: 'white', borderRadius: 16, padding: '40px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
             <p style={{ color: '#64748b', margin: 0 }}>No members match your search.</p>
@@ -373,41 +563,140 @@ export default function SalaryToPayPage() {
         )}
 
         {/* Members grid */}
-        {!loading && !error && filtered.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+        {!isDisplayLoading && !error && filtered.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20 }}>
             {filtered.map((member) => {
               const proposal = proposalMap[member.userId];
               return (
-                <div key={member.id} className="member-card" style={{ background: 'white', borderRadius: 14, border: '1px solid #e2e8f0', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div 
+                  key={member.id} 
+                  className="member-card" 
+                  style={{ 
+                    background: 'white', 
+                    borderRadius: 16, 
+                    border: '1px solid #e2e8f0', 
+                    padding: '24px', 
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: 16,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <Avatar member={member} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getFullName(member)}</div>
-                      <div style={{ fontSize: 13, color: '#64748b', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.user.email}</div>
+                      <div style={{ 
+                        fontWeight: 700, 
+                        fontSize: 16, 
+                        color: '#0f172a', 
+                        whiteSpace: 'nowrap', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis',
+                        marginBottom: 4
+                      }}>
+                        {getFullName(member)}
+                      </div>
+                      <div style={{ 
+                        fontSize: 13, 
+                        color: '#64748b', 
+                        whiteSpace: 'nowrap', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis' 
+                      }}>
+                        {member.user.email}
+                      </div>
                     </div>
-                    <span style={{ background: getRoleColor(member.role) + '18', color: getRoleColor(member.role), borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', border: `1px solid ${getRoleColor(member.role)}30` }}>
+                    <span style={{ 
+                      background: getRoleColor(member.role) + '15', 
+                      color: getRoleColor(member.role), 
+                      borderRadius: 8, 
+                      padding: '6px 12px', 
+                      fontSize: 11, 
+                      fontWeight: 700, 
+                      whiteSpace: 'nowrap', 
+                      border: `1.5px solid ${getRoleColor(member.role)}30`,
+                      letterSpacing: '0.02em'
+                    }}>
                       {member.role.replace(/_/g, ' ')}
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {member.user.jobTitle && <span style={{ background: '#f1f5f9', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: '#475569' }}>💼 {member.user.jobTitle}</span>}
-                    {member.joinedAt && <span style={{ background: '#f1f5f9', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: '#475569' }}>📅 Joined {new Date(member.joinedAt).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>}
-                    <span style={{ background: member.isActive ? '#dcfce7' : '#fee2e2', color: member.isActive ? '#16a34a' : '#dc2626', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+                    {member.user.jobTitle && (
+                      <span style={{ 
+                        background: '#f1f5f9', 
+                        borderRadius: 6, 
+                        padding: '6px 12px', 
+                        fontSize: 12, 
+                        color: '#475569',
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}>
+                        💼 {member.user.jobTitle}
+                      </span>
+                    )}
+                    {member.joinedAt && (
+                      <span style={{ 
+                        background: '#f1f5f9', 
+                        borderRadius: 6, 
+                        padding: '6px 12px', 
+                        fontSize: 12, 
+                        color: '#475569',
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}>
+                        📅 Joined {new Date(member.joinedAt).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    <span style={{ 
+                      background: member.isActive ? '#dcfce7' : '#fee2e2', 
+                      color: member.isActive ? '#16a34a' : '#dc2626', 
+                      borderRadius: 6, 
+                      padding: '6px 12px', 
+                      fontSize: 12, 
+                      fontWeight: 600,
+                      border: member.isActive ? '1px solid #bbf7d0' : '1px solid #fecaca'
+                    }}>
                       {member.isActive ? '● Active' : '● Inactive'}
                     </span>
                   </div>
 
-                  {/* ← Proposal status badge */}
+                  {/* Proposal status badge */}
                   {proposal && <ProposalStatusBadge info={proposal} />}
 
-                  <button className="propose-btn" onClick={() => setSelectedMember(member)} style={{ width: '100%', padding: '11px 0', borderRadius: 9, background: '#f0f7ff', border: '1.5px solid #2563eb', color: '#2563eb', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    {proposal
-                      ? proposal.status === 'PENDING'   ? '📨 Resend Proposal'
-                      : proposal.status === 'COUNTERED' ? '🔄 Send New Proposal'
-                                                        : '✉️ Send New Proposal'
-                      : '✉️ Send Salary Proposal'}
-                  </button>
+                  {canSendProposal && (
+                    <button 
+                      className="propose-btn" 
+                      onClick={() => setSelectedMember(member)} 
+                      style={{ 
+                        width: '100%', 
+                        padding: '12px 0', 
+                        borderRadius: 10, 
+                        background: '#f0f7ff', 
+                        border: '1.5px solid #2563eb', 
+                        color: '#2563eb', 
+                        fontWeight: 700, 
+                        fontSize: 14, 
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: 8,
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {proposal
+                        ? proposal.status === 'PENDING'   ? '📨 Resend Proposal'
+                        : proposal.status === 'COUNTERED' ? '🔄 Send New Proposal'
+                                                          : '✉️ Send New Proposal'
+                        : '✉️ Send Salary Proposal'}
+                    </button>
+                  )}
                 </div>
               );
             })}

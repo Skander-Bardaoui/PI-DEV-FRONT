@@ -1,14 +1,14 @@
 // src/components/sales/QuoteModal.tsx
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Package, Wrench } from 'lucide-react';
 import { quoteSchema, QuoteFormValues } from '@/schemas/sales.schemas';
 import { useCreateQuote, useUpdateQuote } from '@/hooks/useQuotes';
 import { useClients } from '@/hooks/useClients';
 import { CreateQuoteItemDto } from '@/types/quote';
 import { useState } from 'react';
 import ProductSelector from './ProductSelector';
-import { Product } from '@/types/product';
+import { Product, ProductType } from '@/types/product';
 
 const TIMBRE_FISCAL = 1.000;
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -55,6 +55,7 @@ export default function QuoteModal({ businessId, quote, onClose }: Props) {
   const { data: clientsData } = useClients(businessId, { limit: 100 });
   const [error, setError] = useState<string | null>(null);
   const [itemStocks, setItemStocks] = useState<{ [key: number]: { stock: number; isStockable: boolean } }>({});
+  const [itemTypeFilters, setItemTypeFilters] = useState<{ [key: number]: ProductType | undefined }>({});
 
   const isEdit = !!quote;
 
@@ -103,6 +104,22 @@ export default function QuoteModal({ businessId, quote, onClose }: Props) {
   const subtotal = round3(computed.reduce((s, c) => s + (c?.total || 0), 0));
   const taxAmount = round3(computed.reduce((s, c) => s + (c?.tax || 0), 0));
   const netAmount = round3(subtotal + taxAmount + TIMBRE_FISCAL);
+
+  const handleProductTypeFilterChange = (index: number, productType: ProductType | undefined) => {
+    setItemTypeFilters(prev => ({
+      ...prev,
+      [index]: productType
+    }));
+    // Clear selected product when changing filter
+    setValue(`items.${index}.product_id`, '');
+    setValue(`items.${index}.description`, '');
+    setValue(`items.${index}.unit_price`, 0);
+    setItemStocks(prev => {
+      const newStocks = { ...prev };
+      delete newStocks[index];
+      return newStocks;
+    });
+  };
 
   const handleProductSelect = (index: number, product: Product | null) => {
     if (product) {
@@ -243,7 +260,7 @@ export default function QuoteModal({ businessId, quote, onClose }: Props) {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Produit *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Type & Produit *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">Qté *</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 w-32">Prix HT *</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 w-24">TVA</th>
@@ -258,11 +275,53 @@ export default function QuoteModal({ businessId, quote, onClose }: Props) {
                     return (
                     <tr key={field.id} className={stockWarning || hasError ? 'bg-red-50' : ''}>
                       <td className="px-4 py-2">
+                        {/* Product Type Filter */}
+                        <div className="flex gap-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => handleProductTypeFilterChange(i, undefined)}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors ${
+                              !itemTypeFilters[i] 
+                                ? 'bg-indigo-100 border-indigo-300 text-indigo-700' 
+                                : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            Tous
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleProductTypeFilterChange(i, ProductType.PHYSICAL)}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors ${
+                              itemTypeFilters[i] === ProductType.PHYSICAL 
+                                ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                                : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Package className="h-3 w-3" />
+                            Produit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleProductTypeFilterChange(i, ProductType.SERVICE)}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors ${
+                              itemTypeFilters[i] === ProductType.SERVICE 
+                                ? 'bg-green-100 border-green-300 text-green-700' 
+                                : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Wrench className="h-3 w-3" />
+                            Service
+                          </button>
+                        </div>
+                        
+                        {/* Product Selector */}
                         <ProductSelector
                           businessId={businessId}
                           value={watchedItems[i]?.product_id}
                           onChange={(product) => handleProductSelect(i, product)}
                           className={inputSmallCls(errors.items?.[i]?.product_id?.message)}
+                          filterByType={itemTypeFilters[i]}
+                          showType={false} // Hide type in dropdown since we have buttons
                         />
                         <input type="hidden" {...register(`items.${i}.product_id`)} />
                         <input type="hidden" {...register(`items.${i}.description`)} />

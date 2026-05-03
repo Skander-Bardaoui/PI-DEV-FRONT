@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useBusinessId } from '../../hooks/useBusinessId';
 import { stockMovementsApi } from '../../api/stock-movements.api';
@@ -21,18 +21,48 @@ import {
   Calendar,
   Package,
   FileText,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { StockMovementRowSkeleton } from '../../components/stock/StockSkeletonLoaders';
+
+const PAGE_SIZE = 5;
+
+// ─── Infinite Scroll Hook ─────────────────────────────────────────────────
+function useInfiniteScroll(callback: () => void, hasMore: boolean) {
+  const observer = useRef<IntersectionObserver | null>(null);
+  
+  const lastElementRef = useCallback(
+    (node: HTMLTableRowElement | null) => {
+      if (observer.current) observer.current.disconnect();
+      
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          callback();
+        }
+      });
+      
+      if (node) observer.current.observe(node);
+    },
+    [callback, hasMore]
+  );
+  
+  return lastElementRef;
+}
 
 export default function StockMovements() {
   const { user } = useAuth();
   const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
 
   const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [allMovements, setAllMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [total, setTotal] = useState(0);
+  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Filters
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -59,6 +89,24 @@ export default function StockMovements() {
     }
   }, [businessId, selectedProduct, selectedType, startDate, endDate, currentPage]);
 
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
+  // Reset display count when filters change
+  useEffect(() => {
+    setDisplayCount(PAGE_SIZE);
+    setIsLoadingMore(false);
+  }, [selectedProduct, selectedType, startDate, endDate]);
+
   const loadMovements = async () => {
     try {
       setLoading(true);
@@ -67,9 +115,10 @@ export default function StockMovements() {
         type: selectedType as StockMovementType || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
-        limit: pageSize,
-        offset: (currentPage - 1) * pageSize,
+        limit: 1000, // Load all movements for client-side pagination
+        offset: 0,
       });
+      setAllMovements(response.data);
       setMovements(response.data);
       setTotal(response.total);
     } catch (error) {
@@ -82,7 +131,9 @@ export default function StockMovements() {
   const loadProducts = async () => {
     try {
       const data = await productsApi.getAll(businessId!, { is_active: true });
-      setProducts(data);
+      // Filter out SERVICE and DIGITAL products - only show PHYSICAL products for stock movements
+      const physicalProducts = data.filter(p => p.type === 'PHYSICAL' || p.is_stockable);
+      setProducts(physicalProducts);
     } catch (error) {
       console.error('Error loading products:', error);
     }
@@ -104,8 +155,9 @@ export default function StockMovements() {
       setShowModal(false);
       resetForm();
       loadMovements();
+      toast.success('Mouvement de stock créé avec succès');
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error creating movement');
+      toast.error(error.response?.data?.message || 'Erreur lors de la création du mouvement');
     }
   };
 
@@ -128,7 +180,25 @@ export default function StockMovements() {
     return <TrendingDown className="text-red-600" size={20} />;
   };
 
+  // Infinite scroll logic
+  const displayed = allMovements.slice(0, displayCount);
+  const hasMore = displayCount < allMovements.length;
+
+  const loadMore = useCallback(() => {
+    if (hasMore && !isLoadingMore) {
+      setIsLoadingMore(true);
+      // Show loading for 2 seconds before loading more
+      setTimeout(() => {
+        setDisplayCount((prev) => prev + PAGE_SIZE);
+        setIsLoadingMore(false);
+      }, 2000);
+    }
+  }, [hasMore, isLoadingMore]);
+
+  const lastElementRef = useInfiniteScroll(loadMore, hasMore && !isLoadingMore);
+
   const totalPages = Math.ceil(total / pageSize);
+  const isDisplayLoading = loading || showSkeleton;
 
   if (!businessId) {
     return (
@@ -268,98 +338,99 @@ export default function StockMovements() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-4 text-center">
-                  Loading...
-                </td>
-              </tr>
-            ) : movements.length === 0 ? (
+            {isDisplayLoading ? (
+              <>
+                {[...Array(5)].map((_, i) => (
+                  <StockMovementRowSkeleton key={i} />
+                ))}
+              </>
+            ) : displayed.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
                   No movements found
                 </td>
               </tr>
             ) : (
-              movements.map((movement) => (
-                <tr key={movement.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {format(new Date(movement.created_at), 'dd/MM/yyyy HH:mm')}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">
-                      {movement.product?.name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {movement.product?.reference}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      {getMovementIcon(movement.type)}
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          STOCK_MOVEMENT_TYPE_COLORS[movement.type]
-                        }`}
-                      >
-                        {STOCK_MOVEMENT_TYPE_LABELS[movement.type]}
+              displayed.map((movement, index) => {
+                const isLastElement = index === displayed.length - 1;
+                return (
+                  <tr 
+                    key={movement.id}
+                    ref={isLastElement && lastElementRef ? lastElementRef : null}
+                    className="hover:bg-gray-50"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {format(new Date(movement.created_at), 'dd/MM/yyyy HH:mm')}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {movement.product?.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {movement.product?.reference}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        {getMovementIcon(movement.type)}
+                        <span
+                          className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            STOCK_MOVEMENT_TYPE_COLORS[movement.type]
+                          }`}
+                        >
+                          {STOCK_MOVEMENT_TYPE_LABELS[movement.type]}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <span className="text-sm font-medium text-gray-900">
+                        {movement.quantity.toFixed(3)}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <span className="text-sm font-medium text-gray-900">
-                      {movement.quantity.toFixed(3)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <span className="text-sm text-gray-600">
-                      {movement.stock_before.toFixed(3)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <span className="text-sm font-medium text-gray-900">
-                      {movement.stock_after.toFixed(3)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-600 max-w-xs truncate">
-                      {movement.note || '-'}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <span className="text-sm text-gray-600">
+                        {movement.stock_before.toFixed(3)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <span className="text-sm font-medium text-gray-900">
+                        {movement.stock_after.toFixed(3)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-600 max-w-xs truncate">
+                        {movement.note || '-'}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              Showing {(currentPage - 1) * pageSize + 1} to{' '}
-              {Math.min(currentPage * pageSize, total)} of {total} results
+        {/* Loading indicator for infinite scroll */}
+        {!isDisplayLoading && isLoadingMore && (
+          <div className="flex items-center justify-center px-6 py-8 border-t bg-gradient-to-r from-indigo-50 to-purple-50">
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 w-10 h-10 border-4 border-transparent border-b-purple-600 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
+              </div>
+              <span className="text-sm font-semibold text-indigo-700">Loading more movements...</span>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <span className="px-3 py-1">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
+          </div>
+        )}
+
+        {/* Footer with count */}
+        {!isDisplayLoading && !hasMore && !isLoadingMore && displayed.length > 0 && (
+          <div className="flex items-center justify-center px-6 py-4 border-t bg-gradient-to-r from-gray-50 to-white">
+            <p className="text-sm text-gray-600 font-medium">
+              Showing <span className="font-bold text-indigo-600">{displayed.length}</span> of{' '}
+              <span className="font-bold text-gray-900">{total}</span> movement{total > 1 ? 's' : ''}
+            </p>
           </div>
         )}
       </div>
@@ -369,7 +440,7 @@ export default function StockMovements() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">New Stock Movement</h2>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Product *
@@ -470,7 +541,7 @@ export default function StockMovements() {
                   }
                   className="w-full px-3 py-2 border rounded-lg"
                   rows={3}
-                />v2/PI-DEV-FRONT/src/pages/backoffice/Archive.tsx:9:22A
+                />
               </div>
 
               <div className="flex justify-end gap-2">

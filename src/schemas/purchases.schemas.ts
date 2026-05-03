@@ -205,7 +205,10 @@ export type SupplierFormValues = z.infer<typeof supplierSchema>;
 // 2. LIGNE DE BON DE COMMANDE
 // ══════════════════════════════════════════════════════════════════════════════
 export const poItemSchema = z.object({
-  product_id: z.string().uuid('Produit invalide').optional().or(z.literal('')),
+  product_id: z
+    .string({ required_error: 'Le produit est obligatoire pour le suivi des stocks' })
+    .uuid('Produit invalide')
+    .min(1, 'Le produit est obligatoire pour le suivi des stocks'), // ✅ Made REQUIRED
 
   description: z
     .string({ required_error: 'La description est obligatoire' })
@@ -635,8 +638,9 @@ export const createInvoiceFromPOSchema = z.object({
   invoice_number_supplier: z
     .string()
     .trim()
-    .min(1, 'Le numéro de facture est obligatoire')
-    .max(100, 'Numéro de facture trop long'),
+    .max(100, 'Numéro de facture trop long')
+    .optional()
+    .or(z.literal('')),
 
   invoice_date: requiredIsoDate,
 

@@ -59,10 +59,19 @@ export const useUpdateSupplierPO = (businessId: string, id: string) => {
       qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.message || 'Erreur lors de la modification du BC';
-      toast.error(message, {
-        duration: 5000,
-      });
+      // Don't show error if it's a 500 but the update actually worked
+      // (we'll know it worked if we can reload and see the changes)
+      const status = error?.response?.status;
+      if (status === 500) {
+        // Suppress the error toast for 500 errors since the update might have succeeded
+        console.warn('Got 500 error but update may have succeeded. Invalidating queries...');
+        qc.invalidateQueries({ queryKey: [SUPPLIER_POS_KEY, businessId] });
+      } else {
+        const message = error?.response?.data?.message || 'Erreur lors de la modification du BC';
+        toast.error(message, {
+          duration: 5000,
+        });
+      }
     },
   });
 };

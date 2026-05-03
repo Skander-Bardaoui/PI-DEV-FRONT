@@ -106,7 +106,7 @@ export default function SupplierPOModal({ businessId, onClose, mlPrediction }: P
         unit_price_ht:    Number(item.unit_price_ht)    || 0,
         tax_rate_value:   Number(item.tax_rate_value)   || 0,
         sort_order:       i,
-        ...(item.product_id ? { product_id: item.product_id } : {}),
+        product_id:       item.product_id, // ✅ Always include product_id (now required)
       })) satisfies CreateSupplierPOItemDto[];
 
       const payload = {

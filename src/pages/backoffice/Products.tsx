@@ -14,6 +14,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import JsBarcode from 'jsbarcode';
+import { StockMovementRowSkeleton } from '../../components/stock/StockSkeletonLoaders';
+import { CreateProductSchema, UpdateProductSchema } from '../../validation/product.schema';
+import { useFormValidation } from '../../hooks/useFormValidation';
+import { FieldError } from '../../components/common/ValidationErrorDisplay';
 
 // ─── tiny reusable image picker ───────────────────────────────────────────────
 interface ImagePickerProps {
@@ -146,6 +150,7 @@ export default function Products() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading]       = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [searchTerm, setSearchTerm]           = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showActiveOnly, setShowActiveOnly]   = useState(true);
@@ -193,6 +198,11 @@ export default function Products() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [productToDelete, setProductToDelete]     = useState<string | null>(null);
 
+  // low stock warning modal
+  const [showLowStockWarning, setShowLowStockWarning] = useState(false);
+  const [lowStockProductName, setLowStockProductName] = useState<string>('');
+
+
   const [formData, setFormData] = useState<CreateProductDto>({
     name: '',
     reference: '',
@@ -205,6 +215,10 @@ export default function Products() {
     min_stock_threshold: 0,
     is_stockable: true,
   });
+
+  // Validation hook
+  const schema = editingProduct ? UpdateProductSchema : CreateProductSchema;
+  const { errors, validate, validateField, clearErrors } = useFormValidation(schema);
 
   // Load current user and member on mount
   useEffect(() => {
@@ -275,6 +289,18 @@ export default function Products() {
     }
   }, [businessId, searchTerm, selectedCategory, showActiveOnly, showLowStock]);
 
+  // Show skeleton for minimum 2 seconds
+  useEffect(() => {
+    if (loading) {
+      setShowSkeleton(true);
+    } else {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -338,10 +364,23 @@ export default function Products() {
   const isLowStock = (p: Product) =>
     p.is_stockable && p.current_stock < p.min_stock_threshold;
 
+  const isDisplayLoading = loading || showSkeleton;
+
   // ─── submit create/edit ────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!validate(formData)) {
+      toast.error('Veuillez corriger les erreurs de validation');
+      return;
+    }
+    
+    // Check if product will be low stock
+    const willBeLowStock = formData.is_stockable && 
+                           formData.current_stock < formData.min_stock_threshold;
+    
     try {
       const productData = { ...formData, type: ProductType.PHYSICAL };
 
@@ -364,6 +403,12 @@ export default function Products() {
       setEditingProduct(null);
       resetForm();
       loadProducts();
+      
+      // Show low stock warning if applicable
+      if (willBeLowStock) {
+        setLowStockProductName(saved.name);
+        setShowLowStockWarning(true);
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Error saving product');
     }
@@ -526,8 +571,7 @@ export default function Products() {
 
   const handleGenerateSku = async () => {
     if (formData.reference?.trim()) {
-      const confirmed = window.confirm('This will replace your current SKU. Continue?');
-      if (!confirmed) return;
+      toast.info('Génération d\'un nouveau SKU...');
     }
     setGeneratingSku(true);
     setSkuError(null);
@@ -555,8 +599,7 @@ export default function Products() {
   const handleGenerateBarcode = async (productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product && !product.warehouse_id) {
-      const confirmed = window.confirm('This product has no warehouse. Barcode will use GEN prefix. Continue?');
-      if (!confirmed) return;
+      toast.warning('Aucun entrepôt assigné. Le code-barres utilisera le préfixe GEN.');
     }
     try {
       const updatedProduct = await productsApi.generateBarcode(businessId!, productId);
@@ -633,6 +676,17 @@ export default function Products() {
 
   const handleSaveScannedProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!validate(formData)) {
+      toast.error('Veuillez corriger les erreurs de validation');
+      return;
+    }
+    
+    // Check if product will be low stock
+    const willBeLowStock = formData.is_stockable && 
+                           formData.current_stock < formData.min_stock_threshold;
+    
     try {
       const productData = { ...formData, type: ProductType.PHYSICAL };
       let saved = await productsApi.create(businessId!, productData);
@@ -646,6 +700,12 @@ export default function Products() {
       setShowScanModal(false);
       resetScanModal();
       loadProducts();
+      
+      // Show low stock warning if applicable
+      if (willBeLowStock) {
+        setLowStockProductName(saved.name);
+        setShowLowStockWarning(true);
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Error saving product');
     }
@@ -778,8 +838,12 @@ export default function Products() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr><td colSpan={9} className="px-6 py-4 text-center">Loading...</td></tr>
+            {isDisplayLoading ? (
+              <>
+                {[...Array(5)].map((_, i) => (
+                  <StockMovementRowSkeleton key={i} />
+                ))}
+              </>
             ) : products.length === 0 ? (
               <tr><td colSpan={9} className="px-6 py-4 text-center text-gray-500">No products found</td></tr>
             ) : (
@@ -876,7 +940,7 @@ export default function Products() {
             <h2 className="text-xl font-bold mb-4">
               {editingProduct ? 'Edit Product' : 'New Product'}
             </h2>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               {/* Image picker */}
         <div className="mb-6 flex justify-center">
                 <ImagePicker
@@ -902,23 +966,36 @@ export default function Products() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
                     <input
                       type="text"
-                      required
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      onChange={(e) => {
+                        setFormData({ ...formData, name: e.target.value });
+                        validateField('name', e.target.value);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.name ? 'border-red-300 bg-red-50' : ''
+                      }`}
                     />
+                    <FieldError error={errors.name} />
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Reference *</label>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
-                        required
-                        value={formData.reference}
-                        onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                        className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={formData.reference}
+                          onChange={(e) => {
+                            const upperValue = e.target.value.toUpperCase();
+                            setFormData({ ...formData, reference: upperValue });
+                            validateField('reference', upperValue);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                            errors.reference ? 'border-red-300 bg-red-50' : ''
+                          }`}
+                        />
+                        <FieldError error={errors.reference} />
+                      </div>
                       <button
                         type="button"
                         onClick={handleGenerateSku}
@@ -943,17 +1020,23 @@ export default function Products() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
                       <select
                         value={formData.category_id}
-                        onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        onChange={(e) => {
+                          setFormData({ ...formData, category_id: e.target.value });
+                          validateField('category_id', e.target.value);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.category_id ? 'border-red-300 bg-red-50' : ''
+                        }`}
                       >
-                        <option value="">No Category</option>
+                        <option value="">Sélectionner une catégorie</option>
                         {categories.map((cat) => (
                           <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                       </select>
+                      <FieldError error={errors.category_id} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Warehouse</label>
@@ -985,22 +1068,36 @@ export default function Products() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Sale Price HT (DT)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Sale Price HT (DT) *</label>
                       <input
                         type="number" step="0.001"
                         value={formData.sale_price_ht}
-                        onChange={(e) => setFormData({ ...formData, sale_price_ht: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          setFormData({ ...formData, sale_price_ht: value });
+                          validateField('sale_price_ht', value);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.sale_price_ht ? 'border-red-300 bg-red-50' : ''
+                        }`}
                       />
+                      <FieldError error={errors.sale_price_ht} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Price HT (DT)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Price HT (DT) *</label>
                       <input
                         type="number" step="0.001"
                         value={formData.purchase_price_ht}
-                        onChange={(e) => setFormData({ ...formData, purchase_price_ht: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          setFormData({ ...formData, purchase_price_ht: value });
+                          validateField('purchase_price_ht', value);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.purchase_price_ht ? 'border-red-300 bg-red-50' : ''
+                        }`}
                       />
+                      <FieldError error={errors.purchase_price_ht} />
                     </div>
                   </div>
 
@@ -1021,20 +1118,34 @@ export default function Products() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Current Stock</label>
                         <input
-                          type="number" step="0.001"
+                          type="number" step="1"
                           value={formData.current_stock}
-                          onChange={(e) => setFormData({ ...formData, current_stock: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            setFormData({ ...formData, current_stock: value });
+                            validateField('current_stock', value);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                            errors.current_stock ? 'border-red-300 bg-red-50' : ''
+                          }`}
                         />
+                        <FieldError error={errors.current_stock} />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Min Stock Threshold</label>
                         <input
-                          type="number" step="0.001"
+                          type="number" step="1"
                           value={formData.min_stock_threshold}
-                          onChange={(e) => setFormData({ ...formData, min_stock_threshold: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            setFormData({ ...formData, min_stock_threshold: value });
+                            validateField('min_stock_threshold', value);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                            errors.min_stock_threshold ? 'border-red-300 bg-red-50' : ''
+                          }`}
                         />
+                        <FieldError error={errors.min_stock_threshold} />
                       </div>
                     </div>
                   )}
@@ -1142,7 +1253,7 @@ export default function Products() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSaveScannedProduct}>
+              <form onSubmit={handleSaveScannedProduct} noValidate>
                 <div className="grid grid-cols-2 gap-6">
                   {/* Left: image + info */}
                   <div>
@@ -1177,19 +1288,43 @@ export default function Products() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Name * {scannedData?.name && <span className="text-xs text-blue-600">(Detected from image)</span>}
                       </label>
-                      <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => {
+                          setFormData({ ...formData, name: e.target.value });
+                          validateField('name', e.target.value);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg ${
+                          errors.name ? 'border-red-300 bg-red-50' : ''
+                        }`}
+                      />
+                      <FieldError error={errors.name} />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Reference *</label>
                       <div className="flex gap-2">
-                        <input type="text" required value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} className="flex-1 px-3 py-2 border rounded-lg" />
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={formData.reference}
+                            onChange={(e) => {
+                              const upperValue = e.target.value.toUpperCase();
+                              setFormData({ ...formData, reference: upperValue });
+                              validateField('reference', upperValue);
+                            }}
+                            className={`w-full px-3 py-2 border rounded-lg ${
+                              errors.reference ? 'border-red-300 bg-red-50' : ''
+                            }`}
+                          />
+                          <FieldError error={errors.reference} />
+                        </div>
                         <button type="button" onClick={handleGenerateSku} disabled={generatingSku} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed whitespace-nowrap">
                           {generatingSku ? 'Generating...' : 'Generate SKU'}
                         </button>
                       </div>
                       {skuError && <p className="mt-1 text-sm text-red-600">{skuError}</p>}
-                      {!formData.reference && <p className="mt-1 text-sm text-gray-500">SKU not generated yet</p>}
                     </div>
 
                     <div>
@@ -1201,11 +1336,21 @@ export default function Products() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                        <select value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
-                          <option value="">No Category</option>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                        <select
+                          value={formData.category_id}
+                          onChange={(e) => {
+                            setFormData({ ...formData, category_id: e.target.value });
+                            validateField('category_id', e.target.value);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg ${
+                            errors.category_id ? 'border-red-300 bg-red-50' : ''
+                          }`}
+                        >
+                          <option value="">Sélectionner une catégorie</option>
                           {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                         </select>
+                        <FieldError error={errors.category_id} />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Warehouse</label>
@@ -1240,13 +1385,37 @@ export default function Products() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Sale Price HT (DT) {scannedData?.sale_price_ht && <span className="text-xs text-blue-600">(Detected from image)</span>}
+                          Sale Price HT (DT) * {scannedData?.sale_price_ht && <span className="text-xs text-blue-600">(Detected from image)</span>}
                         </label>
-                        <input type="number" step="0.001" value={formData.sale_price_ht} onChange={(e) => setFormData({ ...formData, sale_price_ht: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-lg" />
+                        <input
+                          type="number" step="0.001"
+                          value={formData.sale_price_ht}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            setFormData({ ...formData, sale_price_ht: value });
+                            validateField('sale_price_ht', value);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg ${
+                            errors.sale_price_ht ? 'border-red-300 bg-red-50' : ''
+                          }`}
+                        />
+                        <FieldError error={errors.sale_price_ht} />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Price HT (DT)</label>
-                        <input type="number" step="0.001" value={formData.purchase_price_ht} onChange={(e) => setFormData({ ...formData, purchase_price_ht: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-lg" />
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Price HT (DT) *</label>
+                        <input
+                          type="number" step="0.001"
+                          value={formData.purchase_price_ht}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            setFormData({ ...formData, purchase_price_ht: value });
+                            validateField('purchase_price_ht', value);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg ${
+                            errors.purchase_price_ht ? 'border-red-300 bg-red-50' : ''
+                          }`}
+                        />
+                        <FieldError error={errors.purchase_price_ht} />
                       </div>
                     </div>
 
@@ -1261,11 +1430,35 @@ export default function Products() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Current Stock</label>
-                          <input type="number" step="0.001" value={formData.current_stock} onChange={(e) => setFormData({ ...formData, current_stock: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-lg" />
+                          <input
+                            type="number" step="1"
+                            value={formData.current_stock}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 0;
+                              setFormData({ ...formData, current_stock: value });
+                              validateField('current_stock', value);
+                            }}
+                            className={`w-full px-3 py-2 border rounded-lg ${
+                              errors.current_stock ? 'border-red-300 bg-red-50' : ''
+                            }`}
+                          />
+                          <FieldError error={errors.current_stock} />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Min Stock Threshold</label>
-                          <input type="number" step="0.001" value={formData.min_stock_threshold} onChange={(e) => setFormData({ ...formData, min_stock_threshold: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-lg" />
+                          <input
+                            type="number" step="1"
+                            value={formData.min_stock_threshold}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 0;
+                              setFormData({ ...formData, min_stock_threshold: value });
+                              validateField('min_stock_threshold', value);
+                            }}
+                            className={`w-full px-3 py-2 border rounded-lg ${
+                              errors.min_stock_threshold ? 'border-red-300 bg-red-50' : ''
+                            }`}
+                          />
+                          <FieldError error={errors.min_stock_threshold} />
                         </div>
                       </div>
                     )}
@@ -1489,6 +1682,39 @@ export default function Products() {
             <div className="flex justify-end gap-2">
               <button onClick={() => { setShowDeleteConfirm(false); setProductToDelete(null); }} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={confirmDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Low Stock Warning ── */}
+      {showLowStockWarning && (
+        <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                <AlertTriangle size={24} className="text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Low Stock Alert</h2>
+                <p className="text-gray-700 mb-3">
+                  The product <strong>"{lowStockProductName}"</strong> has been saved successfully.
+                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-800">
+                    <strong>Note:</strong> The minimum stock threshold is higher than the current stock level. 
+                    This product will be marked as low stock.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button 
+                onClick={() => setShowLowStockWarning(false)} 
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Got it
+              </button>
             </div>
           </div>
         </div>

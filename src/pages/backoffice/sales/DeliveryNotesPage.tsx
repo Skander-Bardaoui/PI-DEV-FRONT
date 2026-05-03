@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Plus, Eye, ChevronUp, ChevronDown, Filter, Search, FileText, Trash2, Package, Truck, CheckCircle, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useCurrentBusinessMember } from '../../../hooks/useCurrentBusinessMember';
 import { useDeliveryNotes, useDeleteDeliveryNote } from '@/hooks/useDeliveryNotes';
 import { useSalesOrder } from '@/hooks/useSalesOrders';
 import { DELIVERY_NOTE_STATUS_COLORS, DELIVERY_NOTE_STATUS_LABELS } from '@/types/delivery-note';
@@ -22,6 +23,16 @@ const LIMIT = 20;
 export default function DeliveryNotesPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const { businessMember: currentMember } = useCurrentBusinessMember();
+
+  // Permission checks
+  const currentUserRole = (user as any)?.role;
+  const isOwner = currentUserRole === 'BUSINESS_OWNER';
+  const sales = currentMember?.sales_permissions;
+
+  const canCreateDelivery = isOwner || sales?.create_delivery === true;
+  const canUpdateDelivery = isOwner || sales?.update_delivery === true;
+  const canCancelDelivery = isOwner || sales?.cancel_delivery === true;
 
   const [statusFilter, setStatusFilter] = useState('');
   const [clientFilter, setClientFilter] = useState('');
@@ -194,13 +205,15 @@ export default function DeliveryNotesPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Bons de livraison</h1>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          Nouveau bon de livraison
-        </button>
+        {canCreateDelivery && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Nouveau bon de livraison
+          </button>
+        )}
       </div>
 
       {/* Statistics Cards */}
@@ -391,14 +404,16 @@ export default function DeliveryNotesPage() {
                           >
                             <FileText className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => deleteNote.mutate(note.id)}
-                            disabled={deleteNote.isPending}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {canCancelDelivery && (
+                            <button
+                              onClick={() => deleteNote.mutate(note.id)}
+                              disabled={deleteNote.isPending}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -461,7 +476,7 @@ export default function DeliveryNotesPage() {
           note={selectedNote}
           businessId={businessId}
           onClose={() => setSelectedNote(null)}
-          onDelete={(id) => deleteNote.mutate(id)}
+          onDelete={canCancelDelivery ? (id) => deleteNote.mutate(id) : undefined}
         />
       )}
     </div>
