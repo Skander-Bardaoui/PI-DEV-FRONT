@@ -3,6 +3,7 @@ import { Sparkles, Check, Trash2, Loader2, X } from 'lucide-react';
 import { subtasksApi } from '../api/subtasks.api';
 import type { Subtask } from '../types/subtask';
 import { toast } from 'sonner';
+import { useAIAccess } from '../hooks/useAIAccess';
 
 interface SubtaskListProps {
   taskId: string;
@@ -41,6 +42,7 @@ export default function SubtaskList({
   const [generating, setGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   // Determine permissions based on currentMember if provided, otherwise fall back to legacy props
   const isOwner = currentMember?.role === 'BUSINESS_OWNER' || userRole === 'BUSINESS_OWNER';
@@ -53,7 +55,7 @@ export default function SubtaskList({
   const canMarkCompleteSubtask = isOwner || collab?.mark_complete_subtask === true;
   
   // Legacy fallback for backward compatibility
-  const canGenerate = currentMember ? canCreateSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'));
+  const canGenerate = (currentMember ? canCreateSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'))) && hasAIAccess; // Only allow if has AI access
   const canCreate = currentMember ? canCreateSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'));
   const canDelete = currentMember ? canDeleteSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'));
   const canToggle = currentMember ? canUpdateSubtask : (canManageSubtasks ?? (userRole === 'BUSINESS_OWNER' || userRole === 'BUSINESS_ADMIN'));
@@ -259,7 +261,7 @@ export default function SubtaskList({
       {/* Header with Generate Button */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700">Subtasks</h3>
-        {canGenerate && (
+        {!aiLoading && canGenerate && (
           <button
             onClick={handleGenerate}
             disabled={!taskDescription || taskDescription.trim() === '' || generating}

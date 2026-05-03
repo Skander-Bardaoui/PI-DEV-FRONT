@@ -25,6 +25,7 @@ import { updateFraudReview } from '@/api/treasury.api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { SummaryCardSkeleton, TableRowSkeleton } from './SkeletonLoaders';
+import { useAIAccess } from '@/hooks/useAIAccess';
 
 type TransactionWithAccount = Transaction & {
   account?:        Account;
@@ -386,7 +387,7 @@ function FraudBadge({
 }
 
 // ─── Summary cards ────────────────────────────────────────────────────────
-function SummaryBar({ transactions }: { transactions: TransactionWithAccount[] }) {
+function SummaryBar({ transactions, hasAIAccess, aiLoading }: { transactions: TransactionWithAccount[]; hasAIAccess: boolean; aiLoading: boolean }) {
   const encaissements = transactions
     .filter((t) => t.type === 'ENCAISSEMENT')
     .reduce((s, t) => s + Number(t.amount), 0);
@@ -481,28 +482,31 @@ function SummaryBar({ transactions }: { transactions: TransactionWithAccount[] }
         <p className={`text-xs mt-1 ${net >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>TND</p>
       </div>
 
-      <div className={`rounded-xl border p-6 shadow-sm ${
-        flagged > 0 
-          ? 'bg-gradient-to-br from-orange-50 to-white border-orange-200' 
-          : 'bg-gradient-to-br from-gray-50 to-white border-gray-200'
-      }`}>
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`p-2 rounded-lg ${flagged > 0 ? 'bg-orange-100' : 'bg-gray-100'}`}>
-            <ShieldAlert className={`h-4 w-4 ${flagged > 0 ? 'text-orange-600' : 'text-gray-400'}`} />
+      {/* AI Feature - Only for Premium users */}
+      {!aiLoading && hasAIAccess && (
+        <div className={`rounded-xl border p-6 shadow-sm ${
+          flagged > 0 
+            ? 'bg-gradient-to-br from-orange-50 to-white border-orange-200' 
+            : 'bg-gradient-to-br from-gray-50 to-white border-gray-200'
+        }`}>
+          <div className="flex items-center gap-2 mb-2">
+            <div className={`p-2 rounded-lg ${flagged > 0 ? 'bg-orange-100' : 'bg-gray-100'}`}>
+              <ShieldAlert className={`h-4 w-4 ${flagged > 0 ? 'text-orange-600' : 'text-gray-400'}`} />
+            </div>
+            <p className="text-xs text-gray-600 uppercase tracking-wide font-medium">
+              Suspectes
+            </p>
           </div>
-          <p className="text-xs text-gray-600 uppercase tracking-wide font-medium">
-            Suspectes
+          <p className={`text-2xl font-bold tracking-tight ${
+            flagged > 0 ? 'text-orange-700' : 'text-gray-400'
+          }`}>
+            {flagged}
+          </p>
+          <p className={`text-xs mt-1 ${flagged > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+            transaction{flagged > 1 ? 's' : ''}
           </p>
         </div>
-        <p className={`text-2xl font-bold tracking-tight ${
-          flagged > 0 ? 'text-orange-700' : 'text-gray-400'
-        }`}>
-          {flagged}
-        </p>
-        <p className={`text-xs mt-1 ${flagged > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
-          transaction{flagged > 1 ? 's' : ''}
-        </p>
-      </div>
+      )}
     </div>
   );
 }
@@ -512,10 +516,14 @@ function TransactionsTable({
   transactions,
   onReviewFraud,
   lastElementRef,
+  hasAIAccess,
+  aiLoading,
 }: { 
   transactions: TransactionWithAccount[];
   onReviewFraud: (transaction: TransactionWithAccount) => void;
   lastElementRef?: (node: HTMLTableRowElement | null) => void;
+  hasAIAccess: boolean;
+  aiLoading: boolean;
 }) {
   if (transactions.length === 0) {
     return (
@@ -560,9 +568,12 @@ function TransactionsTable({
             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
               Montant (TND)
             </th>
-            <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
-              Fraude
-            </th>
+            {/* AI Feature - Only for Premium users */}
+            {!aiLoading && hasAIAccess && (
+              <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Fraude
+              </th>
+            )}
             <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
               Statut
             </th>
@@ -623,13 +634,16 @@ function TransactionsTable({
                   </div>
                 </td>
 
-                <td className="px-6 py-4 text-center">
-                  <FraudBadge 
-                    score={t.fraud_score} 
-                    reviewed={t.fraud_reviewed}
-                    onClick={isFlagged && !t.fraud_reviewed ? () => onReviewFraud(t) : undefined}
-                  />
-                </td>
+                {/* AI Feature - Only for Premium users */}
+                {!aiLoading && hasAIAccess && (
+                  <td className="px-6 py-4 text-center">
+                    <FraudBadge 
+                      score={t.fraud_score} 
+                      reviewed={t.fraud_reviewed}
+                      onClick={isFlagged && !t.fraud_reviewed ? () => onReviewFraud(t) : undefined}
+                    />
+                  </td>
+                )}
 
                 <td className="px-6 py-4 text-center">
                   {t.is_reconciled ? (
@@ -752,6 +766,7 @@ function FraudReviewModal({
 
 // ─── Main component ───────────────────────────────────────────────────────
 export default function Transactions() {
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
   const [selectedAccount, setSelectedAccount] = useState('');
   const [selectedType, setSelectedType]       = useState('');
   const [fraudOnly, setFraudOnly]             = useState(false);
@@ -883,7 +898,7 @@ export default function Transactions() {
       ) : (
         filtered.length > 0 && (
           <>
-            <SummaryBar transactions={filtered} />
+            <SummaryBar transactions={filtered} hasAIAccess={hasAIAccess} aiLoading={aiLoading} />
             <TransactionsDashboard transactions={filtered} />
           </>
         )
@@ -930,27 +945,29 @@ export default function Transactions() {
             <option value="VIREMENT_INTERNE">Virement interne</option>
           </select>
 
-          {/* Fraud filter toggle */}
-          <button
-            onClick={() => setFraudOnly((v) => !v)}
-            className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold border-2 transition-all shadow-sm ${
-              fraudOnly
-                ? 'bg-orange-100 border-orange-400 text-orange-700 shadow-orange-200'
-                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400'
-            }`}
-          >
-            <ShieldAlert className="h-4 w-4" />
-            Suspectes
-            {flaggedCount > 0 && (
-              <span className={`text-xs rounded-full px-2 py-0.5 ml-1 font-bold ${
-                fraudOnly 
-                  ? 'bg-orange-500 text-white' 
-                  : 'bg-orange-100 text-orange-700'
-              }`}>
-                {flaggedCount}
-              </span>
-            )}
-          </button>
+          {/* AI Feature - Fraud filter toggle - Only for Premium users */}
+          {!aiLoading && hasAIAccess && (
+            <button
+              onClick={() => setFraudOnly((v) => !v)}
+              className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold border-2 transition-all shadow-sm ${
+                fraudOnly
+                  ? 'bg-orange-100 border-orange-400 text-orange-700 shadow-orange-200'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400'
+              }`}
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Suspectes
+              {flaggedCount > 0 && (
+                <span className={`text-xs rounded-full px-2 py-0.5 ml-1 font-bold ${
+                  fraudOnly 
+                    ? 'bg-orange-500 text-white' 
+                    : 'bg-orange-100 text-orange-700'
+                }`}>
+                  {flaggedCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -984,6 +1001,8 @@ export default function Transactions() {
               transactions={displayed}
               onReviewFraud={handleReviewFraud}
               lastElementRef={lastElementRef}
+              hasAIAccess={hasAIAccess}
+              aiLoading={aiLoading}
             />
 
             {/* Loading indicator for infinite scroll */}

@@ -91,9 +91,8 @@ export default function RegisterPage() {
       setPlansLoading(true);
       try {
         const fetchedPlans = await plansApi.getPublicPlans();
-        // Filter out free plan for registration
-        const paidPlans = fetchedPlans.filter((p: any) => p.slug !== 'free');
-        setPlans(paidPlans);
+        // Include all plans (Free, Standard, Premium)
+        setPlans(fetchedPlans);
       } catch (error) {
         console.error('Error fetching plans:', error);
         setError('Impossible de charger les plans. Veuillez réessayer.');
@@ -727,7 +726,60 @@ export default function RegisterPage() {
                     {plans.map((plan) => {
                       const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_annual;
                       const isSelected = formData.planId === plan.id;
-                      const isPopular = plan.slug === 'professional';
+                      
+                      // Slug-based feature display
+                      const getPlanDisplay = (slug: string) => {
+                        switch (slug) {
+                          case 'free':
+                            return {
+                              badge: { text: 'Gratuit', color: 'bg-green-500' },
+                              isPopular: false,
+                              priceDisplay: 'Gratuit',
+                              subtitle: '7 jours d\'essai gratuit — accès complet',
+                              features: [
+                                { icon: '✅', text: 'Accès complet à la plateforme' },
+                                { icon: '✅', text: 'Toutes les fonctionnalités' },
+                                { icon: '⏱', text: 'Durée: 7 jours' },
+                                { icon: '❌', text: 'IA non incluse' },
+                              ]
+                            };
+                          case 'standard':
+                            return {
+                              badge: { text: 'Standard', color: 'bg-blue-500' },
+                              isPopular: false,
+                              priceDisplay: `${Number(price).toFixed(0)} TND`,
+                              subtitle: 'Pour les petites entreprises',
+                              features: [
+                                { icon: '✅', text: 'Accès complet à la plateforme' },
+                                { icon: '✅', text: 'Toutes les fonctionnalités' },
+                                { icon: '❌', text: 'IA non incluse' },
+                              ]
+                            };
+                          case 'premium':
+                            return {
+                              badge: { text: 'Premium', color: 'bg-purple-500' },
+                              isPopular: true,
+                              priceDisplay: `${Number(price).toFixed(0)} TND`,
+                              subtitle: 'Pour les entreprises avancées',
+                              features: [
+                                { icon: '✅', text: 'Accès complet à la plateforme' },
+                                { icon: '✅', text: 'Toutes les fonctionnalités' },
+                                { icon: '✅', text: 'IA illimitée incluse' },
+                              ]
+                            };
+                          default:
+                            // Fallback for unknown plans
+                            return {
+                              badge: { text: plan.name, color: 'bg-gray-500' },
+                              isPopular: false,
+                              priceDisplay: `${Number(price).toFixed(0)} TND`,
+                              subtitle: '',
+                              features: Array.isArray(plan.features) ? plan.features.map((f: string) => ({ icon: '✅', text: f })) : []
+                            };
+                        }
+                      };
+
+                      const planDisplay = getPlanDisplay(plan.slug);
 
                       return (
                         <div
@@ -737,20 +789,34 @@ export default function RegisterPage() {
                             isSelected
                               ? 'border-indigo-600 bg-indigo-50 shadow-lg'
                               : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
-                          } ${isPopular ? 'ring-2 ring-purple-500' : ''}`}
+                          } ${planDisplay.isPopular ? 'ring-2 ring-purple-500' : ''}`}
                         >
-                          {isPopular && (
+                          {planDisplay.isPopular && (
                             <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                              Populaire
+                              Recommandé
                             </div>
                           )}
                           
                           <div className="flex items-start justify-between mb-4">
                             <div>
-                              <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+                                <span className={`${planDisplay.badge.color} text-white text-xs font-bold px-2 py-1 rounded-full`}>
+                                  {planDisplay.badge.text}
+                                </span>
+                              </div>
+                              {planDisplay.subtitle && (
+                                <p className="text-sm text-gray-500 mb-2">{planDisplay.subtitle}</p>
+                              )}
                               <div className="mt-2">
-                                <span className="text-3xl font-bold text-indigo-600">{Number(price).toFixed(0)}</span>
-                                <span className="text-gray-500 ml-1">TND/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
+                                {plan.slug === 'free' ? (
+                                  <span className="text-3xl font-bold text-green-600">{planDisplay.priceDisplay}</span>
+                                ) : (
+                                  <>
+                                    <span className="text-3xl font-bold text-indigo-600">{planDisplay.priceDisplay}</span>
+                                    <span className="text-gray-500 ml-1">/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
@@ -761,29 +827,12 @@ export default function RegisterPage() {
                           </div>
 
                           <ul className="space-y-2">
-                            {plan.max_users && (
-                              <li className="flex items-center gap-2 text-sm text-gray-600">
-                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                <span>{plan.max_users === null ? 'Utilisateurs illimités' : `Jusqu'à ${plan.max_users} utilisateurs`}</span>
-                              </li>
-                            )}
-                            {plan.max_businesses && (
-                              <li className="flex items-center gap-2 text-sm text-gray-600">
-                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                <span>{plan.max_businesses === null ? 'Entreprises illimitées' : `${plan.max_businesses} entreprise${plan.max_businesses > 1 ? 's' : ''}`}</span>
-                              </li>
-                            )}
-                            {Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: string, i: number) => (
+                            {planDisplay.features.map((feature, i) => (
                               <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                <span>{feature}</span>
+                                <span className="text-base">{feature.icon}</span>
+                                <span>{feature.text}</span>
                               </li>
                             ))}
-                            {Array.isArray(plan.features) && plan.features.length > 3 && (
-                              <li className="text-xs text-indigo-600 font-medium">
-                                +{plan.features.length - 3} autres fonctionnalités
-                              </li>
-                            )}
                           </ul>
                         </div>
                       );

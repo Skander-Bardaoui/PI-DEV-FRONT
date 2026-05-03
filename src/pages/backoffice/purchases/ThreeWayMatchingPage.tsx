@@ -2,7 +2,7 @@
 //
 // Page de contrôle et validation des factures avec analyse IA
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   CheckCircle,
@@ -15,6 +15,7 @@ import {
   Sparkles,
   AlertCircle,
   ArrowRight,
+  Lock,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -33,17 +34,27 @@ import {
 
 import ThreeWayMatchingAIPanel from '@/components/purchases/ThreeWayMatchingAIPanel';
 import { formatAmount } from '@/types';
+import { useAIAccess } from '@/hooks/useAIAccess';
 
 export default function ThreeWayMatchingPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
   const navigate = useNavigate();
   const { invoiceId } = useParams<{ invoiceId?: string }>();
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   const [useAI, setUseAI] = useState(true);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
     invoiceId || null
   );
+
+  // Redirect if user doesn't have AI access
+  useEffect(() => {
+    if (!aiLoading && !hasAIAccess) {
+      toast.error('Cette fonctionnalité nécessite le plan Premium');
+      navigate('/app/purchases/invoices');
+    }
+  }, [hasAIAccess, aiLoading, navigate]);
 
   // Hooks
   const { data: matchResult, isLoading: matchLoading } = useInvoiceMatch(
@@ -61,6 +72,39 @@ export default function ThreeWayMatchingPage() {
   const approve = useApprovePurchaseInvoice(businessId);
   const dispute = useDisputePurchaseInvoice(businessId);
   const contactSupplier = useContactSupplier(businessId, useAI);
+
+  // Show loading or access denied
+  if (aiLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!hasAIAccess) {
+    return (
+      <div className="p-6">
+        <div className="max-w-2xl mx-auto mt-12 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-8 border-2 border-purple-200">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-purple-100 rounded-full">
+              <Lock className="h-8 w-8 text-purple-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Fonctionnalité Premium</h2>
+              <p className="text-gray-600">Le rapprochement automatique avec IA nécessite le plan Premium</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/app/purchases/invoices')}
+            className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Retour aux factures
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Handlers
   const handleApprove = async () => {

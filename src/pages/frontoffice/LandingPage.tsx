@@ -716,22 +716,67 @@ export default function LandingPage() {
               >
                 {pricingPlans.map((plan, idx) => {
                   const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_annual;
-                  const isPopular = plan.slug === 'professional';
+                  
+                  // Slug-based feature display (same logic as RegisterPage)
+                  const getPlanDisplay = (slug: string) => {
+                    switch (slug) {
+                      case 'standard':
+                        return {
+                          badge: { text: 'Standard', color: 'bg-blue-500' },
+                          isPopular: false,
+                          features: [
+                            'Accès complet à la plateforme',
+                            'Toutes les fonctionnalités',
+                            'Gestion des factures et devis',
+                            'Gestion des stocks',
+                            'Tableau de bord et statistiques',
+                            'Support par email'
+                          ]
+                        };
+                      case 'premium':
+                        return {
+                          badge: { text: 'Premium', color: 'bg-purple-500' },
+                          isPopular: true,
+                          features: [
+                            'Tout du plan Standard',
+                            'IA illimitée incluse',
+                            'Prévisions de ventes intelligentes',
+                            'Analyse avancée des données',
+                            'Recommandations automatiques',
+                            'Support prioritaire'
+                          ]
+                        };
+                      default:
+                        // Fallback for unknown plans
+                        return {
+                          badge: { text: plan.name, color: 'bg-gray-500' },
+                          isPopular: false,
+                          features: Array.isArray(plan.features) ? plan.features : []
+                        };
+                    }
+                  };
+
+                  const planDisplay = getPlanDisplay(plan.slug);
                   
                   return (
                     <div 
                       key={plan.id} 
                       className={`flex-shrink-0 w-80 snap-center relative glass rounded-3xl p-8 transition-all duration-500 hover:-translate-y-2 flex flex-col ${
-                        isPopular ? 'ring-2 ring-purple-500 shadow-2xl shadow-purple-500/20' : 'hover:shadow-xl'
+                        planDisplay.isPopular ? 'ring-2 ring-purple-500 shadow-2xl shadow-purple-500/20' : 'hover:shadow-xl'
                       } ${pricingRevealed ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}
                       style={{ transitionDelay: `${idx * 150}ms` }}
                     >
-                      {isPopular && (
+                      {planDisplay.isPopular && (
                         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-sm font-bold px-4 py-1 rounded-full">
-                          Most Popular
+                          Recommandé
                         </div>
                       )}
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
+                        <span className={`${planDisplay.badge.color} text-white text-xs font-bold px-2 py-1 rounded-full`}>
+                          {planDisplay.badge.text}
+                        </span>
+                      </div>
                       <div className="mb-6">
                         <span className="text-5xl font-bold text-purple-600">{Number(price).toFixed(0)}</span>
                         <span className="text-gray-500"> TND/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
@@ -739,19 +784,7 @@ export default function LandingPage() {
                       
                       {/* Features */}
                       <ul className="space-y-3 mb-8 flex-grow">
-                        {plan.max_users && (
-                          <li className="flex items-center gap-2 text-gray-600">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <span>{plan.max_users === null ? 'Utilisateurs illimités' : `Jusqu'à ${plan.max_users} utilisateurs`}</span>
-                          </li>
-                        )}
-                        {plan.max_businesses && (
-                          <li className="flex items-center gap-2 text-gray-600">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <span>{plan.max_businesses === null ? 'Entreprises illimitées' : `${plan.max_businesses} entreprise${plan.max_businesses > 1 ? 's' : ''}`}</span>
-                          </li>
-                        )}
-                        {Array.isArray(plan.features) && plan.features.map((feature: string, i: number) => (
+                        {planDisplay.features.map((feature: string, i: number) => (
                           <li key={i} className="flex items-center gap-2 text-gray-600">
                             <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
                             <span>{feature}</span>
@@ -762,12 +795,12 @@ export default function LandingPage() {
                       <Link 
                         to="/register" 
                         className={`w-full text-center py-3 rounded-xl font-semibold transition-all duration-300 ${
-                          isPopular 
+                          planDisplay.isPopular 
                             ? 'bg-purple-600 text-white shadow-lg hover:shadow-purple-500/30' 
                             : 'glass text-gray-700 hover:bg-white/80'
                         }`}
                       >
-                        Get Started
+                        Commencer
                       </Link>
                     </div>
                   );

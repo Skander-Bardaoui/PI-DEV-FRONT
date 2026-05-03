@@ -1,7 +1,7 @@
 /**
  * Page des prédictions ML - Recommandations d'achat intelligentes
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   SparklesIcon,
@@ -13,6 +13,7 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   ArrowRightIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { useMLRecommendations, useMLHealth } from '../../../hooks/useMLPredictions';
 import { PredictionResponse } from '../../../types/ml-predictions';
@@ -22,16 +23,60 @@ import { EmptyState } from '../../../components/common/EmptyState';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 import { safeArrayAccess, isNonEmptyArray } from '../../../utils/validators';
 import { safeSum } from '../../../utils/safeOperations';
+import { useAIAccess } from '../../../hooks/useAIAccess';
+import toast from 'react-hot-toast';
 
 const MLPredictionsPage: React.FC = () => {
   const navigate = useNavigate();
   const [predictionDays, setPredictionDays] = useState(30);
+  const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'urgent' | 'soon' | 'planned' | 'processed'>('all');
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
+  
+  // Redirect if user doesn't have AI access
+  useEffect(() => {
+    if (!aiLoading && !hasAIAccess) {
+      toast.error('Cette fonctionnalité nécessite le plan Premium');
+      navigate('/app/purchases/orders');
+    }
+  }, [hasAIAccess, aiLoading, navigate]);
   
   const { data: health, isLoading: healthLoading } = useMLHealth();
   const { data: recommendations, isLoading, error, refetch } = useMLRecommendations(predictionDays);
 
+  // Show loading or access denied
+  if (aiLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-64">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!hasAIAccess) {
+    return (
+      <div className="p-6">
+        <div className="max-w-2xl mx-auto mt-12 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-8 border-2 border-purple-200">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-purple-100 rounded-full">
+              <LockClosedIcon className="h-8 w-8 text-purple-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Fonctionnalité Premium</h2>
+              <p className="text-gray-600">Les recommandations IA nécessitent le plan Premium</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/app/purchases/orders')}
+            className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Retour aux commandes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Filtrer par urgence
-  const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'urgent' | 'soon' | 'planned' | 'processed'>('all');
 
   const filteredRecommendations = recommendations?.recommendations?.filter((rec) => {
     if (!rec) return false;

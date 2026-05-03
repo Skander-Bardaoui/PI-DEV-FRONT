@@ -45,9 +45,11 @@ function ScoreDisplay({ score, grade }: { score: number; grade: ScoreGrade }) {
 function EnhancedRankingRow({
   item,
   onViewAI,
+  hasAIAccess,
 }: {
   item: SupplierRanking;
   onViewAI: (id: string, name: string) => void;
+  hasAIAccess?: boolean;
 }) {
   const gcfg = GRADE_CONFIG[item.grade];
   const TrendIcon = item.trend === 'up' ? TrendingUp : item.trend === 'down' ? TrendingDown : Minus;
@@ -107,13 +109,15 @@ function EnhancedRankingRow({
       {/* Actions */}
       <td className="px-4 py-4">
         <div className="flex items-center justify-center">
-          <button
-            onClick={() => onViewAI(item.supplier_id, item.supplier_name)}
-            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-            title="Analyse IA détaillée"
-          >
-            <Sparkles className="h-4 w-4" />
-          </button>
+          {hasAIAccess && (
+            <button
+              onClick={() => onViewAI(item.supplier_id, item.supplier_name)}
+              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+              title="Analyse IA détaillée"
+            >
+              <Sparkles className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </td>
     </tr>
