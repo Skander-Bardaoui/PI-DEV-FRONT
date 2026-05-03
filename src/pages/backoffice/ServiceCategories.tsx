@@ -33,6 +33,29 @@ function CategoryRowSkeleton() {
   );
 }
 
+// Simple category row skeleton
+function CategoryRowSkeleton() {
+  return (
+    <tr className="animate-pulse">
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="h-4 bg-gray-200 rounded w-32"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-64"></div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="h-5 bg-gray-200 rounded-full w-16"></div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-right">
+        <div className="flex items-center justify-end gap-2">
+          <div className="h-5 w-5 bg-gray-200 rounded"></div>
+          <div className="h-5 w-5 bg-gray-200 rounded"></div>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface User {
