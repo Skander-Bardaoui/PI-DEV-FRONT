@@ -27,6 +27,13 @@ export interface User {
   timezone?: string;
   created_at: string;
   updated_at: string;
+  // AI Access Info
+  hasAIAccess?: boolean;
+  plan?: {
+    name: string;
+    slug: string;
+    ai_enabled: boolean;
+  };
 }
 
 // ─── API Request Payloads ────────────────────────────────────────────────

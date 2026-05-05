@@ -204,9 +204,8 @@ export default function LandingPage() {
     const fetchPlans = async () => {
       try {
         const plans = await plansApi.getPublicPlans();
-        // Filter out the free plan for landing page display
-        const paidPlans = plans.filter((p: any) => p.slug !== 'free');
-        setPricingPlans(paidPlans);
+        // Show ALL plans including free plan on landing page
+        setPricingPlans(plans);
       } catch (error) {
         console.error('Error fetching plans:', error);
       } finally {
@@ -707,98 +706,109 @@ export default function LandingPage() {
               No plans available at the moment.
             </div>
           ) : (
-            <div className="relative">
-              {/* Scroll Container */}
-              <div 
-                id="plans-scroll-container"
-                className="flex gap-8 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide scroll-smooth"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                {pricingPlans.map((plan, idx) => {
-                  const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_annual;
-                  const isPopular = plan.slug === 'professional';
-                  
-                  return (
-                    <div 
-                      key={plan.id} 
-                      className={`flex-shrink-0 w-80 snap-center relative glass rounded-3xl p-8 transition-all duration-500 hover:-translate-y-2 flex flex-col ${
-                        isPopular ? 'ring-2 ring-purple-500 shadow-2xl shadow-purple-500/20' : 'hover:shadow-xl'
-                      } ${pricingRevealed ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}
-                      style={{ transitionDelay: `${idx * 150}ms` }}
-                    >
-                      {isPopular && (
-                        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-sm font-bold px-4 py-1 rounded-full">
-                          Most Popular
-                        </div>
-                      )}
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                      <div className="mb-6">
-                        <span className="text-5xl font-bold text-purple-600">{Number(price).toFixed(0)}</span>
-                        <span className="text-gray-500"> TND/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
-                      </div>
-                      
-                      {/* Features */}
-                      <ul className="space-y-3 mb-8 flex-grow">
-                        {plan.max_users && (
-                          <li className="flex items-center gap-2 text-gray-600">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <span>{plan.max_users === null ? 'Utilisateurs illimités' : `Jusqu'à ${plan.max_users} utilisateurs`}</span>
-                          </li>
-                        )}
-                        {plan.max_businesses && (
-                          <li className="flex items-center gap-2 text-gray-600">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <span>{plan.max_businesses === null ? 'Entreprises illimitées' : `${plan.max_businesses} entreprise${plan.max_businesses > 1 ? 's' : ''}`}</span>
-                          </li>
-                        )}
-                        {Array.isArray(plan.features) && plan.features.map((feature: string, i: number) => (
-                          <li key={i} className="flex items-center gap-2 text-gray-600">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      
-                      <Link 
-                        to="/register" 
-                        className={`w-full text-center py-3 rounded-xl font-semibold transition-all duration-300 ${
-                          isPopular 
-                            ? 'bg-purple-600 text-white shadow-lg hover:shadow-purple-500/30' 
-                            : 'glass text-gray-700 hover:bg-white/80'
-                        }`}
-                      >
-                        Get Started
-                      </Link>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {pricingPlans.map((plan, idx) => {
+                const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_annual;
+                
+                // Slug-based feature display
+                const getPlanDisplay = (slug: string) => {
+                  switch (slug) {
+                    case 'free':
+                      return {
+                        badge: { text: 'Free', color: 'bg-gray-500' },
+                        isPopular: false,
+                        features: [
+                          'Accès de base à la plateforme',
+                          'Gestion limitée des factures',
+                          'Tableau de bord basique',
+                          'Support communautaire',
+                          'Parfait pour démarrer'
+                        ]
+                      };
+                    case 'standard':
+                      return {
+                        badge: { text: 'Standard', color: 'bg-blue-500' },
+                        isPopular: false,
+                        features: [
+                          'Accès complet à la plateforme',
+                          'Toutes les fonctionnalités',
+                          'Gestion des factures et devis',
+                          'Gestion des stocks',
+                          'Tableau de bord et statistiques',
+                          'Support par email'
+                        ]
+                      };
+                    case 'premium':
+                      return {
+                        badge: { text: 'Premium', color: 'bg-purple-500' },
+                        isPopular: true,
+                        features: [
+                          'Tout du plan Standard',
+                          'IA illimitée incluse',
+                          'Prévisions de ventes intelligentes',
+                          'Analyse avancée des données',
+                          'Recommandations automatiques',
+                          'Support prioritaire'
+                        ]
+                      };
+                    default:
+                      return {
+                        badge: { text: plan.name, color: 'bg-gray-500' },
+                        isPopular: false,
+                        features: Array.isArray(plan.features) ? plan.features : []
+                      };
+                  }
+                };
 
-              {/* Scroll Arrows - Hidden on mobile */}
-              <button
-                onClick={() => {
-                  const container = document.getElementById('plans-scroll-container');
-                  if (container) container.scrollBy({ left: -350, behavior: 'smooth' });
-                }}
-                className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-12 h-12 bg-white shadow-xl rounded-full items-center justify-center hover:bg-purple-50 transition-colors z-10"
-                aria-label="Scroll left"
-              >
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                onClick={() => {
-                  const container = document.getElementById('plans-scroll-container');
-                  if (container) container.scrollBy({ left: 350, behavior: 'smooth' });
-                }}
-                className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-12 h-12 bg-white shadow-xl rounded-full items-center justify-center hover:bg-purple-50 transition-colors z-10"
-                aria-label="Scroll right"
-              >
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+                const planDisplay = getPlanDisplay(plan.slug);
+                
+                return (
+                  <div 
+                    key={plan.id} 
+                    className={`relative glass rounded-3xl p-8 transition-all duration-500 hover:-translate-y-2 flex flex-col ${
+                      planDisplay.isPopular ? 'ring-2 ring-purple-500 shadow-2xl shadow-purple-500/20 scale-105' : 'hover:shadow-xl'
+                    } ${pricingRevealed ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}
+                    style={{ transitionDelay: `${idx * 150}ms` }}
+                  >
+                    {planDisplay.isPopular && (
+                      <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-sm font-bold px-4 py-1 rounded-full">
+                        Recommandé
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
+                      <span className={`${planDisplay.badge.color} text-white text-xs font-bold px-2 py-1 rounded-full`}>
+                        {planDisplay.badge.text}
+                      </span>
+                    </div>
+                    <div className="mb-6">
+                      <span className="text-5xl font-bold text-purple-600">{Number(price).toFixed(0)}</span>
+                      <span className="text-gray-500"> TND/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
+                    </div>
+                    
+                    {/* Features */}
+                    <ul className="space-y-3 mb-8 flex-grow">
+                      {planDisplay.features.map((feature: string, i: number) => (
+                        <li key={i} className="flex items-center gap-2 text-gray-600">
+                          <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                          <span className="text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    
+                    <Link 
+                      to="/register" 
+                      className={`w-full text-center py-3 rounded-xl font-semibold transition-all duration-300 ${
+                        planDisplay.isPopular 
+                          ? 'bg-purple-600 text-white shadow-lg hover:shadow-purple-500/30 hover:scale-105' 
+                          : 'glass text-gray-700 hover:bg-white/80'
+                      }`}
+                    >
+                      Commencer
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

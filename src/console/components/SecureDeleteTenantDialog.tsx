@@ -259,7 +259,7 @@ export function SecureDeleteTenantDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-600">
             <AlertTriangle className="h-6 w-6" />
@@ -269,6 +269,8 @@ export function SecureDeleteTenantDialog({
             This is a permanent and irreversible action. Please follow all steps carefully.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-4 pb-4">{/* Added padding bottom for better scrolling */}
 
         {/* Step 1: Warning */}
         {step === 'warning' && (
@@ -518,6 +520,7 @@ export function SecureDeleteTenantDialog({
             </div>
           </div>
         )}
+        </div>{/* Close the space-y-4 pb-4 div */}
       </DialogContent>
     </Dialog>
   );

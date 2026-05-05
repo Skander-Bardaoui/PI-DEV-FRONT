@@ -22,6 +22,55 @@ import { useAuth } from '../../hooks/useAuth';
 import PhoneInput from '../../components/common/PhoneInput';
 import AddressAutocomplete, { AddressData } from '../../components/common/AddressAutocomplete';
 import { plansApi } from '../../api/plans.api';
+import {
+  registerStep1Schema,
+  registerStep2Schema,
+  registerStep3Schema,
+  registerStep4Schema,
+} from '../../schemas/auth.schemas';
+
+// Field component with error display
+const Field = ({
+  label,
+  error,
+  required,
+  children,
+}: {
+  label: string;
+  error?: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) => (
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    {children}
+    {error && (
+      <div className="flex items-start gap-1.5 mt-1.5">
+        <svg
+          className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <p className="text-red-600 text-xs font-medium">{error}</p>
+      </div>
+    )}
+  </div>
+);
+
+const inputCls = (error?: string) =>
+  `w-full px-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+    error
+      ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+      : 'border-gray-200 focus:border-indigo-500'
+  }`;
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -30,8 +79,9 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submission
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
@@ -91,9 +141,8 @@ export default function RegisterPage() {
       setPlansLoading(true);
       try {
         const fetchedPlans = await plansApi.getPublicPlans();
-        // Filter out free plan for registration
-        const paidPlans = fetchedPlans.filter((p: any) => p.slug !== 'free');
-        setPlans(paidPlans);
+        // Include all plans (Free, Standard, Premium)
+        setPlans(fetchedPlans);
       } catch (error) {
         console.error('Error fetching plans:', error);
         setError('Impossible de charger les plans. Veuillez réessayer.');
@@ -104,21 +153,10 @@ export default function RegisterPage() {
     fetchPlans();
   }, []);
 
-  const validateTaxId = (taxId: string): boolean => {
-    if (!taxId) return true;
-    const taxIdRegex = /^[0-9]{7}\/[A-Z]\/[A-Z]\/[A-Z]\/[0-9]{3}$/;
-    return taxIdRegex.test(taxId);
-  };
-
-  const validateTunisianPostalCode = (postalCode: string): boolean => {
-    if (!postalCode || postalCode.trim() === '') return true;
-    const trimmed = postalCode.trim();
-    return /^\d{4}$/.test(trimmed);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setValidationErrors({});
 
     // Prevent double submission
     if (isSubmitting) {
@@ -127,64 +165,116 @@ export default function RegisterPage() {
     }
 
     if (step === 1) {
-      if (!formData.firstName?.trim() || formData.firstName.trim().length < 2) {
-        setError('Le prénom doit contenir au moins 2 caractères');
-        return;
-      }
-      if (!formData.lastName?.trim() || formData.lastName.trim().length < 2) {
-        setError('Le nom doit contenir au moins 2 caractères');
-        return;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        setError('Les mots de passe ne correspondent pas');
-        return;
-      }
-      if (formData.password.length < 8) {
-        setError('Le mot de passe doit contenir au moins 8 caractères');
+      // Validate Step 1 with Zod
+      const result = registerStep1Schema.safeParse({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone_number: formData.phone_number,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+      });
+
+      if (!result.success) {
+        const errors: Record<string, string> = {};
+        result.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0].toString()] = err.message;
+          }
+        });
+        setValidationErrors(errors);
+        // Scroll to first error
+        const firstErrorField = Object.keys(errors)[0];
+        if (firstErrorField) {
+          const element = document.querySelector(`[name="${firstErrorField}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
         return;
       }
       setStep(2);
     } 
     else if (step === 2) {
-      if (!formData.tenantName?.trim() || formData.tenantName.trim().length < 2) {
-        setError('Le nom du tenant doit contenir au moins 2 caractères');
+      // Validate Step 2 with Zod
+      const result = registerStep2Schema.safeParse({
+        tenantName: formData.tenantName,
+        domain: formData.domain,
+        contactEmail: formData.contactEmail,
+        description: formData.description,
+      });
+
+      if (!result.success) {
+        const errors: Record<string, string> = {};
+        result.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0].toString()] = err.message;
+          }
+        });
+        setValidationErrors(errors);
+        const firstErrorField = Object.keys(errors)[0];
+        if (firstErrorField) {
+          const element = document.querySelector(`[name="${firstErrorField}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
         return;
       }
       setStep(3);
     } 
     else if (step === 3) {
-      // Business info validation
-      if (!formData.businessName?.trim() || formData.businessName.trim().length < 2) {
-        setError('Le nom de l\'entreprise doit contenir au moins 2 caractères');
+      // Validate Step 3 with Zod
+      const result = registerStep3Schema.safeParse({
+        businessName: formData.businessName,
+        businessEmail: formData.businessEmail,
+        tax_id: formData.tax_id,
+        currency: formData.currency,
+        address: formData.address,
+        taxRateName: formData.taxRateName,
+        taxRate: formData.taxRate,
+      });
+
+      if (!result.success) {
+        const errors: Record<string, string> = {};
+        result.error.errors.forEach((err) => {
+          const path = err.path.join('.');
+          errors[path] = err.message;
+        });
+        setValidationErrors(errors);
+        const firstErrorField = Object.keys(errors)[0];
+        if (firstErrorField) {
+          const element = document.querySelector(`[name="${firstErrorField}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
         return;
       }
-      if (formData.tax_id && !validateTaxId(formData.tax_id)) {
-        setError('Le matricule fiscal doit suivre le format: NNNNNNN/X/A/E/NNN');
-        return;
-      }
-      if (!validateTunisianPostalCode(formData.address.postalCode)) {
-        setError('Le code postal doit contenir exactement 4 chiffres (ex: 4000 pour Sousse)');
-        return;
-      }
-      if (formData.taxRate < 0 || formData.taxRate > 100) {
-        setError('Le taux de TVA doit être entre 0 et 100');
-        return;
-      }
-      setStep(4); // Move to plan selection
+      setStep(4);
     }
     else {
-      // Final Step 4 - Plan selection and submission
-      if (!formData.planId) {
-        setError('Veuillez sélectionner un plan');
-        return;
-      }
-      if (!formData.acceptTerms) {
-        setError('Vous devez accepter les conditions d\'utilisation');
+      // Final Step 4 - Validate and submit
+      const result = registerStep4Schema.safeParse({
+        planId: formData.planId,
+        billingCycle: formData.billingCycle,
+        acceptTerms: formData.acceptTerms,
+      });
+
+      if (!result.success) {
+        const errors: Record<string, string> = {};
+        result.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0].toString()] = err.message;
+          }
+        });
+        setValidationErrors(errors);
+        setError(Object.values(errors)[0] || 'Veuillez corriger les erreurs');
         return;
       }
 
       setIsLoading(true);
-      setIsSubmitting(true); // Mark as submitting
+      setIsSubmitting(true);
 
       const registrationData = {
         firstName: formData.firstName.trim(),
@@ -228,7 +318,7 @@ export default function RegisterPage() {
         // Success - navigation is handled by AuthContext
       } catch (err: any) {
         setError(err.message || 'Une erreur est survenue lors de l\'inscription');
-        setIsSubmitting(false); // Reset on error so user can retry
+        setIsSubmitting(false);
       } finally {
         setIsLoading(false);
       }
@@ -333,85 +423,139 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Validation Errors Summary */}
+          {Object.keys(validationErrors).length > 0 && !error && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-red-600"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-800 mb-1">
+                    Erreurs de validation
+                  </h3>
+                  <p className="text-sm text-red-700">
+                    Veuillez corriger les erreurs ci-dessous avant de continuer.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             {step === 1 ? (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Prénom</label>
+                  <Field label="Prénom" error={validationErrors.firstName} required>
                     <div className="relative group">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                       <input
                         type="text"
+                        name="firstName"
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                          validationErrors.firstName
+                            ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-indigo-500'
+                        }`}
                         placeholder="Jean"
-                        required
-                        minLength={2}
-                        maxLength={50}
                         disabled={isLoading}
                       />
                     </div>
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Nom</label>
+                  <Field label="Nom" error={validationErrors.lastName} required>
                     <div className="relative group">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                       <input
                         type="text"
+                        name="lastName"
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                          validationErrors.lastName
+                            ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-indigo-500'
+                        }`}
                         placeholder="Dupont"
-                        required
-                        minLength={2}
-                        maxLength={50}
                         disabled={isLoading}
                       />
                     </div>
-                  </div>
+                  </Field>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                <Field label="Email" error={validationErrors.email} required>
                   <div className="relative group">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="email"
+                      name="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.email
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="vous@exemple.com"
-                      required
                       disabled={isLoading}
                     />
                   </div>
-                </div>
-
-                <PhoneInput
-                  value={formData.phone_number}
-                  onChange={(value) => setFormData({ ...formData, phone_number: value || '' })}
-                  label="Téléphone (optionnel)"
-                  placeholder="Entrez votre numéro"
-                  defaultCountry="TN"
-                  disabled={isLoading}
-                  required={false}
-                />
+                </Field>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mot de passe</label>
+                  <PhoneInput
+                    value={formData.phone_number}
+                    onChange={(value) => setFormData({ ...formData, phone_number: value || '' })}
+                    label="Téléphone (optionnel)"
+                    placeholder="Entrez votre numéro"
+                    defaultCountry="TN"
+                    disabled={isLoading}
+                    required={false}
+                  />
+                  {validationErrors.phone_number && (
+                    <div className="flex items-start gap-1.5 mt-1.5">
+                      <svg
+                        className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <p className="text-red-600 text-xs font-medium">{validationErrors.phone_number}</p>
+                    </div>
+                  )}
+                </div>
+
+                <Field label="Mot de passe" error={validationErrors.password} required>
                   <div className="relative group">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full pl-12 pr-12 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-12 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.password
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="Minimum 8 caractères"
-                      required
-                      minLength={8}
                       disabled={isLoading}
                     />
                     <button
@@ -424,7 +568,7 @@ export default function RegisterPage() {
                     </button>
                   </div>
                   {/* Password Strength Indicator */}
-                  {formData.password && (
+                  {formData.password && !validationErrors.password && (
                     <div className="mt-2">
                       <div className="flex gap-1 mb-1">
                         {[1, 2, 3, 4].map((level) => (
@@ -461,19 +605,22 @@ export default function RegisterPage() {
                       </p>
                     </div>
                   )}
-                </div>
+                </Field>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Confirmer le mot de passe</label>
+                <Field label="Confirmer le mot de passe" error={validationErrors.confirmPassword} required>
                   <div className="relative group">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className="w-full pl-12 pr-12 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-12 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.confirmPassword
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="Confirmez votre mot de passe"
-                      required
                       disabled={isLoading}
                     />
                     <button
@@ -485,174 +632,217 @@ export default function RegisterPage() {
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                  {formData.confirmPassword && formData.password !== formData.confirmPassword && !validationErrors.confirmPassword && (
                     <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
                       <XCircle className="h-3 w-3" />
                       Les mots de passe ne correspondent pas
                     </p>
                   )}
-                  {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                  {formData.confirmPassword && formData.password === formData.confirmPassword && !validationErrors.confirmPassword && (
                     <p className="mt-1.5 text-xs text-green-600 flex items-center gap-1">
                       <CheckCircle className="h-3 w-3" />
                       Les mots de passe correspondent
                     </p>
                   )}
-                </div>
+                </Field>
               </>
             ) : step === 2 ? (
               <>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nom du Tenant</label>
+                <Field label="Nom du Tenant" error={validationErrors.tenantName} required>
                   <div className="relative group">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="text"
+                      name="tenantName"
                       value={formData.tenantName}
                       onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.tenantName
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="Mon Organisation"
-                      required
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-gray-500 flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-indigo-500" />
-                    Le nom de votre espace de travail
-                  </p>
-                </div>
+                  {!validationErrors.tenantName && (
+                    <p className="mt-1.5 text-xs text-gray-500 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3 text-indigo-500" />
+                      Le nom de votre espace de travail
+                    </p>
+                  )}
+                </Field>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Domaine (optionnel)</label>
+                <Field label="Domaine (optionnel)" error={validationErrors.domain}>
                   <div className="relative group">
                     <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="text"
+                      name="domain"
                       value={formData.domain}
                       onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.domain
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="monentreprise"
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-gray-500">Sous-domaine personnalisé pour votre tenant</p>
-                </div>
+                  {!validationErrors.domain && (
+                    <p className="mt-1.5 text-xs text-gray-500">Sous-domaine personnalisé pour votre tenant</p>
+                  )}
+                </Field>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email de contact (optionnel)</label>
+                <Field label="Email de contact (optionnel)" error={validationErrors.contactEmail}>
                   <div className="relative group">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="email"
+                      name="contactEmail"
                       value={formData.contactEmail}
                       onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.contactEmail
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="contact@exemple.com"
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-gray-500">Par défaut, votre email sera utilisé</p>
-                </div>
+                  {!validationErrors.contactEmail && (
+                    <p className="mt-1.5 text-xs text-gray-500">Par défaut, votre email sera utilisé</p>
+                  )}
+                </Field>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description (optionnel)</label>
+                <Field label="Description (optionnel)" error={validationErrors.description}>
                   <textarea
+                    name="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className={`w-full px-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                      validationErrors.description
+                        ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                        : 'border-gray-200 focus:border-indigo-500'
+                    }`}
                     placeholder="Décrivez votre organisation..."
                     rows={3}
                     disabled={isLoading}
                   />
-                </div>
+                </Field>
               </>
             ) : step === 3 ? (
               <>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nom de l'entreprise</label>
+                <Field label="Nom de l'entreprise" error={validationErrors.businessName} required>
                   <div className="relative group">
                     <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="text"
+                      name="businessName"
                       value={formData.businessName}
                       onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.businessName
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="Ma Société SARL"
-                      required
-                      minLength={2}
-                      maxLength={200}
                       disabled={isLoading}
                     />
                   </div>
-                </div>
+                </Field>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email de l'entreprise (optionnel)
-                  </label>
+                <Field label="Email de l'entreprise (optionnel)" error={validationErrors.businessEmail}>
                   <div className="relative group">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="email"
+                      name="businessEmail"
                       value={formData.businessEmail}
                       onChange={(e) => setFormData({ ...formData, businessEmail: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.businessEmail
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="contact@mon-entreprise.tn"
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-gray-500">
-                    Affiché dans les bons de commande envoyés aux fournisseurs
-                  </p>
-                </div>
+                  {!validationErrors.businessEmail && (
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      Affiché dans les bons de commande envoyés aux fournisseurs
+                    </p>
+                  )}
+                </Field>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Matricule Fiscal (optionnel)</label>
+                <Field label="Matricule Fiscal (optionnel)" error={validationErrors.tax_id}>
                   <div className="relative group">
                     <FileText className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                       type="text"
+                      name="tax_id"
                       value={formData.tax_id}
                       onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.tax_id
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="1234567/A/M/E/000"
                       disabled={isLoading}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-gray-500">Format: NNNNNNN/X/A/E/NNN</p>
-                </div>
+                  {!validationErrors.tax_id && (
+                    <p className="mt-1.5 text-xs text-gray-500">Format: NNNNNNN/X/A/E/NNN</p>
+                  )}
+                </Field>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Devise</label>
+                  <Field label="Devise" error={validationErrors.currency} required>
                     <select
+                      name="currency"
                       value={formData.currency}
                       onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full px-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.currency
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       disabled={isLoading}
                     >
                       <option value="TND">TND - Dinar Tunisien</option>
                       <option value="EUR">EUR - Euro</option>
                       <option value="USD">USD - Dollar</option>
                     </select>
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Taux TVA (%)</label>
+                  <Field label="Taux TVA (%)" error={validationErrors.taxRate} required>
                     <input
                       type="number"
+                      name="taxRate"
                       value={formData.taxRate}
                       onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className={`w-full px-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all ${
+                        validationErrors.taxRate
+                          ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-indigo-500'
+                      }`}
                       placeholder="19"
                       min={0}
                       max={100}
                       step={0.01}
                       disabled={isLoading}
                     />
-                  </div>
+                  </Field>
                 </div>
 
                 <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Adresse <span className="text-red-500">*</span>
+                  </label>
                   <AddressAutocomplete
                     value={{
                       street: formData.address.street,
@@ -674,6 +864,46 @@ export default function RegisterPage() {
                     disabled={isLoading}
                     required={false}
                   />
+                  {/* Display address validation errors */}
+                  {(validationErrors['address.street'] || 
+                    validationErrors['address.city'] || 
+                    validationErrors['address.postalCode'] || 
+                    validationErrors['address.country']) && (
+                    <div className="mt-2 space-y-1">
+                      {validationErrors['address.street'] && (
+                        <div className="flex items-start gap-1.5">
+                          <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <p className="text-red-600 text-xs font-medium">{validationErrors['address.street']}</p>
+                        </div>
+                      )}
+                      {validationErrors['address.city'] && (
+                        <div className="flex items-start gap-1.5">
+                          <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <p className="text-red-600 text-xs font-medium">{validationErrors['address.city']}</p>
+                        </div>
+                      )}
+                      {validationErrors['address.postalCode'] && (
+                        <div className="flex items-start gap-1.5">
+                          <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <p className="text-red-600 text-xs font-medium">{validationErrors['address.postalCode']}</p>
+                        </div>
+                      )}
+                      {validationErrors['address.country'] && (
+                        <div className="flex items-start gap-1.5">
+                          <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <p className="text-red-600 text-xs font-medium">{validationErrors['address.country']}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </>
             ) : step === 4 ? (
@@ -723,11 +953,73 @@ export default function RegisterPage() {
                     Aucun plan disponible pour le moment.
                   </div>
                 ) : (
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                  <>
+                    {validationErrors.planId && (
+                      <div className="flex items-start gap-1.5 mb-4">
+                        <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <p className="text-red-600 text-xs font-medium">{validationErrors.planId}</p>
+                      </div>
+                    )}
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
                     {plans.map((plan) => {
                       const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_annual;
                       const isSelected = formData.planId === plan.id;
-                      const isPopular = plan.slug === 'professional';
+                      
+                      // Slug-based feature display
+                      const getPlanDisplay = (slug: string) => {
+                        switch (slug) {
+                          case 'free':
+                            return {
+                              badge: { text: 'Gratuit', color: 'bg-green-500' },
+                              isPopular: false,
+                              priceDisplay: 'Gratuit',
+                              subtitle: '7 jours d\'essai gratuit — accès complet',
+                              features: [
+                                { icon: '✅', text: 'Accès complet à la plateforme' },
+                                { icon: '✅', text: 'Toutes les fonctionnalités' },
+                                { icon: '⏱', text: 'Durée: 7 jours' },
+                                { icon: '❌', text: 'IA non incluse' },
+                              ]
+                            };
+                          case 'standard':
+                            return {
+                              badge: { text: 'Standard', color: 'bg-blue-500' },
+                              isPopular: false,
+                              priceDisplay: `${Number(price).toFixed(0)} TND`,
+                              subtitle: 'Pour les petites entreprises',
+                              features: [
+                                { icon: '✅', text: 'Accès complet à la plateforme' },
+                                { icon: '✅', text: 'Toutes les fonctionnalités' },
+                                { icon: '❌', text: 'IA non incluse' },
+                              ]
+                            };
+                          case 'premium':
+                            return {
+                              badge: { text: 'Premium', color: 'bg-purple-500' },
+                              isPopular: true,
+                              priceDisplay: `${Number(price).toFixed(0)} TND`,
+                              subtitle: 'Pour les entreprises avancées',
+                              features: [
+                                { icon: '✅', text: 'Accès complet à la plateforme' },
+                                { icon: '✅', text: 'Toutes les fonctionnalités' },
+                                { icon: '✅', text: 'IA illimitée incluse' },
+                              ]
+                            };
+                          default:
+                            // Fallback for unknown plans
+                            return {
+                              badge: { text: plan.name, color: 'bg-gray-500' },
+                              isPopular: false,
+                              priceDisplay: `${Number(price).toFixed(0)} TND`,
+                              subtitle: '',
+                              features: Array.isArray(plan.features) ? plan.features.map((f: string) => ({ icon: '✅', text: f })) : []
+                            };
+                        }
+                      };
+
+                      const planDisplay = getPlanDisplay(plan.slug);
 
                       return (
                         <div
@@ -737,20 +1029,34 @@ export default function RegisterPage() {
                             isSelected
                               ? 'border-indigo-600 bg-indigo-50 shadow-lg'
                               : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
-                          } ${isPopular ? 'ring-2 ring-purple-500' : ''}`}
+                          } ${planDisplay.isPopular ? 'ring-2 ring-purple-500' : ''}`}
                         >
-                          {isPopular && (
+                          {planDisplay.isPopular && (
                             <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                              Populaire
+                              Recommandé
                             </div>
                           )}
                           
                           <div className="flex items-start justify-between mb-4">
                             <div>
-                              <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+                                <span className={`${planDisplay.badge.color} text-white text-xs font-bold px-2 py-1 rounded-full`}>
+                                  {planDisplay.badge.text}
+                                </span>
+                              </div>
+                              {planDisplay.subtitle && (
+                                <p className="text-sm text-gray-500 mb-2">{planDisplay.subtitle}</p>
+                              )}
                               <div className="mt-2">
-                                <span className="text-3xl font-bold text-indigo-600">{Number(price).toFixed(0)}</span>
-                                <span className="text-gray-500 ml-1">TND/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
+                                {plan.slug === 'free' ? (
+                                  <span className="text-3xl font-bold text-green-600">{planDisplay.priceDisplay}</span>
+                                ) : (
+                                  <>
+                                    <span className="text-3xl font-bold text-indigo-600">{planDisplay.priceDisplay}</span>
+                                    <span className="text-gray-500 ml-1">/{billingCycle === 'monthly' ? 'mois' : 'an'}</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
@@ -761,52 +1067,50 @@ export default function RegisterPage() {
                           </div>
 
                           <ul className="space-y-2">
-                            {plan.max_users && (
-                              <li className="flex items-center gap-2 text-sm text-gray-600">
-                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                <span>{plan.max_users === null ? 'Utilisateurs illimités' : `Jusqu'à ${plan.max_users} utilisateurs`}</span>
-                              </li>
-                            )}
-                            {plan.max_businesses && (
-                              <li className="flex items-center gap-2 text-sm text-gray-600">
-                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                <span>{plan.max_businesses === null ? 'Entreprises illimitées' : `${plan.max_businesses} entreprise${plan.max_businesses > 1 ? 's' : ''}`}</span>
-                              </li>
-                            )}
-                            {Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: string, i: number) => (
+                            {planDisplay.features.map((feature, i) => (
                               <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                <span>{feature}</span>
+                                <span className="text-base">{feature.icon}</span>
+                                <span>{feature.text}</span>
                               </li>
                             ))}
-                            {Array.isArray(plan.features) && plan.features.length > 3 && (
-                              <li className="text-xs text-indigo-600 font-medium">
-                                +{plan.features.length - 3} autres fonctionnalités
-                              </li>
-                            )}
                           </ul>
                         </div>
                       );
                     })}
-                  </div>
+                    </div>
+                  </>
                 )}
 
-                <div className="flex items-start gap-3 mt-6">
-                  <input
-                    type="checkbox"
-                    id="terms"
-                    checked={formData.acceptTerms}
-                    onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
-                    className="w-4 h-4 mt-1 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                    required
-                    disabled={isLoading}
-                  />
-                  <label htmlFor="terms" className="text-sm text-gray-600">
-                    J'accepte les{' '}
-                    <a href="#" className="text-indigo-600 hover:underline">Conditions d'utilisation</a>
-                    {' '}et la{' '}
-                    <a href="#" className="text-indigo-600 hover:underline">Politique de confidentialité</a>
-                  </label>
+                <div>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="terms"
+                      name="acceptTerms"
+                      checked={formData.acceptTerms}
+                      onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
+                      className={`w-4 h-4 mt-1 text-indigo-600 rounded focus:ring-indigo-500 ${
+                        validationErrors.acceptTerms
+                          ? 'border-red-400 focus:ring-red-200'
+                          : 'border-gray-300'
+                      }`}
+                      disabled={isLoading}
+                    />
+                    <label htmlFor="terms" className="text-sm text-gray-600">
+                      J'accepte les{' '}
+                      <a href="#" className="text-indigo-600 hover:underline">Conditions d'utilisation</a>
+                      {' '}et la{' '}
+                      <a href="#" className="text-indigo-600 hover:underline">Politique de confidentialité</a>
+                    </label>
+                  </div>
+                  {validationErrors.acceptTerms && (
+                    <div className="flex items-start gap-1.5 mt-1.5">
+                      <svg className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-red-600 text-xs font-medium">{validationErrors.acceptTerms}</p>
+                    </div>
+                  )}
                 </div>
               </>
             ) : null}

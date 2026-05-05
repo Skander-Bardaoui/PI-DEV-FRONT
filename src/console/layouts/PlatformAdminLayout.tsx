@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Mail,
   Shield,
+  Sparkles,
 } from 'lucide-react';
 
 const navigation = [
@@ -41,6 +42,7 @@ const navigation = [
     items: [
       { name: 'Subscriptions', href: '/console/subscriptions', icon: CreditCard },
       { name: 'Plans & Pricing', href: '/console/plans', icon: FileText },
+      { name: 'AI Pricing Assistant', href: '/console/ai-pricing', icon: Sparkles },
       { name: 'Overdue', href: '/console/subscriptions/overdue', icon: AlertCircle, badge: 'overdue' },
     ],
   },

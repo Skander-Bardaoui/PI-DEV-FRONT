@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign, Award } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@/api/axiosInstance';
+import { useAIAccess } from '@/hooks/useAIAccess';
 
 interface SupplierRecommendation {
   supplier_id: string;
@@ -43,6 +44,7 @@ export default function SupplierRecommendationPanel({
   category,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   const { data: recommendations, isLoading } = useQuery<SupplierRecommendation[]>({
     queryKey: ['supplier-recommendations', businessId, productName, category],
@@ -57,7 +59,17 @@ export default function SupplierRecommendationPanel({
       return response.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: hasAIAccess && !aiLoading, // Only fetch if user has AI access
   });
+
+  // Don't show anything if user doesn't have AI access
+  if (aiLoading) {
+    return null;
+  }
+
+  if (!hasAIAccess) {
+    return null;
+  }
 
   if (isLoading) {
     return (

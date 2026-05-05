@@ -28,10 +28,12 @@ import GlobalSearch              from '@/components/GlobalSearch';
 import GlobalAIAssistant         from '@/components/GlobalAIAssistant';
 import { PresenceProvider }      from '../context/PresenceContext';
 import { getAssetUrl }           from '@/config/api.config';
+import { useAIAccess }           from '../hooks/useAIAccess';
 
 export default function BackOfficeLayout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
   const [stockMenuOpen,     setStockMenuOpen]      = useState(false);
@@ -103,7 +105,8 @@ export default function BackOfficeLayout() {
         { name: t('nav.goodsReceipts'),    href: '/app/purchases/goods-receipts',   icon: Truck           },
         { name: t('nav.supplierInvoices'), href: '/app/purchases/invoices',         icon: FileText        },
         { name: t('nav.supplierIntelligence'),  href: '/app/purchases/supplier-intelligence', icon: Award           },
-        { name: 'Recommandations IA',      href: '/app/purchases/ml-predictions',   icon: Sparkles        },
+        // AI Feature - Only for Premium users
+        ...(!aiLoading && hasAIAccess ? [{ name: 'Recommandations IA',      href: '/app/purchases/ml-predictions',   icon: Sparkles        }] : []),
       ],
     },
     {
