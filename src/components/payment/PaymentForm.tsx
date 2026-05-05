@@ -46,7 +46,7 @@ export function PaymentForm({ token, amount, currency, onSuccess }: PaymentFormP
 
       if (paymentIntent?.status === 'succeeded') {
         // Confirm payment on backend
-        await axios.post(`http://localhost:3001/subscriptions/pay/${token}/confirm`, {
+        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/subscriptions/pay/${token}/confirm`, {
           paymentIntentId: paymentIntent.id,
         });
 

@@ -427,7 +427,7 @@ export function ConsoleTenantDetailPage() {
                 <label className="text-sm font-medium text-gray-500">Email</label>
                 <p className="text-sm flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  {tenant.owner.email}
+                  {tenant.owner?.email || 'No owner email'}
                 </p>
               </div>
               

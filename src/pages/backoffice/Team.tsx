@@ -33,6 +33,7 @@ import { getMyBusinesses } from '../../api/business.api';
 import { PermissionManagementModal } from '../../components/PermissionManagementModal';
 import { TeamMemberRowSkeleton, StatsCardSkeleton, InvitationCardSkeleton } from '../../components/collaboration/CollaborationSkeletonLoaders';
 import { teamInvitationSchema, type TeamInvitationFormData } from '../../schemas/team-invitation.schema';
+import { getAssetUrl } from '@/config/api.config';
 
 const roles = [
   {
@@ -460,7 +461,7 @@ export default function Team() {
                             <div className="relative h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
                               {member.user.avatarUrl ? (
                                 <img
-                                  src={`http://localhost:3001${member.user.avatarUrl}`}
+                                  src={getAssetUrl(member.user.avatarUrl)}
                                   alt={fullName}
                                   className="h-full w-full object-cover"
                                 />
@@ -813,7 +814,7 @@ export default function Team() {
                 <div className="h-16 w-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
                   {selectedMember.user.avatarUrl ? (
                     <img
-                      src={`http://localhost:3001${selectedMember.user.avatarUrl}`}
+                      src={getAssetUrl(selectedMember.user.avatarUrl)}
                       alt={`${selectedMember.user.firstName} ${selectedMember.user.lastName}`}
                       className="h-full w-full object-cover"
                     />

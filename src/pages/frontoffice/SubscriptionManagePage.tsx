@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Building2, CheckCircle, XCircle, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import { API_URL } from '@/config/api.config';
 
 const RECURRING_FREQUENCY_LABELS: Record<string, string> = {
   DAILY: 'Quotidien',
@@ -65,7 +66,7 @@ export default function SubscriptionManagePage() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`http://localhost:3001/subscription-manage/data`, {
+      const response = await axios.get(`${API_URL}/subscription-manage/data`, {
         params: { token },
       });
       setData(response.data);
@@ -82,7 +83,7 @@ export default function SubscriptionManagePage() {
 
     setActionLoading(true);
     try {
-      await axios.post(`http://localhost:3001/subscription-manage/continue`, { token });
+      await axios.post(`${API_URL}/subscription-manage/continue`, { token });
       setActionSuccess('continue');
     } catch (err: any) {
       alert(err.response?.data?.message || 'Erreur lors de la confirmation');
@@ -96,7 +97,7 @@ export default function SubscriptionManagePage() {
 
     setActionLoading(true);
     try {
-      await axios.post(`http://localhost:3001/subscription-manage/cancel`, {
+      await axios.post(`${API_URL}/subscription-manage/cancel`, {
         token,
         reason: cancelReason,
       });

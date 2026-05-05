@@ -281,12 +281,8 @@ export default function LoginPage() {
             </div>
 
             <div className="mt-6">
-              <button
-                onClick={() =>
-                  (window.location.href = `${
-                    import.meta.env.VITE_API_URL || 'http://localhost:3001'
-                  }/auth/google`)
-                }
+              <button 
+                onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'https://pi-dev-backend.onrender.com'}/auth/google`}
                 className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white border-2 border-gray-300 rounded-xl hover:bg-gray-50 hover:border-indigo-400 hover:shadow-lg transition-all duration-300 group"
               >
                 <svg

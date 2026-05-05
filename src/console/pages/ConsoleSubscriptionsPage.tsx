@@ -402,7 +402,7 @@ export function ConsoleSubscriptionsPage() {
                             <TableCell>
                               <div>
                                 <div className="font-medium text-gray-900">{subscription.tenant.name}</div>
-                                <div className="text-sm text-gray-500">{subscription.tenant.owner.email}</div>
+                                <div className="text-sm text-gray-500">{subscription.tenant.owner?.email || 'No owner'}</div>
                               </div>
                             </TableCell>
                             <TableCell>{getPlanBadge(subscription.plan.name)}</TableCell>
