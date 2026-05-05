@@ -65,3 +65,49 @@ export const enablePlatformTotp = async (
   const response = await platformAxios.post('/platform/auth/enable-totp', data);
   return response.data;
 };
+
+// ─── Plans Management ────────────────────────────────────────────────────
+
+export interface Plan {
+  id: string;
+  name: string;
+  slug: string;
+  price_monthly: number;
+  price_annual: number;
+  max_users?: number;
+  max_businesses?: number;
+  features: string[];
+  ai_enabled: boolean;
+  trial_days?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdatePlanDto {
+  name?: string;
+  price_monthly?: number;
+  price_annual?: number;
+  is_active?: boolean;
+}
+
+// Get all plans (platform admin only)
+export const getPlatformPlans = async (): Promise<Plan[]> => {
+  const response = await platformAxios.get<Plan[]>('/api/platform/plans');
+  return response.data;
+};
+
+// Update a plan (platform admin only)
+export const updatePlatformPlan = async (
+  planId: string,
+  data: UpdatePlanDto
+): Promise<Plan> => {
+  const response = await platformAxios.patch<Plan>(`/api/platform/plans/${planId}`, data);
+  return response.data;
+};
+
+// Seed default plans (platform admin only)
+export const seedPlatformPlans = async (): Promise<{ message: string }> => {
+  const response = await platformAxios.post('/api/platform/plans/seed');
+  return response.data;
+};

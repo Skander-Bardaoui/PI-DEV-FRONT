@@ -12,6 +12,7 @@ import { StockMovementRowSkeleton } from '../../components/stock/StockSkeletonLo
 import { CreateServiceSchema, UpdateServiceSchema } from '../../validation/product.schema';
 import { useFormValidation } from '../../hooks/useFormValidation';
 import { FieldError } from '../../components/common/ValidationErrorDisplay';
+import { useAIAccess } from '../../hooks/useAIAccess';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -72,6 +73,7 @@ async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[
 export default function Services() {
   const { user } = useAuth();
   const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
   const [services, setServices] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -521,16 +523,19 @@ export default function Services() {
         <div className="flex gap-2">
           {canCreateService && (
             <>
-              <button
-                onClick={() => {
-                  resetAiScanModal();
-                  setShowAiScanModal(true);
-                }}
-                className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
-              >
-                <Sparkles size={20} />
-                Add via AI
-              </button>
+              {/* AI Feature - Only for Premium users */}
+              {!aiLoading && hasAIAccess && (
+                <button
+                  onClick={() => {
+                    resetAiScanModal();
+                    setShowAiScanModal(true);
+                  }}
+                  className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
+                >
+                  <Sparkles size={20} />
+                  Add via AI
+                </button>
+              )}
               <button
                 onClick={() => {
                   setEditingService(null);

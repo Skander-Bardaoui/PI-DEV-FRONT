@@ -54,6 +54,7 @@ import DisputeModal from '@/components/purchases/Disputemodal ';
 import { DisputeResponsesPanel } from '@/components/purchases/DisputeResponsesPanel';
 import { usePendingDisputeResponses } from '@/hooks/useDisputeResponses';
 import { isNonEmptyArray } from '@/utils/validators';
+import { useAIAccess } from '@/hooks/useAIAccess';
 
 type SortField = 'invoice_number_supplier' | 'invoice_date' | 'net_amount' | 'supplier';
 type SortDir   = 'asc' | 'desc';
@@ -62,6 +63,7 @@ export default function PurchaseInvoicesPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
   const navigate = useNavigate();
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [ocrOpen, setOcrOpen] = useState(false);
@@ -187,21 +189,26 @@ export default function PurchaseInvoicesPage() {
               Guide
             </button>
 
-            <button
-              onClick={() => navigate('/app/purchases/three-way-matching')}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
-            >
-              <FileSearch className="h-4 w-4" />
-              Contrôle
-            </button>
+            {/* AI Features - Only for Premium users */}
+            {!aiLoading && hasAIAccess && (
+              <>
+                <button
+                  onClick={() => navigate('/app/purchases/three-way-matching')}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+                >
+                  <FileSearch className="h-4 w-4" />
+                  Contrôle
+                </button>
 
-            <button
-              onClick={() => setOcrOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/30"
-            >
-              <ScanLine className="h-4 w-4" />
-              Scanner
-            </button>
+                <button
+                  onClick={() => setOcrOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/30"
+                >
+                  <ScanLine className="h-4 w-4" />
+                  Scanner
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => setCreateOpen(true)}
@@ -396,8 +403,8 @@ export default function PurchaseInvoicesPage() {
                             <Eye className="h-4 w-4" />
                           </button>
 
-                          {/* 2. CONTRÔLER - Si BC existe ET statut PENDING */}
-                          {inv.supplier_po_id && inv.status === InvoiceStatus.PENDING && (
+                          {/* 2. CONTRÔLER - Si BC existe ET statut PENDING - Only for Premium users */}
+                          {!aiLoading && hasAIAccess && inv.supplier_po_id && inv.status === InvoiceStatus.PENDING && (
                             <button
                               onClick={() => navigate(`/app/purchases/three-way-matching/${inv.id}`)}
                               title="Contrôler"
