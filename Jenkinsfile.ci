@@ -246,14 +246,26 @@ pipeline {
                             COVERAGE=$(node -pe "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct")
                             echo "Coverage: ${COVERAGE}%"
 
-                            if (( $(echo "$COVERAGE < ${MIN_COVERAGE}" | bc -l) )); then
-                                echo "Coverage ${COVERAGE}% is below minimum ${MIN_COVERAGE}%"
-                                echo "Continuing build as tests are being implemented..."
+                            if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+                                echo "⚠️ Coverage ${COVERAGE}% is below minimum 70%"
+                                echo "Continuing build - coverage will be improved..."
                             else
-                                echo "Coverage meets minimum requirement"
+                                echo "✅ Coverage meets minimum requirement (70%)"
                             fi
                         else
-                            echo "Coverage report not found - tests will be added in future iterations"
+                            echo "⚠️ Coverage report not found - tests need to generate coverage"
+                        fi
+                        
+                        # Verify lcov.info exists and has content
+                        if [ -f coverage/lcov.info ]; then
+                            LCOV_SIZE=$(wc -c < coverage/lcov.info)
+                            if [ "$LCOV_SIZE" -gt 0 ]; then
+                                echo "✅ lcov.info ready for SonarQube ($LCOV_SIZE bytes)"
+                            else
+                                echo "⚠️ lcov.info is empty"
+                            fi
+                        else
+                            echo "⚠️ lcov.info not found"
                         fi
                     '''
                 }
