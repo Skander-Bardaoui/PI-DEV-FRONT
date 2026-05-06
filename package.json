@@ -14,7 +14,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "node --max-old-space-size=4096 ./node_modules/vitest/vitest.mjs run --coverage",
     "install-deps": "npm install --prefer-offline",
     "clean": "rm -rf node_modules && npm cache clean --force"
   },
@@ -105,7 +105,7 @@
     "@types/react-dom": "^18.3.1",
     "@types/react-router-dom": "^5",
     "@vitejs/plugin-react": "^4.3.4",
-    "@vitest/coverage-v8": "^1.0.4",
+    "@vitest/coverage-v8": "^1.6.1",
     "@vitest/ui": "^1.0.4",
     "autoprefixer": "10.4.20",
     "eslint": "^9.15.0",
