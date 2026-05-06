@@ -139,10 +139,10 @@ pipeline {
                     sh '''
                         set +e
                         
-                        echo "🧪 Running tests with coverage (limited scope)..."
+                        echo "🧪 Running tests with coverage..."
                         
-                        # Run only utils tests with coverage to avoid memory issues
-                        npm run test:coverage -- src/utils 2>&1 | tee test-output.log
+                        # Run all tests with coverage
+                        npm run test:coverage 2>&1 | tee test-output.log
                         TEST_EXIT_CODE=$?
                         
                         set -e
@@ -204,7 +204,7 @@ pipeline {
                                   -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                                   -Dsonar.projectName="Frontend React" \
                                   -Dsonar.projectVersion=${BUILD_NUMBER} \
-                                  -Dsonar.sources=src/utils,src/hooks,src/api \
+                                  -Dsonar.sources=src \
                                   -Dsonar.tests=src \
                                   -Dsonar.test.inclusions=**/*.test.tsx,**/*.test.ts,**/*.spec.tsx,**/*.spec.ts \
                                   -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
