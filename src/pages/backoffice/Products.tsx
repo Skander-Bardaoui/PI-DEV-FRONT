@@ -18,6 +18,7 @@ import { StockMovementRowSkeleton } from '../../components/stock/StockSkeletonLo
 import { CreateProductSchema, UpdateProductSchema } from '../../validation/product.schema';
 import { useFormValidation } from '../../hooks/useFormValidation';
 import { FieldError } from '../../components/common/ValidationErrorDisplay';
+import { useAIAccess } from '../../hooks/useAIAccess';
 
 // ─── tiny reusable image picker ───────────────────────────────────────────────
 interface ImagePickerProps {
@@ -146,6 +147,7 @@ async function fetchBusinessMembers(businessId: string): Promise<BusinessMember[
 export default function Products() {
   const { user } = useAuth();
   const { businessId, loading: loadingBusinessId, error: businessIdError } = useBusinessId();
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
   const [products, setProducts]     = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -768,13 +770,16 @@ export default function Products() {
         <div className="flex gap-2">
           {canCreateProduct && (
             <>
-              <button
-                onClick={() => { resetScanModal(); setShowScanModal(true); }}
-                className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
-              >
-                <Camera size={20} />
-                Add via image scan
-              </button>
+              {/* AI Feature - Only for Premium users */}
+              {!aiLoading && hasAIAccess && (
+                <button
+                  onClick={() => { resetScanModal(); setShowScanModal(true); }}
+                  className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50"
+                >
+                  <Camera size={20} />
+                  Add via image scan
+                </button>
+              )}
               <button
                 onClick={() => { setEditingProduct(null); resetForm(); setShowModal(true); }}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"

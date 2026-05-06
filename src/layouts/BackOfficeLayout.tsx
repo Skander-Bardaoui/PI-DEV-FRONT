@@ -27,10 +27,13 @@ import LanguageSwitcher          from '@/components/LanguageSwitcher';
 import GlobalSearch              from '@/components/GlobalSearch';
 import GlobalAIAssistant         from '@/components/GlobalAIAssistant';
 import { PresenceProvider }      from '../context/PresenceContext';
+import { getAssetUrl }           from '@/config/api.config';
+import { useAIAccess }           from '../hooks/useAIAccess';
 
 export default function BackOfficeLayout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
   const [stockMenuOpen,     setStockMenuOpen]      = useState(false);
@@ -102,7 +105,8 @@ export default function BackOfficeLayout() {
         { name: t('nav.goodsReceipts'),    href: '/app/purchases/goods-receipts',   icon: Truck           },
         { name: t('nav.supplierInvoices'), href: '/app/purchases/invoices',         icon: FileText        },
         { name: t('nav.supplierIntelligence'),  href: '/app/purchases/supplier-intelligence', icon: Award           },
-        { name: 'Recommandations IA',      href: '/app/purchases/ml-predictions',   icon: Sparkles        },
+        // AI Feature - Only for Premium users
+        ...(!aiLoading && hasAIAccess ? [{ name: 'Recommandations IA',      href: '/app/purchases/ml-predictions',   icon: Sparkles        }] : []),
       ],
     },
     {
@@ -334,7 +338,7 @@ export default function BackOfficeLayout() {
               <div className="sidebar-user-avatar h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
                 {avatarUrl ? (
                   <img
-                    src={`http://localhost:3001${avatarUrl}`}
+                    src={getAssetUrl(avatarUrl)}
                     alt="Profile"
                     className="h-full w-full object-cover"
                   />
@@ -378,7 +382,7 @@ export default function BackOfficeLayout() {
               <div className="sidebar-user-avatar h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden flex-shrink-0">
                 {avatarUrl ? (
                   <img
-                    src={`http://localhost:3001${avatarUrl}`}
+                    src={getAssetUrl(avatarUrl)}
                     alt="Profile"
                     className="h-full w-full object-cover"
                   />
@@ -503,7 +507,7 @@ export default function BackOfficeLayout() {
                 <div className="user-avatar h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
                   {avatarUrl ? (
                     <img
-                      src={`http://localhost:3001${avatarUrl}`}
+                      src={getAssetUrl(avatarUrl)}
                       alt={`Photo de profil de ${getUserFullName()}`}
                       className="h-full w-full object-cover"
                     />

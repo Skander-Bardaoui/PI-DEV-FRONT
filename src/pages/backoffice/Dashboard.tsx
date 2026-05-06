@@ -26,6 +26,8 @@ import { useClients } from '@/hooks/useClients';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { stockDashboardApi } from '@/api/stock-dashboard.api';
 import { formatAmount } from '@/types';
+import { SalesInvoiceStatus } from '@/types/sales-invoice';
+import { InvoiceStatus } from '@/types/purchase-invoice';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -51,7 +53,7 @@ export default function Dashboard() {
 
   const salesInvoices = salesInvoicesData?.data || [];
   const purchaseInvoices = purchaseInvoicesData?.data || [];
-  const clients = clientsData?.data || [];
+  const clients = clientsData?.clients || [];
   const suppliers = suppliersData?.data || [];
 
   const isLoading = loadingSales || loadingPurchases || loadingClients || loadingSuppliers;
@@ -59,9 +61,9 @@ export default function Dashboard() {
   // Calculate metrics
   const totalSalesRevenue = salesInvoices.reduce((sum, inv) => sum + Number(inv.net_amount || 0), 0);
   const totalPurchaseExpenses = purchaseInvoices.reduce((sum, inv) => sum + Number(inv.net_amount || 0), 0);
-  const paidSalesInvoices = salesInvoices.filter(inv => inv.status === 'PAID');
-  const pendingSalesInvoices = salesInvoices.filter(inv => inv.status === 'PENDING');
-  const overdueSalesInvoices = salesInvoices.filter(inv => inv.status === 'OVERDUE');
+  const paidSalesInvoices = salesInvoices.filter(inv => inv.status === SalesInvoiceStatus.PAID);
+  const pendingSalesInvoices = salesInvoices.filter(inv => inv.status === SalesInvoiceStatus.SENT || inv.status === SalesInvoiceStatus.PARTIALLY_PAID);
+  const overdueSalesInvoices = salesInvoices.filter(inv => inv.status === SalesInvoiceStatus.OVERDUE);
 
   if (isLoading) {
     return (
@@ -276,7 +278,7 @@ export default function Dashboard() {
             </div>
             <div className="bg-white/60 rounded-lg p-3">
               <p className="text-xs text-gray-600 mb-1">À payer</p>
-              <p className="text-lg font-bold text-gray-900">{purchaseInvoices.filter(inv => inv.status === 'PENDING').length}</p>
+              <p className="text-lg font-bold text-gray-900">{purchaseInvoices.filter(inv => inv.status === InvoiceStatus.PENDING).length}</p>
             </div>
             <div className="bg-white/60 rounded-lg p-3">
               <p className="text-xs text-gray-600 mb-1">En retard</p>

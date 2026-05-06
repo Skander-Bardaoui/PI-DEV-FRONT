@@ -37,6 +37,7 @@ export interface BusinessMember {
   invited_at?: string;
   joined_at?: string;
   created_at: string;
+  updated_at: string;
   user: {
     id: string;
     email: string;

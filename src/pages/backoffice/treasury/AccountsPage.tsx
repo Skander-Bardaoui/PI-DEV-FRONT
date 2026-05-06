@@ -24,6 +24,7 @@ import DepositModal from '@/components/treasury/DepositModal';
 import CashFlowForecast from '@/components/treasury/CashFlowForecast';
 import { SummaryCardSkeleton, AccountCardSkeleton } from '@/components/treasury/SkeletonLoaders';
 import toast from 'react-hot-toast';
+import { useAIAccess } from '@/hooks/useAIAccess';
 
 // Helper: always returns a displayable string from any API error shape
 function extractErrorMessage(e: any, fallback: string): string {
@@ -39,6 +40,7 @@ export default function AccountsPage() {
   const { accounts, loading, error, fetchAccounts, createAccount, updateAccount, toggleActive } =
     useAccounts();
   const { transfer } = useTransfers();
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -511,7 +513,8 @@ export default function AccountsPage() {
         preselectedAccountId={preselectedAccountId}
       />
 
-      <CashFlowForecast />
+      {/* AI Cash Flow Forecast - Only for Premium users */}
+      {!aiLoading && hasAIAccess && <CashFlowForecast />}
     </div>
 
   );

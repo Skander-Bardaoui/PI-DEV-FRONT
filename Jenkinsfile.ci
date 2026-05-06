@@ -13,7 +13,7 @@ pipeline {
         NODE_VERSION = '18'
 
         SONAR_PROJECT_KEY = 'frontend'
-        SONAR_HOST_URL = 'http://192.168.33.10:9000'
+        SONAR_HOST_URL = 'http://192.168.56.10:30900'
 
         MIN_COVERAGE = '60'
         MAX_CRITICAL_ISSUES = '0'

@@ -1,7 +1,7 @@
 // src/pages/frontoffice/PaymentPage.tsx
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Building2, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Building2, CreditCard, CheckCircle, AlertCircle, Zap } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -18,11 +18,13 @@ interface PaymentInfo {
 
 export default function PaymentPage() {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   const [formData, setFormData] = useState({
     method: 'bank_transfer',
@@ -77,6 +79,28 @@ export default function PaymentPage() {
       setSubmitting(false);
     }
   };
+
+  // Handle free plan activation
+  const handleFreeActivation = async () => {
+    setError('');
+    setActivating(true);
+
+    try {
+      await axios.post(`${API_URL}/api/subscriptions/pay/${token}/confirm`, {
+        freeActivation: true
+      });
+      
+      // Redirect to success page
+      navigate(`/pay/${token}/success`);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors de l\'activation de votre essai gratuit');
+    } finally {
+      setActivating(false);
+    }
+  };
+
+  // Check if this is a free plan
+  const isFreePlan = paymentInfo?.amount === 0;
 
   if (loading) {
     return (
@@ -138,9 +162,19 @@ export default function PaymentPage() {
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white">
-            <h1 className="text-3xl font-bold mb-2">Complétez votre abonnement</h1>
-            <p className="text-indigo-100">Soumettez vos informations de paiement pour activer votre compte</p>
+          <div className={`p-8 text-white ${
+            isFreePlan 
+              ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
+              : 'bg-gradient-to-r from-indigo-600 to-purple-600'
+          }`}>
+            <h1 className="text-3xl font-bold mb-2">
+              {isFreePlan ? 'Activez votre essai gratuit' : 'Complétez votre abonnement'}
+            </h1>
+            <p className={isFreePlan ? 'text-green-100' : 'text-indigo-100'}>
+              {isFreePlan 
+                ? 'Commencez votre essai gratuit de 7 jours dès maintenant' 
+                : 'Soumettez vos informations de paiement pour activer votre compte'}
+            </p>
           </div>
 
           {/* Summary Card */}
@@ -155,23 +189,87 @@ export default function PaymentPage() {
                 <span className="text-gray-600">Plan:</span>
                 <span className="font-semibold text-gray-900">{paymentInfo?.planName}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Cycle de facturation:</span>
-                <span className="font-semibold text-gray-900">
-                  {paymentInfo?.billingCycle === 'monthly' ? 'Mensuel' : 'Annuel'}
-                </span>
-              </div>
+              {isFreePlan && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Durée:</span>
+                  <span className="font-semibold text-green-600">7 jours d'essai gratuit</span>
+                </div>
+              )}
+              {!isFreePlan && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Cycle de facturation:</span>
+                  <span className="font-semibold text-gray-900">
+                    {paymentInfo?.billingCycle === 'monthly' ? 'Mensuel' : 'Annuel'}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between pt-3 border-t border-gray-300">
                 <span className="text-lg font-semibold text-gray-900">Montant total:</span>
-                <span className="text-2xl font-bold text-indigo-600">
-                  {paymentInfo?.amount.toFixed(3)} {paymentInfo?.currency}
+                <span className={`text-2xl font-bold ${isFreePlan ? 'text-green-600' : 'text-indigo-600'}`}>
+                  {isFreePlan ? 'Gratuit' : `${paymentInfo?.amount.toFixed(3)} ${paymentInfo?.currency}`}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Payment Form */}
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          {/* Free Plan Activation OR Payment Form */}
+          {isFreePlan ? (
+            <div className="p-8 space-y-6">
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              {/* Free Plan Benefits */}
+              <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Votre essai gratuit inclut:
+                </h3>
+                <ul className="space-y-2">
+                  {[
+                    'Accès complet à toutes les fonctionnalités',
+                    'Gestion illimitée des factures et devis',
+                    'Gestion des stocks et achats',
+                    'Tableau de bord et statistiques',
+                    '7 jours d\'accès gratuit',
+                    'Aucune carte bancaire requise'
+                  ].map((benefit, i) => (
+                    <li key={i} className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <span>{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Activation Button */}
+              <button
+                onClick={handleFreeActivation}
+                disabled={activating}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {activating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Activation en cours...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-5 w-5" />
+                    Activer mon essai gratuit
+                  </>
+                )}
+              </button>
+
+              <p className="text-center text-sm text-gray-500">
+                Aucune carte bancaire requise • Annulez à tout moment
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -283,6 +381,7 @@ export default function PaymentPage() {
               )}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>

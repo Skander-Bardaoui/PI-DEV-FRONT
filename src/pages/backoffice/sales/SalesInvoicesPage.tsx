@@ -9,6 +9,7 @@ import SalesInvoiceDetailModal from '@/components/sales/SalesInvoiceDetailModal'
 import SendInvoiceEmailModal from '@/components/sales/SendInvoiceEmailModal';
 import SalesOcrInvoiceModal from '@/components/sales/SalesOcrInvoiceModal';
 import SalesMatchingModal from '@/components/sales/SalesMatchingModal';
+import { useAIAccess } from '@/hooks/useAIAccess';
 
 const INVOICE_TYPE_LABELS: Record<SalesInvoiceType, string> = {
   [SalesInvoiceType.NORMAL]: 'Standard',
@@ -43,6 +44,7 @@ export default function SalesInvoicesPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
   const { businessMember: currentMember } = useCurrentBusinessMember();
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   // Permission checks
   const currentUserRole = (user as any)?.role;
@@ -152,7 +154,8 @@ export default function SalesInvoicesPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Factures clients</h1>
         <div className="flex gap-3">
-          {canCreateInvoice && (
+          {/* AI Feature - Only for Premium users */}
+          {!aiLoading && hasAIAccess && canCreateInvoice && (
             <button
               onClick={() => setShowOcrModal(true)}
               className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition-colors"

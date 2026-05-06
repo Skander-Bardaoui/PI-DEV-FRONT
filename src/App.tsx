@@ -26,6 +26,7 @@ import { ConsoleSubscriptionsPage } from './console/pages/ConsoleSubscriptionsPa
 import { ConsolePlansPage } from './console/pages/ConsolePlansPage';
 import { ConsoleSupportPage } from './console/pages/ConsoleSupportPage';
 import { ConsoleAuditLogPage } from './console/pages/ConsoleAuditLogPage';
+import AiPricingAssistantPage from './pages/platform-admin/AiPricingAssistant';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -278,6 +279,7 @@ function AppContent() {
           <Route path="subscriptions" element={<ConsoleSubscriptionsPage />} />
           <Route path="subscriptions/overdue" element={<ConsoleSubscriptionsPage />} />
           <Route path="plans" element={<ConsolePlansPage />} />
+          <Route path="ai-pricing" element={<AiPricingAssistantPage />} />
           <Route path="support" element={<ConsoleSupportPage />} />
           <Route path="audit-log" element={<ConsoleAuditLogPage />} />
         </Route>

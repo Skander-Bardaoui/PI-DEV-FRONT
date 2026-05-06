@@ -7,31 +7,37 @@ import { render, screen } from '@testing-library/react';
 import { LoadingSpinner } from './LoadingSpinner';
 
 describe('LoadingSpinner', () => {
-  it('should render with default props', () => {
-    render(<LoadingSpinner />);
-    const spinner = screen.getByRole('status');
+  it('should render spinner', () => {
+    const { container } = render(<LoadingSpinner />);
+    
+    const spinner = container.querySelector('.animate-spin');
     expect(spinner).toBeInTheDocument();
   });
 
-  it('should render with message', () => {
+  it('should render with custom size', () => {
+    const { container } = render(<LoadingSpinner size="lg" />);
+    
+    const spinner = container.querySelector('.animate-spin');
+    expect(spinner).toBeInTheDocument();
+  });
+
+  it('should render with custom message', () => {
     render(<LoadingSpinner message="Loading data..." />);
+    
     expect(screen.getByText('Loading data...')).toBeInTheDocument();
   });
 
-  it('should render with different sizes', () => {
-    const { rerender } = render(<LoadingSpinner size="sm" />);
-    expect(screen.getByRole('status')).toBeInTheDocument();
-
-    rerender(<LoadingSpinner size="md" />);
-    expect(screen.getByRole('status')).toBeInTheDocument();
-
-    rerender(<LoadingSpinner size="lg" />);
-    expect(screen.getByRole('status')).toBeInTheDocument();
+  it('should have role status', () => {
+    const { container } = render(<LoadingSpinner />);
+    
+    const statusElement = container.querySelector('[role="status"]');
+    expect(statusElement).toBeInTheDocument();
   });
 
   it('should have aria-live attribute', () => {
-    render(<LoadingSpinner />);
-    const container = screen.getByRole('status').parentElement;
-    expect(container).toHaveAttribute('aria-live', 'polite');
+    const { container } = render(<LoadingSpinner />);
+    
+    const statusElement = container.querySelector('[aria-live="polite"]');
+    expect(statusElement).toBeInTheDocument();
   });
 });

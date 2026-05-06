@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import axiosInstance from '../../api/axiosInstance';
 import PhoneInput from '../../components/common/PhoneInput';
+import { getAssetUrl } from '@/config/api.config';
 
 interface InvitationDetails {
   id: string;
@@ -239,7 +240,7 @@ export default function AcceptInvitationPage() {
                 <div className="h-12 w-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
                   {invitation.business.logo ? (
                     <img
-                      src={`http://localhost:3001${invitation.business.logo}`}
+                      src={getAssetUrl(invitation.business.logo)}
                       alt={invitation.business.name}
                       className="h-full w-full object-cover rounded-lg"
                     />

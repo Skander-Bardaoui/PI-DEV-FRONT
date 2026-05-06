@@ -4,33 +4,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBusinessId } from '../../hooks/useBusinessId';
 import { categoriesApi } from '../../api/categories.api';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../types/category';
+import { CreateCategoryInput } from '../../validation/category.schema';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { CategoryFormModal } from '../../components/stock/CategoryFormModal';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
 import { toast } from 'sonner';
-
-// Simple category row skeleton
-function CategoryRowSkeleton() {
-  return (
-    <tr className="animate-pulse">
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="h-4 bg-gray-200 rounded w-32"></div>
-      </td>
-      <td className="px-6 py-4">
-        <div className="h-4 bg-gray-200 rounded w-64"></div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="h-5 bg-gray-200 rounded-full w-16"></div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-right">
-        <div className="flex items-center justify-end gap-2">
-          <div className="h-5 w-5 bg-gray-200 rounded"></div>
-          <div className="h-5 w-5 bg-gray-200 rounded"></div>
-        </div>
-      </td>
-    </tr>
-  );
-}
 
 // Simple category row skeleton
 function CategoryRowSkeleton() {
@@ -208,9 +186,20 @@ export default function Categories() {
     setShowModal(true);
   };
 
-  const handleCategorySubmit = async (data: CreateCategoryDto) => {
+  const handleCategorySubmit = async (data: CreateCategoryInput) => {
     try {
-      const dataToSend = { ...data, category_type: 'PRODUCT' };
+      // Ensure name is present (validated by Zod schema)
+      if (!data.name) {
+        toast.error('Le nom de la catégorie est requis');
+        return;
+      }
+      
+      const dataToSend: CreateCategoryDto = {
+        name: data.name,
+        description: data.description || undefined,
+        category_type: 'PRODUCT',
+      };
+      
       if (modalMode === 'edit' && editingCategory) {
         await categoriesApi.update(businessId!, editingCategory.id, dataToSend);
         toast.success('Catégorie mise à jour avec succès');

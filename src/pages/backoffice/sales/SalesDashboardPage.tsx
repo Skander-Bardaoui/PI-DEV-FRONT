@@ -5,6 +5,7 @@ import axiosInstance from '../../../api/axiosInstance';
 import { AiForecastPanel } from '../../../components/sales/AiForecastPanel';
 import { SalesForecastWidget } from '../../../components/sales/SalesForecastWidget';
 import { HighRiskClientsWidget } from '../../../components/sales/HighRiskClientsWidget';
+import { useAIAccess } from '../../../hooks/useAIAccess';
 
 interface DashboardStats {
   pendingQuotes: number;
@@ -26,6 +27,7 @@ interface DashboardStats {
 export default function SalesDashboardPage() {
   const { user } = useAuth();
   const businessId = (user as any)?.business_id ?? '';
+  const { hasAIAccess, loading: aiLoading } = useAIAccess();
 
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['sales-dashboard', businessId],
@@ -91,11 +93,13 @@ export default function SalesDashboardPage() {
         <p className="text-gray-600">Vue d'ensemble de vos ventes</p>
       </div>
 
-      {/* ML Widgets - Sales Forecast & High Risk Clients */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <SalesForecastWidget businessId={businessId} forecastDays={30} />
-        <HighRiskClientsWidget businessId={businessId} />
-      </div>
+      {/* ML Widgets - Sales Forecast & High Risk Clients - Only for Premium users */}
+      {!aiLoading && hasAIAccess && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <SalesForecastWidget businessId={businessId} forecastDays={30} />
+          <HighRiskClientsWidget businessId={businessId} />
+        </div>
+      )}
 
       {/* Dashboard Power BI (grand) */}
       <div className="mb-6 bg-white rounded-lg shadow p-6">
@@ -114,10 +118,12 @@ export default function SalesDashboardPage() {
         </div>
       </div>
 
-      {/* Prévisions IA */}
-      <div>
-        <AiForecastPanel businessId={businessId} />
-      </div>
+      {/* Prévisions IA - Only for Premium users */}
+      {!aiLoading && hasAIAccess && (
+        <div>
+          <AiForecastPanel businessId={businessId} />
+        </div>
+      )}
     </div>
   );
 }
