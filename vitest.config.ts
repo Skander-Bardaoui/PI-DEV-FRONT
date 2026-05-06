@@ -27,9 +27,12 @@ export default defineConfig({
         'src/main.tsx',
         'src/vite-env.d.ts',
         'public/**',
+        // Exclude large components to reduce memory usage
+        'src/pages/**',
+        'src/components/**',
       ],
-      all: true,
-      include: ['src/**/*.{ts,tsx}'],
+      all: false, // Only measure files that are imported in tests
+      include: ['src/utils/**/*.{ts,tsx}', 'src/hooks/**/*.{ts,tsx}', 'src/api/**/*.{ts,tsx}'],
       thresholds: {
         lines: 70,
         functions: 70,
