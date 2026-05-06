@@ -139,18 +139,42 @@ pipeline {
                     sh '''
                         set +e
                         
-                        # Run tests with coverage
+                        echo "🔍 Checking test files..."
+                        find src -name "*.test.ts" -o -name "*.test.tsx" | head -5
+                        
+                        echo ""
+                        echo "🧪 Running tests with coverage..."
+                        
+                        # Run tests with coverage - ensure it completes
                         npm run test:coverage 2>&1 | tee test-output.log
                         TEST_EXIT_CODE=$?
                         
                         set -e
 
+                        echo ""
                         echo "Tests exited with code: $TEST_EXIT_CODE"
+                        echo ""
+
+                        # Check if coverage directory exists
+                        if [ -d coverage ]; then
+                            echo "✓ Coverage directory exists"
+                            echo "📁 Coverage directory contents:"
+                            ls -lah coverage/
+                        else
+                            echo "✗ Coverage directory not found!"
+                            echo "Creating coverage directory for debugging..."
+                            mkdir -p coverage
+                        fi
+
+                        echo ""
 
                         # Check if coverage files were generated
                         if [ -f coverage/lcov.info ]; then
                             LINES=$(wc -l < coverage/lcov.info)
-                            echo "✓ lcov.info generated successfully ($LINES lines)"
+                            SIZE=$(du -h coverage/lcov.info | cut -f1)
+                            echo "✓ lcov.info generated successfully"
+                            echo "  - Lines: $LINES"
+                            echo "  - Size: $SIZE"
                         else
                             echo "✗ lcov.info not found"
                         fi
@@ -161,13 +185,13 @@ pipeline {
                             echo "✗ coverage-summary.json not found"
                         fi
 
-                        # Display coverage summary
                         echo ""
-                        echo "=========================================="
-                        echo "         COVERAGE SUMMARY"
-                        echo "=========================================="
-                        
+
+                        # Display coverage summary
                         if [ -f coverage/coverage-summary.json ]; then
+                            echo "=========================================="
+                            echo "         COVERAGE SUMMARY"
+                            echo "=========================================="
                             node -pe "
                                 const data = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json'));
                                 const total = data.total;
@@ -176,18 +200,19 @@ pipeline {
                                 console.log('Functions:  ' + total.functions.pct + '%');
                                 console.log('Branches:   ' + total.branches.pct + '%');
                             " || echo "Could not parse coverage summary"
+                            echo "=========================================="
                         fi
                         
-                        echo "=========================================="
                         echo ""
 
                         # Show sample of lcov.info
                         if [ -f coverage/lcov.info ]; then
-                            echo "Sample from lcov.info (first 20 lines):"
-                            head -20 coverage/lcov.info
+                            echo "📄 Sample from lcov.info (first 30 lines):"
+                            head -30 coverage/lcov.info
                         fi
 
-                        echo "Tests stage completed"
+                        echo ""
+                        echo "✅ Tests stage completed"
                         exit 0
                     '''
                 }
@@ -244,10 +269,24 @@ pipeline {
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         withSonarQubeEnv('SonarQube') {
                             sh '''
-                                echo "Coverage files status:"
-                                ls -lh coverage/ || echo "No coverage directory"
+                                echo "📁 Coverage files status:"
+                                if [ -d coverage ]; then
+                                    ls -lah coverage/
+                                    
+                                    if [ -f coverage/lcov.info ]; then
+                                        echo "✅ lcov.info found ($(wc -l < coverage/lcov.info) lines)"
+                                    else
+                                        echo "⚠️ lcov.info not found - SonarQube will run without coverage"
+                                    fi
+                                else
+                                    echo "⚠️ No coverage directory - SonarQube will run without coverage"
+                                fi
 
-                                sonar-scanner \
+                                echo ""
+                                echo "🔍 Running SonarQube Scanner..."
+                                
+                                # Use full path to sonar-scanner
+                                /opt/sonar-scanner-6.2.1.4610-linux-x64/bin/sonar-scanner \
                                   -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                                   -Dsonar.projectName="Frontend React" \
                                   -Dsonar.projectVersion=${BUILD_NUMBER} \
@@ -262,12 +301,12 @@ pipeline {
                                   -Dsonar.login=$SONAR_TOKEN \
                                   -Dsonar.qualitygate.wait=true \
                                   -Dsonar.qualitygate.timeout=300 || {
-                                    echo "SonarQube analysis completed with issues"
+                                    echo "⚠️ SonarQube analysis completed with issues"
                                     echo "Continuing build as quality is being improved..."
                                     exit 0
                                   }
 
-                                echo "SonarQube analysis completed"
+                                echo "✅ SonarQube analysis completed"
                             '''
                         }
                     }
