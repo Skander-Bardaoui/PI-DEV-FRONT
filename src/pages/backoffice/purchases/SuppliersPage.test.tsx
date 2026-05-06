@@ -9,7 +9,20 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock hooks
 vi.mock('../../../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { business_id: 'test-business' } }),
+  useAuth: () => ({ user: { business_id: 'test-business', role: 'BUSINESS_OWNER' } }),
+}));
+
+vi.mock('../../../hooks/useCurrentBusinessMember', () => ({
+  useCurrentBusinessMember: () => ({
+    businessMember: {
+      purchase_permissions: {
+        create_supplier: true,
+        update_supplier: true,
+        delete_supplier: true,
+        invite_supplier: true,
+      },
+    },
+  }),
 }));
 
 vi.mock('@/hooks/useSuppliers', () => ({
