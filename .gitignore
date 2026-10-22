@@ -27,3 +27,5 @@ dist-ssr
 .env.development
 .env.example
 .env.production
+# Semgrep
+semgrep-report.json

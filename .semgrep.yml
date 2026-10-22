@@ -1,0 +1,30 @@
+# Règles Semgrep personnalisées — Frontend React/Vite
+# Utilisées en complément de p/security-audit, p/owasp-top-ten et p/secrets.
+rules:
+  - id: react-eval-user-code
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      eval() / new Function() exécute du code arbitraire. Généralement inutile
+      dans une application React et exploitable en XSS.
+    metadata:
+      category: security
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      owasp: "A03:2021 - Injection"
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+
+  - id: react-dangerously-set-inner-html
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      dangerouslySetInnerHTML injecte du HTML brut — risque XSS si le contenu
+      provient de l'utilisateur ou d'une API. Sanitisez avec DOMPurify.
+    metadata:
+      category: security
+      cwe: "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      owasp: "A03:2021 - Injection"
+    patterns:
+      - pattern: '<$EL dangerouslySetInnerHTML={{__html: $HTML}} ... />'
